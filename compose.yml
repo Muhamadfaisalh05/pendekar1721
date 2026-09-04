@@ -1,0 +1,11 @@
+services:
+  pendekar_php:
+    image: 192.168.200.110:8080/pendekar:1.4
+    restart: unless-stopped
+    ports:
+      - 8070:8000
+    volumes:
+      - ./database/database.sqlite:/var/www/html/database/database.sqlite
+      - ./storage_app:/var/www/html/storage/app/
+    env_file: "production.env"
+

@@ -1,0 +1,162 @@
+/**
+ * This injects Tailwind's base styles, which is a combination of
+ * Normalize.css and some additional base styles.
+ *
+ * You can see the styles here:
+ * https://unpkg.com/tailwindcss/dist/base.css
+ */
+@tailwind base;
+
+/**
+ * Remove the default box-shadow for invalid elements to prevent
+ * inputs in Livewire components showing with a
+ * red border by default in Firefox.
+ *
+ * See: https://github.com/laravel-frontend-presets/tall/issues/7
+ */
+ input:invalid, textarea:invalid, select:invalid {
+    box-shadow: none;
+}
+
+/**
+ * This injects any component classes registered by plugins.
+ */
+@tailwind components;
+
+/**
+ * Here you would add any of your custom component classes; stuff that you'd
+ * want loaded *before* the utilities so that the utilities could still
+ * override them.
+ */
+
+/* =========================================
+   PENDEKAR1721 Design System
+   ========================================= */
+
+/* Smooth scrolling */
+html {
+    scroll-behavior: smooth;
+}
+
+/* Body defaults */
+body {
+    @apply text-gray-800 antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+/* Container */
+@media (min-width: 1280px) {
+    .container {
+        max-width: 1280px;
+    }
+}
+
+/* Custom select styling */
+select.filter-select {
+    @apply w-full text-sm border border-gray-200 rounded-lg px-4 py-2.5 bg-white
+           focus:ring-2 focus:ring-primary-500 focus:border-primary-500
+           transition duration-200;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 0.5rem center;
+    background-repeat: no-repeat;
+    background-size: 1.5em 1.5em;
+    padding-right: 2.5rem;
+}
+
+/* Card hover effect */
+.card-hover {
+    @apply transition-all duration-300 ease-in-out;
+}
+
+.card-hover:hover {
+    @apply shadow-lg -translate-y-1;
+}
+
+/* Profile image fallback */
+.profile-img-fallback {
+    @apply bg-gradient-to-br from-primary-100 to-primary-200 flex items-center justify-center;
+}
+
+.profile-img-fallback svg {
+    @apply w-16 h-16 text-primary-400;
+}
+
+/* Stat card gradient borders */
+.stat-card {
+    @apply relative overflow-hidden rounded-xl bg-white p-6 shadow-sm border border-gray-100;
+}
+
+.stat-card::before {
+    content: '';
+    @apply absolute top-0 left-0 w-full h-1;
+}
+
+.stat-card-blue::before {
+    @apply bg-gradient-to-r from-primary-600 to-primary-400;
+}
+
+.stat-card-green::before {
+    @apply bg-gradient-to-r from-green-600 to-green-400;
+}
+
+.stat-card-amber::before {
+    @apply bg-gradient-to-r from-amber-600 to-amber-400;
+}
+
+/* Training pills */
+.training-pill {
+    @apply inline-block px-4 py-2 text-sm font-medium rounded-full transition-all duration-200;
+}
+
+.training-pill-active {
+    @apply bg-white text-primary-700 shadow-sm;
+}
+
+.training-pill-inactive {
+    @apply text-primary-100 hover:bg-primary-600 hover:text-white;
+}
+
+/* Section divider */
+.section-divider {
+    @apply relative;
+}
+
+.section-divider::after {
+    content: '';
+    @apply absolute bottom-0 left-0 w-16 h-1 bg-primary-600 rounded-full;
+}
+
+/* Hero gradient overlay */
+.hero-gradient {
+    background: linear-gradient(135deg, #002449 0%, #083668 50%, #2d5a96 100%);
+}
+
+/* Mobile menu animation */
+.mobile-menu-enter {
+    @apply animate-slide-down;
+}
+
+/* Scrollbar styling for training pills container */
+.scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}
+
+/**
+ * This injects all of Tailwind's utility classes, generated based on your
+ * config file.
+ */
+@tailwind utilities;
+
+/**
+ * Here you would add any custom utilities you need that don't come out of the
+ * box with Tailwind.
+ */
+
+[x-cloak] {
+    display: none;
+}
