@@ -1,4 +1,4 @@
-# PENDEKAR1721
+# kholis
 
 ![Laravel](https://img.shields.io/badge/Laravel-11.9-FF2D20?style=for-the-badge&logo=laravel)
 ![PHP](https://img.shields.io/badge/PHP-8.2%2B-777BB4?style=for-the-badge&logo=php)
@@ -8,11 +8,12 @@ Sistem Manajemen Profil Pengguna dan Data Master dengan Laravel 11 dan Filament 
 
 ---
 
-## 📋 Tentang Proyek
+## 📋 Tentang kholis
 
 **PENDEKAR1721** adalah aplikasi manajemen profil pengguna yang komprehensif dengan sistem data master terintegrasi. Aplikasi ini menggunakan framework Laravel 11 combined dengan Filament 3 untuk menyediakan antarmuka admin yang modern dan user-friendly.
 
 Aplikasi ini dirancang untuk mengelola:
+
 - Profil pengguna dengan informasi personal, pengalaman kerja, keahlian, dan pelatihan
 - Data master referensi (kota, pendidikan, agama, etnis, keahlian, pelatihan)
 - Direktori profil publik yang dapat diakses melalui URL berbasis slug
@@ -30,6 +31,7 @@ Aplikasi ini dirancang untuk mengelola:
 ## 🛠️ Teknologi
 
 ### Backend
+
 - **PHP 8.2+** - Bahasa pemrograman utama
 - **Laravel 11.9** - Framework PHP
 - **Filament 3.2** - Admin panel framework
@@ -37,12 +39,14 @@ Aplikasi ini dirancang untuk mengelola:
 - **Laravel Octane 2.5** - Performance optimization
 
 ### Frontend
+
 - **Vite 5.0** - Asset compilation
 - **TailwindCSS 3.4** - CSS framework
 - **Alpine.js** - Interactive JavaScript
 - **Blade Templating** - Template engine Laravel
 
 ### Database
+
 - **SQLite** (Development)
 - **MySQL/PostgreSQL** (Production)
 
@@ -141,11 +145,13 @@ APP_LOCALE=id                    # Locale bahasa Indonesia
 ### Database Configuration
 
 **Untuk SQLite (Development):**
+
 ```env
 DB_CONNECTION=sqlite
 ```
 
 **Untuk MySQL:**
+
 ```env
 DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
@@ -156,6 +162,7 @@ DB_PASSWORD=your_password
 ```
 
 **Untuk PostgreSQL:**
+
 ```env
 DB_CONNECTION=pgsql
 DB_HOST=127.0.0.1
@@ -170,6 +177,7 @@ DB_PASSWORD=your_password
 Aplikasi menggunakan struktur database yang terorganisir dengan baik:
 
 ### Tabel Utama
+
 - **users** - Data pengguna dengan autentikasi
 - **user_profiles** - Profil lengkap pengguna
 - **user_experiences** - Pengalaman kerja pengguna
@@ -178,6 +186,7 @@ Aplikasi menggunakan struktur database yang terorganisir dengan baik:
 - **user_work_locations** - Lokasi kerja pengguna (pivot table)
 
 ### Tabel Master
+
 - **master_cities** - Data kota/kabupaten
 - **master_education_degrees** - Tingkat pendidikan
 - **master_ethnic_groups** - Data suku/etnis
@@ -188,6 +197,7 @@ Aplikasi menggunakan struktur database yang terorganisir dengan baik:
 ### Seeder Data
 
 Database seeder menyediakan data awal:
+
 - **Admin User**: `test@example.com` (user_type: admin)
 - **Master Religions**: Islam, Kristen, Katholik, Hindu, Budha
 - **Master Ethnic Groups**: Sunda, Betawi, Jawa
@@ -201,6 +211,7 @@ Database seeder menyediakan data awal:
 Setelah menjalankan `php artisan migrate --seed`, akun default berikut akan dibuat:
 
 ### Admin User
+
 - **Email**: `test@example.com`
 - **User Type**: `admin`
 - **Password**: (lihat database seeder)
@@ -213,6 +224,7 @@ Setelah menjalankan `php artisan migrate --seed`, akun default berikut akan dibu
 Aplikasi ini memiliki dua panel Filament terpisah dengan fungsi berbeda:
 
 ### Admin Panel (`/admin`)
+
 - **Akses**: Pengguna dengan `user_type = 'admin'`
 - **Tema Warna**: Amber (Kuning Emas)
 - **Fitur**:
@@ -222,6 +234,7 @@ Aplikasi ini memiliki dua panel Filament terpisah dengan fungsi berbeda:
   - Monitoring dan reporting
 
 ### Client Panel (`/klien`)
+
 - **Akses**: Pengguna dengan `user_type = 'client'`
 - **Tema Warna**: Green (Hijau)
 - **Fitur**:
