@@ -1,6 +1,8 @@
-const defaultTheme = require('tailwindcss/defaultTheme')
+import defaultTheme from 'tailwindcss/defaultTheme'
+import forms from '@tailwindcss/forms'
+import typography from '@tailwindcss/typography'
 
-module.exports = {
+export default {
     theme: {
         extend: {
             fontFamily: {
@@ -59,7 +61,7 @@ module.exports = {
         './resources/**/*.twig',
     ],
     plugins: [
-        require('@tailwindcss/forms'),
-        require('@tailwindcss/typography'),
+        forms,
+        typography,
     ],
 }
