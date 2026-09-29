@@ -4,7 +4,8 @@
 
 @section('content')
     <section class="hero-section" id="top">
-        <video class="hero-video" autoplay muted loop playsinline poster="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1600&q=80">
+        <video class="hero-video" autoplay muted loop playsinline
+            poster="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1600&q=80">
             <source src="https://videos.pexels.com/video-files/3195394/3195394-hd_1920_1080.mp4" type="video/mp4" />
         </video>
         <div class="hero-overlay"></div>
@@ -16,8 +17,10 @@
                     <h1>PENDEKAR1721</h1>
                     <h2>UPTD Pusat Pelayanan Sosial Griya Bina Remaja</h2>
                     <p>
-                        Direktori profil tenaga kerja terampil yang telah mendapatkan pelatihan keterampilan dari UPTD PPSGBR
-                        Dinas Sosial Pemerintah Provinsi Jawa Barat, dengan fokus pada peningkatan kualitas sumber daya manusia,
+                        Direktori profil tenaga kerja terampil yang telah mendapatkan pelatihan keterampilan dari UPTD
+                        PPSGBR
+                        Dinas Sosial Pemerintah Provinsi Jawa Barat, dengan fokus pada peningkatan kualitas sumber daya
+                        manusia,
                         penempatan kerja, dan penguatan kapasitas komunitas.
                     </p>
                     <div class="hero-actions">
@@ -34,31 +37,42 @@
             <div class="quick-grid">
                 <a href="#about" class="quick-card">
                     <span class="quick-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-8 8a8 8 0 0 1 16 0"/></svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-8 8a8 8 0 0 1 16 0" />
+                        </svg>
                     </span>
                     <span class="quick-label">Profil</span>
                 </a>
                 <a href="#program" class="quick-card">
                     <span class="quick-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7.5A2.5 2.5 0 0 1 6.5 5h11A2.5 2.5 0 0 1 20 7.5v9A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5v-9Zm4 0h8M8 12h8M8 15h5"/></svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <path
+                                d="M4 7.5A2.5 2.5 0 0 1 6.5 5h11A2.5 2.5 0 0 1 20 7.5v9A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5v-9Zm4 0h8M8 12h8M8 15h5" />
+                        </svg>
                     </span>
                     <span class="quick-label">Program</span>
                 </a>
                 <a href="#data" class="quick-card">
                     <span class="quick-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 18V6m6 12V9m6 9v-6m4 6V4"/></svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <path d="M4 18V6m6 12V9m6 9v-6m4 6V4" />
+                        </svg>
                     </span>
                     <span class="quick-label">Data</span>
                 </a>
                 <a href="#statistik" class="quick-card">
                     <span class="quick-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 18h14M7 15l3-4 3 2 5-7"/></svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <path d="M5 18h14M7 15l3-4 3 2 5-7" />
+                        </svg>
                     </span>
                     <span class="quick-label">Statistik</span>
                 </a>
                 <a href="#informasi" class="quick-card">
                     <span class="quick-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 7.5h.01M12 12h.01M12 16.5h.01M4.5 12a7.5 7.5 0 1 1 15 0 7.5 7.5 0 0 1-15 0Z"/></svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <path d="M12 7.5h.01M12 12h.01M12 16.5h.01M4.5 12a7.5 7.5 0 1 1 15 0 7.5 7.5 0 0 1-15 0Z" />
+                        </svg>
                     </span>
                     <span class="quick-label">Informasi</span>
                 </a>
@@ -76,11 +90,13 @@
                     <span class="section-kicker">Tentang Kami</span>
                     <h3>PENDEKAR1721 hadir sebagai pusat pelayanan, pembinaan, dan pengembangan sumber daya manusia.</h3>
                     <p>
-                        PENDEKAR1721 merupakan wadah penguatan kapasitas tenaga kerja terampil berbasis pelatihan, pendampingan,
+                        PENDEKAR1721 merupakan wadah penguatan kapasitas tenaga kerja terampil berbasis pelatihan,
+                        pendampingan,
                         dan penempatan kerja yang berorientasi pada kesejahteraan sosial dan pemberdayaan masyarakat.
                     </p>
                     <p>
-                        Kami mengelola data profil, pelatihan, serta program yang relevan untuk mendukung akses kerja, pengetahuan,
+                        Kami mengelola data profil, pelatihan, serta program yang relevan untuk mendukung akses kerja,
+                        pengetahuan,
                         dan kesempatan yang lebih luas bagi masyarakat yang membutuhkan.
                     </p>
                     <div class="about-points">
@@ -136,10 +152,13 @@
                 @forelse($trainings->take(6) as $training)
                     <article class="program-card">
                         <div class="program-icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 4v16m8-8H4"/></svg>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                <path d="M12 4v16m8-8H4" />
+                            </svg>
                         </div>
                         <h4>{{ $training->title }}</h4>
-                        <p>{{ $training->description ?? 'Program pembinaan dan penguatan kapasitas yang relevan untuk kebutuhan masyarakat.' }}</p>
+                        <p>{{ $training->description ?? 'Program pembinaan dan penguatan kapasitas yang relevan untuk kebutuhan masyarakat.' }}
+                        </p>
                     </article>
                 @empty
                     <div class="empty-box">Belum ada program yang tersedia.</div>
@@ -155,6 +174,24 @@
                 <h3>Profil profesional yang siap dibangun</h3>
             </div>
 
+            <form class="client-search" method="GET" action="{{ route('home') }}#data" role="search">
+                <label for="student-search">Cari nama siswa</label>
+                <div class="client-search-controls">
+                    <input id="student-search" type="search" name="search" value="{{ $search }}"
+                        placeholder="Masukkan nama siswa" autocomplete="off" />
+                    <button class="button button-primary" type="submit">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                            <circle cx="10.8" cy="10.8" r="6.8" />
+                            <path d="m16 16 4.5 4.5" />
+                        </svg>
+                        <span>Cari</span>
+                    </button>
+                    @if($search !== '')
+                        <a class="client-search-clear" href="{{ route('home') }}#data">Hapus</a>
+                    @endif
+                </div>
+            </form>
+
             @if($users->count() > 0)
                 <div class="client-grid">
                     @foreach($users as $user)
@@ -162,17 +199,20 @@
                             $slug = sprintf('%s-%s', \Illuminate\Support\Str::slug($user->name), $user->id);
                             $profileUrl = route('front.user.detail', ['slug' => $slug]);
                             $profilePicture = $user->userProfile?->profile_picture_path;
-                            $statusLabel = $user->userProfile?->hire_status === 1 ? 'Available' : 'On Process';
-                            $statusClass = $user->userProfile?->hire_status === 1 ? 'status active' : 'status';
+                            $statusLabel = $user->has_current_employment ? 'Bekerja' : 'Belum bekerja';
+                            $statusClass = $user->has_current_employment ? 'status active' : 'status';
                         @endphp
 
                         <article class="client-card">
                             <div class="client-image-wrap">
                                 @if($profilePicture)
-                                    <img src="{{ \Illuminate\Support\Facades\Storage::url($profilePicture) }}" alt="{{ $user->name }}" />
+                                    <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($profilePicture) }}"
+                                        alt="{{ $user->name }}" />
                                 @else
                                     <div class="client-fallback">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-8 8a8 8 0 0 1 16 0"/></svg>
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3">
+                                            <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-8 8a8 8 0 0 1 16 0" />
+                                        </svg>
                                     </div>
                                 @endif
                             </div>
@@ -194,7 +234,9 @@
                     {{ $users->links() }}
                 </div>
             @else
-                <div class="empty-box">Belum ada data klien yang tersedia.</div>
+                <div class="empty-box">
+                    {{ $search !== '' ? 'Siswa dengan nama tersebut tidak ditemukan.' : 'Belum ada data klien yang tersedia.' }}
+                </div>
             @endif
         </div>
     </section>

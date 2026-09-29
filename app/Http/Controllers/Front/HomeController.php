@@ -23,10 +23,14 @@ class HomeController extends Controller
         $hasCurrentJob = $request->get('has_current_job');
         $gender = $request->get('gender');
         $educationDegreeId = $request->get('education_degree_id');
+        $search = trim((string) $request->query('search', ''));
 
         $users = User::query()
             ->where('user_type', '=', 'client')
             ->where('status', '=', UserStatus::Published)
+            ->when($search !== '', function (Builder $query) use ($search) {
+                return $query->where('name', 'like', "%{$search}%");
+            })
             ->when($cityId, function (Builder $query, $cityId) {
                 return $query->whereHas('userWorkLocations', function (Builder $query) use ($cityId) {
                     $query->where('id', $cityId);
@@ -59,8 +63,14 @@ class HomeController extends Controller
                 });
             })
             ->with('userProfile')
+            ->withExists([
+                'userExperiences as has_current_employment' => function (Builder $query) {
+                    $query->where('is_current_job', true);
+                },
+            ])
             ->orderBy('name')
-            ->paginate(12);
+            ->paginate(12)
+            ->withQueryString();
 
         $trainings = MasterTraining::query()
             ->orderBy('title')
@@ -97,7 +107,8 @@ class HomeController extends Controller
             'educationDegrees' => $educationDegrees,
             'totalClients' => $totalClients,
             'totalClientsWorking' => $totalClientsWorking,
-            'totalTrainings' => $totalTrainings
+            'totalTrainings' => $totalTrainings,
+            'search' => $search,
         ]);
     }
 }

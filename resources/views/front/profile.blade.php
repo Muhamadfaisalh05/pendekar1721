@@ -14,7 +14,7 @@
                 <section class="profile-hero">
                     <div class="profile-photo-wrap">
                         @if($user->userProfile->profile_picture_path)
-                            <img src="{{ \Illuminate\Support\Facades\Storage::url($user->userProfile->profile_picture_path) }}"
+                            <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($user->userProfile->profile_picture_path) }}"
                                 alt="Foto profil {{ $user->name }}" />
                         @else
                             <div class="profile-placeholder">

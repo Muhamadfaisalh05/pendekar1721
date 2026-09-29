@@ -58,7 +58,7 @@ class ImportPeserta extends Page implements HasForms
                         ->maxSize(5120)
                         ->directory('imports')
                         ->preserveFilenames(),
-                        
+
                     Forms\Components\FileUpload::make('photos')
                         ->label('Foto Profil (Opsional - Bisa pilih banyak file)')
                         ->helperText('Pastikan nama file foto sama dengan yang Anda tulis di kolom "Nama File Foto" pada Excel/Word (Contoh: budi.jpg)')
@@ -66,6 +66,7 @@ class ImportPeserta extends Page implements HasForms
                         ->multiple()
                         ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/jpg'])
                         ->maxSize(2048)
+                        ->disk('public')
                         ->directory('profile_pictures')
                         ->preserveFilenames(),
                 ]),
@@ -81,13 +82,24 @@ class ImportPeserta extends Page implements HasForms
     {
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
-        
+
         $headers = [
-            'Nama*', 'Email*', 'Jenis Kelamin*', 'Tempat Lahir', 'Tanggal Lahir', 
-            'Alamat KTP', 'Kota KTP', 'Pendidikan', 'Pelatihan', 'Penempatan Wilayah', 
-            'Status Pekerjaan', 'Deskripsi', 'Status Profil', 'Nama File Foto'
+            'Nama*',
+            'Email*',
+            'Jenis Kelamin*',
+            'Tempat Lahir',
+            'Tanggal Lahir',
+            'Alamat KTP',
+            'Kota KTP',
+            'Pendidikan',
+            'Pelatihan',
+            'Penempatan Wilayah',
+            'Status Pekerjaan',
+            'Deskripsi',
+            'Status Profil',
+            'Nama File Foto'
         ];
-        
+
         $col = 'A';
         foreach ($headers as $header) {
             $sheet->setCellValue($col . '1', $header);
@@ -102,12 +114,12 @@ class ImportPeserta extends Page implements HasForms
         $sheet->setCellValue('D2', 'Bandung');
         $sheet->setCellValue('E2', '1995-08-17');
         $sheet->setCellValue('F2', 'Jl. Merdeka No. 1');
-        
+
         // Ambil data referensi
         $city = MasterCity::first()?->title ?? 'Bandung';
         $edu = MasterEducationDegree::first()?->title ?? 'SMA';
         $training = MasterTraining::first()?->title ?? 'Menjahit';
-        
+
         $sheet->setCellValue('G2', $city);
         $sheet->setCellValue('H2', $edu);
         $sheet->setCellValue('I2', $training);
@@ -137,9 +149,20 @@ class ImportPeserta extends Page implements HasForms
         $table = $section->addTable('Template Table');
 
         $headers = [
-            'Nama*', 'Email*', 'Jenis Kelamin*', 'Tempat Lahir', 'Tanggal Lahir', 
-            'Alamat KTP', 'Kota KTP', 'Pendidikan', 'Pelatihan', 'Penempatan Wilayah', 
-            'Status Pekerjaan', 'Deskripsi', 'Status Profil', 'Nama File Foto'
+            'Nama*',
+            'Email*',
+            'Jenis Kelamin*',
+            'Tempat Lahir',
+            'Tanggal Lahir',
+            'Alamat KTP',
+            'Kota KTP',
+            'Pendidikan',
+            'Pelatihan',
+            'Penempatan Wilayah',
+            'Status Pekerjaan',
+            'Deskripsi',
+            'Status Profil',
+            'Nama File Foto'
         ];
 
         $table->addRow();
@@ -178,27 +201,27 @@ class ImportPeserta extends Page implements HasForms
     public function processPreview()
     {
         $data = $this->form->getState();
-        
+
         if (empty($data['file'])) {
             Notification::make()->title('Silakan upload file terlebih dahulu.')->danger()->send();
             return;
         }
 
         $this->isProcessing = true;
-        
+
         try {
             $filePath = storage_path('app/public/' . $data['file']);
             $extension = pathinfo($filePath, PATHINFO_EXTENSION);
-            
+
             $service = new ImportService();
             $this->previewData = $service->parseAndValidate($filePath, $extension);
-            
+
             Notification::make()->title('File berhasil diproses untuk preview.')->success()->send();
         } catch (\Exception $e) {
             Notification::make()->title('Gagal memproses file: ' . $e->getMessage())->danger()->send();
             $this->previewData = null;
         }
-        
+
         $this->isProcessing = false;
     }
 
@@ -220,10 +243,10 @@ class ImportPeserta extends Page implements HasForms
 
             $service = new ImportService();
             $service->importData($this->previewData['valid'], $uploadedPhotos);
-            
+
             $totalValid = count($this->previewData['valid']);
             $totalDuplikat = count($this->previewData['duplicates']);
-            
+
             Notification::make()
                 ->title('Import Berhasil')
                 ->body("{$totalValid} data berhasil ditambahkan. {$totalDuplikat} data dilewati karena duplikat.")
@@ -233,7 +256,7 @@ class ImportPeserta extends Page implements HasForms
             // Reset form
             $this->form->fill();
             $this->previewData = null;
-            
+
         } catch (\Exception $e) {
             Notification::make()->title('Terjadi kesalahan saat menyimpan data: ' . $e->getMessage())->danger()->send();
         }

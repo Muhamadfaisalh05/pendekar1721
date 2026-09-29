@@ -77,7 +77,7 @@ class UserResource extends Resource
                                             ]),
                                     ]),
                                 Section::make('Data Profil')
-                                    ->visible(fn (Get $get) => $get('user_type') === 'client')
+                                    ->visible(fn(Get $get) => $get('user_type') === 'client')
                                     ->hiddenOn('create')
                                     ->relationship('userProfile')
                                     ->mutateRelationshipDataBeforeCreateUsing(function (array $data) {
@@ -219,7 +219,7 @@ class UserResource extends Resource
                                     ]),
                                 Section::make('Data Pengalaman Bekerja')
                                     ->hiddenOn('create')
-                                    ->visible(fn (Get $get) => $get('user_type') === 'client')
+                                    ->visible(fn(Get $get) => $get('user_type') === 'client')
                                     ->schema([
                                         Forms\Components\Repeater::make('work_experiences')
                                             ->relationship('userExperiences')
@@ -252,13 +252,13 @@ class UserResource extends Resource
                         Section::make('Data Lainnya')
                             ->columnSpan(2)
                             ->hiddenOn('create')
-                            ->visible(fn (Get $get) => $get('user_type') === 'client')
+                            ->visible(fn(Get $get) => $get('user_type') === 'client')
                             ->relationship('userProfile')
                             ->schema([
                                 Forms\Components\FileUpload::make('profile_picture_path')
                                     ->label('Foto Profil')
                                     ->required()
-                                    // ->disk('public')
+                                    ->disk('public')
                                     ->directory('profile-picture')
                                     ->visibility('public')
                                     ->image()
@@ -314,7 +314,7 @@ class UserResource extends Resource
     public static function getRelations(): array
     {
         return [
-            // RelationManagers\UserSkillsRelationManager::class,
+                // RelationManagers\UserSkillsRelationManager::class,
             RelationManagers\UserTrainingsRelationManager::class,
             RelationManagers\UserWorkLocationsRelationManager::class,
         ];
