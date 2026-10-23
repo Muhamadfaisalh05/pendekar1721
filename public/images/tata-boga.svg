@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540" role="img" aria-labelledby="title desc">
+  <title id="title">Ilustrasi tata boga</title>
+  <desc id="desc">Hidangan dan peralatan memasak di atas meja dapur</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff7e8"/>
+      <stop offset="1" stop-color="#f1dfc8"/>
+    </linearGradient>
+  </defs>
+  <rect width="960" height="540" fill="url(#bg)"/>
+  <circle cx="786" cy="108" r="140" fill="#fff" opacity=".38"/>
+  <path d="M0 422h960v118H0z" fill="#c58b60"/>
+  <path d="M0 439h960" stroke="#a86f4c" stroke-width="6"/>
+  <ellipse cx="478" cy="369" rx="258" ry="75" fill="#fff" stroke="#d7dee5" stroke-width="9"/>
+  <ellipse cx="478" cy="360" rx="211" ry="51" fill="#e8f0e7"/>
+  <path d="M323 358c42-56 91-68 140-24 42-47 100-38 143 21-43 35-88 48-142 47-55 0-102-13-141-44z" fill="#5e9b61"/>
+  <circle cx="423" cy="348" r="29" fill="#d65343"/>
+  <circle cx="523" cy="342" r="31" fill="#e3a739"/>
+  <circle cx="583" cy="365" r="24" fill="#d65343"/>
+  <path d="M405 334c9-13 20-18 34-19m68 7c12-12 24-16 39-14m27 45c10-10 19-13 30-12" fill="none" stroke="#f5d674" stroke-width="7" stroke-linecap="round"/>
+  <path d="M249 272h-56c0-41 29-72 67-72h44c44 0 75 34 75 77v42H249z" fill="#fff" stroke="#c6d0d9" stroke-width="9"/>
+  <path d="M218 268h130M260 199v-27m40 27v-27" stroke="#9db1c2" stroke-width="9" stroke-linecap="round"/>
+  <path d="M276 157c-19-19 15-26 0-47m42 47c-19-19 15-26 0-47" fill="none" stroke="#d89d5d" stroke-width="8" stroke-linecap="round"/>
+  <path d="m679 267 63-62m-75 72 61-61m-45 81 60-60" stroke="#64788b" stroke-width="12" stroke-linecap="round"/>
+  <path d="M724 207c14-20 38-33 59-31l-6 60c-4 21-20 34-39 38l-25-27z" fill="#d5a54e"/>
+  <path d="M135 118h96m-48-48v96" stroke="#fff" stroke-width="10" stroke-linecap="round" opacity=".8"/>
+  <circle cx="813" cy="344" r="45" fill="#f7d78b" opacity=".8"/>
+  <path d="M785 344h56m-28-28v56" stroke="#fff9e9" stroke-width="8" stroke-linecap="round"/>
+</svg>

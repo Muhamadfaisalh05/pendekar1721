@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540" role="img" aria-labelledby="title desc">
+  <title id="title">Ilustrasi mesin jahit</title>
+  <desc id="desc">Mesin jahit di atas meja dengan gulungan benang dan kain biru</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#eaf2fa"/>
+      <stop offset="1" stop-color="#c7d9ec"/>
+    </linearGradient>
+    <linearGradient id="machine" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff"/>
+      <stop offset="1" stop-color="#e2e8f0"/>
+    </linearGradient>
+  </defs>
+  <rect width="960" height="540" fill="url(#bg)"/>
+  <circle cx="760" cy="110" r="150" fill="#fff" opacity=".28"/>
+  <path d="M0 430h960v110H0z" fill="#b77955"/>
+  <path d="M82 430h796l-45 110H124z" fill="#9d6244"/>
+  <path d="M102 430h300v110H102z" fill="#2f6095"/>
+  <path d="M402 430h247v110H402z" fill="#3977ae"/>
+  <path d="M202 157h79v153h-79z" rx="8" fill="#d1a45b"/>
+  <path d="M211 157h61v23h-61z" fill="#edc876"/>
+  <path d="M236 180c-27 53 34 66 5 115" fill="none" stroke="#fff4d5" stroke-width="5"/>
+  <path d="M279 235h352c37 0 65 28 65 65v72H328v-90c0-26-20-47-49-47z" fill="url(#machine)" stroke="#b8c5d4" stroke-width="8"/>
+  <path d="M340 372h344v58H340z" fill="#cbd5e1" stroke="#aab7c6" stroke-width="7"/>
+  <path d="M357 372v-82c0-17 14-31 31-31h85c18 0 33 15 33 33v80" fill="#f8fafc" stroke="#b8c5d4" stroke-width="8"/>
+  <path d="M418 262h77v29h-77z" fill="#dce5ee"/>
+  <path d="M483 322h72v50h-72z" fill="#f1f5f9" stroke="#b8c5d4" stroke-width="7"/>
+  <path d="M555 341h85v31h-85z" fill="#334e68"/>
+  <path d="M606 315v53" stroke="#334e68" stroke-width="8" stroke-linecap="round"/>
+  <path d="M584 372v34" stroke="#64748b" stroke-width="6"/>
+  <path d="M546 405h113" stroke="#64748b" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="664" cy="294" r="25" fill="#dce5ee" stroke="#aab7c6" stroke-width="7"/>
+  <circle cx="664" cy="294" r="7" fill="#64748b"/>
+  <path d="M363 350h79" stroke="#d4a24f" stroke-width="8" stroke-linecap="round"/>
+  <path d="M355 420h340" stroke="#fff" stroke-width="5" opacity=".75"/>
+</svg>

@@ -76,6 +76,12 @@ class HomeController extends Controller
             ->orderBy('title')
             ->get();
 
+        if ($trainings->contains(fn (MasterTraining $training): bool => mb_strtolower((string) $training->title) === 'bimbingan sosial') === false) {
+            $trainings->push(new MasterTraining(['title' => 'Bimbingan Sosial']));
+        }
+
+        $trainings = $trainings->sortBy('title')->values();
+
         $cities = MasterCity::query()
             ->orderBy('title')
             ->get();
@@ -98,7 +104,7 @@ class HomeController extends Controller
             })
             ->count();
 
-        $totalTrainings = MasterTraining::query()->count();
+        $totalTrainings = $trainings->count();
 
         return view('welcome', [
             'users' => $users,

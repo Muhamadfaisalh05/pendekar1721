@@ -182,22 +182,18 @@
                     @endif
                 </section>
             </div>
-        </div>
-    @endsection
-    </section>
 
-    {{-- ======= KETERAMPILAN / SKILLS ======= --}}
-    @if($user->userSkills->count() > 0)
-        <section class="mb-10">
-            <x-section-heading title="Keterampilan" />
-            <div class="flex flex-wrap gap-2">
-                @foreach($user->userSkills as $userSkill)
-                    <x-profile-badge :label="$userSkill->title" variant="amber" />
-                @endforeach
+                @if($user->userSkills->count() > 0)
+                    <section class="mb-10">
+                        <x-section-heading title="Keterampilan" />
+                        <div class="flex flex-wrap gap-2">
+                            @foreach($user->userSkills as $userSkill)
+                                <x-profile-badge :label="$userSkill->title" variant="amber" />
+                            @endforeach
+                        </div>
+                    </section>
+                @endif
+
             </div>
-        </section>
-    @endif
-
-    </div>
-    </div>
+        </div>
 @endsection

@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540" role="img" aria-labelledby="title desc">
+  <title id="title">Ilustrasi montir mobil</title>
+  <desc id="desc">Mobil di bengkel sedang diperiksa oleh mekanik</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#eef5fb"/>
+      <stop offset="1" stop-color="#cbddea"/>
+    </linearGradient>
+  </defs>
+  <rect width="960" height="540" fill="url(#bg)"/>
+  <circle cx="774" cy="110" r="140" fill="#fff" opacity=".3"/>
+  <path d="M0 408h960v132H0z" fill="#c2d0da"/>
+  <path d="M0 428h960" stroke="#9eafbd" stroke-width="6"/>
+  <path d="m166 317 45-99c10-22 30-36 55-36h334c29 0 54 14 70 37l58 98 38 14c18 7 29 24 29 43v39H144v-48c0-20 8-36 22-48z" fill="#3977ae" stroke="#2c5e8e" stroke-width="9"/>
+  <path d="m282 202-39 100h188v-100zm177 0v100h213l-49-77c-9-15-25-23-43-23z" fill="#dcecf7" stroke="#9db8cc" stroke-width="8"/>
+  <path d="M185 318h574" stroke="#234b73" stroke-width="12"/>
+  <rect x="172" y="316" width="58" height="25" rx="10" fill="#f6d986"/>
+  <rect x="722" y="316" width="48" height="24" rx="10" fill="#f6d986"/>
+  <circle cx="272" cy="403" r="59" fill="#26384a"/>
+  <circle cx="272" cy="403" r="31" fill="#dce5ec" stroke="#718396" stroke-width="8"/>
+  <circle cx="672" cy="403" r="59" fill="#26384a"/>
+  <circle cx="672" cy="403" r="31" fill="#dce5ec" stroke="#718396" stroke-width="8"/>
+  <path d="M786 138h84v245h-84z" fill="#fff" opacity=".72"/>
+  <path d="M805 166h46m-46 34h46m-46 34h46" stroke="#8ba6ba" stroke-width="8" stroke-linecap="round"/>
+  <path d="M95 186h112m-56-48v96" stroke="#fff" stroke-width="12" stroke-linecap="round" opacity=".8"/>
+  <path d="M81 390h85m610 0h95" stroke="#64788b" stroke-width="9" stroke-linecap="round"/>
+</svg>

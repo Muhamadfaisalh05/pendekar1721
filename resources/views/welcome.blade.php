@@ -4,10 +4,7 @@
 
 @section('content')
     <section class="hero-section" id="top">
-        <video class="hero-video" autoplay muted loop playsinline
-            poster="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1600&q=80">
-            <source src="https://videos.pexels.com/video-files/3195394/3195394-hd_1920_1080.mp4" type="video/mp4" />
-        </video>
+        <img class="hero-video" src="{{ asset('images/hero-ppsgbr.png') }}" alt="" aria-hidden="true" />
         <div class="hero-overlay"></div>
 
         <div class="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
@@ -28,54 +25,6 @@
                         <a href="#data" class="button button-primary">Jelajahi Data</a>
                     </div>
                 </div>
-            </div>
-        </div>
-    </section>
-
-    <section class="quick-access-section" id="informasi">
-        <div class="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="quick-grid">
-                <a href="#about" class="quick-card">
-                    <span class="quick-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                            <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-8 8a8 8 0 0 1 16 0" />
-                        </svg>
-                    </span>
-                    <span class="quick-label">Profil</span>
-                </a>
-                <a href="#program" class="quick-card">
-                    <span class="quick-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                            <path
-                                d="M4 7.5A2.5 2.5 0 0 1 6.5 5h11A2.5 2.5 0 0 1 20 7.5v9A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5v-9Zm4 0h8M8 12h8M8 15h5" />
-                        </svg>
-                    </span>
-                    <span class="quick-label">Program</span>
-                </a>
-                <a href="#data" class="quick-card">
-                    <span class="quick-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                            <path d="M4 18V6m6 12V9m6 9v-6m4 6V4" />
-                        </svg>
-                    </span>
-                    <span class="quick-label">Data</span>
-                </a>
-                <a href="#statistik" class="quick-card">
-                    <span class="quick-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                            <path d="M5 18h14M7 15l3-4 3 2 5-7" />
-                        </svg>
-                    </span>
-                    <span class="quick-label">Statistik</span>
-                </a>
-                <a href="#informasi" class="quick-card">
-                    <span class="quick-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                            <path d="M12 7.5h.01M12 12h.01M12 16.5h.01M4.5 12a7.5 7.5 0 1 1 15 0 7.5 7.5 0 0 1-15 0Z" />
-                        </svg>
-                    </span>
-                    <span class="quick-label">Informasi</span>
-                </a>
             </div>
         </div>
     </section>
@@ -149,16 +98,80 @@
             </div>
 
             <div class="program-grid">
-                @forelse($trainings->take(6) as $training)
+                @forelse($trainings->reject(fn ($training) => \Illuminate\Support\Str::lower($training->title ?? '') === 'montir mobil')->take(6) as $training)
+                    @php
+                        $isSewingProgram = \Illuminate\Support\Str::lower($training->title ?? '') === 'menjahit';
+                        $isSocialGuidanceProgram = \Illuminate\Support\Str::lower($training->title ?? '') === 'bimbingan sosial';
+                        $programSlug = match (\Illuminate\Support\Str::lower($training->title ?? '')) {
+                            'montir motor' => 'montir-motor',
+                            'tata boga' => 'tata-boga',
+                            default => null,
+                        };
+                        $isDetailProgram = $isSewingProgram || $isSocialGuidanceProgram || $programSlug !== null;
+                    @endphp
                     <article class="program-card">
-                        <div class="program-icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                                <path d="M12 4v16m8-8H4" />
-                            </svg>
-                        </div>
-                        <h4>{{ $training->title }}</h4>
-                        <p>{{ $training->description ?? 'Program pembinaan dan penguatan kapasitas yang relevan untuk kebutuhan masyarakat.' }}
-                        </p>
+                        @if($isDetailProgram)
+                            @php
+                                $programUrl = match (true) {
+                                    $isSewingProgram => route('front.program.sewing'),
+                                    $isSocialGuidanceProgram => route('front.program.social-guidance'),
+                                    default => route('front.program.detail', ['program' => $programSlug]),
+                                };
+                                $programIllustration = match (true) {
+                                    $isSewingProgram => '/images/sewing-workshop.png',
+                                    $isSocialGuidanceProgram => '/images/bimbingan-sosial.png',
+                                    $programSlug === 'montir-motor' => '/images/motorcycle-workshop.png',
+                                    $programSlug === 'tata-boga' => '/images/culinary-workshop.png',
+                                    default => '/images/tata-boga.svg',
+                                };
+                                $programIllustrationAlt = match (true) {
+                                    $isSewingProgram => 'Peserta berlatih menjahit menggunakan mesin di ruang praktik',
+                                    $isSocialGuidanceProgram => 'Peserta mengikuti kegiatan Bimbingan Sosial di dalam ruangan',
+                                    $programSlug === 'montir-motor' => 'Peserta berlatih memeriksa dan memperbaiki sepeda motor di ruang praktik bengkel',
+                                    $programSlug === 'tata-boga' => 'Peserta praktik tata boga menyiapkan dan menimbang bahan makanan bersama',
+                                    default => 'Ilustrasi program pelatihan',
+                                };
+                            @endphp
+                            <a class="program-image-link" href="{{ $programUrl }}"
+                                aria-label="Lihat detail program {{ $training->title }}">
+                                <img class="program-image" src="{{ $programIllustration }}"
+                                    alt="{{ $programIllustrationAlt }}" loading="lazy" />
+                                <span class="program-image-action">
+                                    Lihat program
+                                    <span aria-hidden="true">&rarr;</span>
+                                </span>
+                            </a>
+                        @else
+                            <div class="program-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                    <path d="M12 4v16m8-8H4" />
+                                </svg>
+                            </div>
+                        @endif
+                        <h4>
+                            @if($isSewingProgram || $isSocialGuidanceProgram)
+                                <a href="{{ $programUrl }}">{{ $training->title }}</a>
+                            @else
+                                {{ $training->title }}
+                            @endif
+                        </h4>
+                        @if($isSewingProgram)
+                            <p>Peserta berlatih menggunakan mesin jahit, mengolah kain, dan merapikan hasil jahitan melalui praktik langsung.</p>
+                        @elseif($isSocialGuidanceProgram)
+                            <p>Pendampingan untuk mengembangkan kemandirian, kepercayaan diri, dan keterampilan sosial peserta.</p>
+                        @elseif($programSlug === 'montir-motor')
+                            <p>Peserta berlatih mengenali komponen, memeriksa kondisi motor, dan melakukan perawatan dasar di ruang praktik bengkel.</p>
+                        @elseif($programSlug === 'tata-boga')
+                            <p>Peserta praktik menyiapkan bahan, menimbang takaran, dan bekerja sama mengolah makanan dengan menjaga kebersihan pangan.</p>
+                        @else
+                            <p>{{ $training->description ?? 'Program pembinaan dan penguatan kapasitas yang relevan untuk kebutuhan masyarakat.' }}</p>
+                        @endif
+                        @if($isDetailProgram)
+                            <a class="program-detail-link" href="{{ $programUrl }}">
+                                Pelajari tentang {{ $training->title }}
+                                <span aria-hidden="true">&rarr;</span>
+                            </a>
+                        @endif
                     </article>
                 @empty
                     <div class="empty-box">Belum ada program yang tersedia.</div>
@@ -246,11 +259,10 @@
             <div class="cta-box">
                 <div>
                     <span class="section-kicker light">Jelajahi lebih lanjut</span>
-                    <h3>Siap melihat profil serta data PENDEKAR1721 secara komprehensif?</h3>
+                    <h3>Siap melihat profil serta data PENDEKAR1721 secara komprehensif?</h3><br/>
                 </div>
                 <div class="cta-actions">
                     <a href="#data" class="button button-light">Lihat Data</a>
-                    <a href="{{ route('filament.client.auth.login') }}" class="button button-primary">Masuk Klien</a>
                 </div>
             </div>
         </div>

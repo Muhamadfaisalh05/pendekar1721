@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540" role="img" aria-labelledby="title desc">
+  <title id="title">Ilustrasi montir motor</title>
+  <desc id="desc">Sepeda motor sedang diperiksa di bengkel</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#edf5fc"/>
+      <stop offset="1" stop-color="#c9dbea"/>
+    </linearGradient>
+  </defs>
+  <rect width="960" height="540" fill="url(#bg)"/>
+  <circle cx="760" cy="110" r="140" fill="#fff" opacity=".3"/>
+  <path d="M0 420h960v120H0z" fill="#c5d2dc"/>
+  <path d="M0 438h960" stroke="#a8b7c5" stroke-width="6"/>
+  <circle cx="300" cy="385" r="83" fill="#26384a"/>
+  <circle cx="300" cy="385" r="56" fill="#dce5ec" stroke="#66788a" stroke-width="10"/>
+  <circle cx="300" cy="385" r="12" fill="#3977ae"/>
+  <circle cx="660" cy="385" r="83" fill="#26384a"/>
+  <circle cx="660" cy="385" r="56" fill="#dce5ec" stroke="#66788a" stroke-width="10"/>
+  <circle cx="660" cy="385" r="12" fill="#3977ae"/>
+  <path d="m302 382 125-102 75 105H359l-57-3 48-90h122l93 89-63-146h92" fill="none" stroke="#3977ae" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M410 272h115l37 41" fill="none" stroke="#243b53" stroke-width="17" stroke-linecap="round"/>
+  <path d="M541 245h76m-24-17 26 17-26 17" fill="none" stroke="#243b53" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M393 274h-48m8-13-25 14 25 14" fill="none" stroke="#243b53" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M440 319h78l45 53H400z" fill="#d5a54e" stroke="#a7782f" stroke-width="7"/>
+  <path d="M585 194h67c31 0 55 24 55 55v42h-68l-54-42z" fill="#fff" stroke="#b7c7d5" stroke-width="8"/>
+  <path d="M596 202h48v35h-48z" fill="#d5e8f5"/>
+  <path d="M728 284h61m-30-29v58" stroke="#243b53" stroke-width="12" stroke-linecap="round"/>
+  <path d="M749 284h-64" stroke="#243b53" stroke-width="10" stroke-linecap="round"/>
+  <rect x="98" y="95" width="155" height="80" rx="18" fill="#fff" opacity=".8"/>
+  <path d="M135 136h81m-42-25v50" stroke="#3977ae" stroke-width="11" stroke-linecap="round"/>
+</svg>

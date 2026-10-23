@@ -128,6 +128,40 @@ npm run dev
 
 Aplikasi sekarang dapat diakses di `http://localhost:8000`
 
+### Membagikan aplikasi lokal melalui link sementara
+
+Untuk memberi akses kepada orang lain melalui internet saat aplikasi tetap berjalan di komputer lokal:
+
+1. Build aset production dan jangan jalankan `npm run dev` saat tunnel digunakan:
+
+   ```powershell
+   npm run build
+   ```
+
+2. Ubah `APP_DEBUG=true` menjadi `APP_DEBUG=false` di `.env`. Jika konfigurasi pernah di-cache, jalankan `php artisan config:clear`.
+3. Instal Cloudflare Tunnel sekali:
+
+   ```powershell
+   winget install --id Cloudflare.cloudflared -e
+   ```
+
+   Buka PowerShell baru setelah instalasi.
+4. Di terminal pertama, jalankan Laravel:
+
+   ```powershell
+   php artisan serve --host=127.0.0.1 --port=8000
+   ```
+
+5. Di terminal kedua, dari folder project jalankan:
+
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File .\share-local.ps1
+   ```
+
+   Bagikan URL HTTPS `trycloudflare.com` yang ditampilkan. Tekan `Ctrl+C` di terminal kedua untuk menutup link; server Laravel dapat dihentikan terpisah di terminal pertama.
+
+Tunnel ini bersifat sementara dan URL berubah saat tunnel dijalankan ulang. Selama tunnel aktif, aplikasi dapat dijangkau publik: gunakan hanya data uji dan jangan membagikan kredensial atau halaman admin kepada orang yang tidak dipercaya. Jangan gunakan cara ini sebagai pengganti hosting production.
+
 ## ⚙️ Konfigurasi
 
 File `.env` berisi konfigurasi penting untuk aplikasi. Berikut adalah variabel utama yang perlu diperhatikan:
