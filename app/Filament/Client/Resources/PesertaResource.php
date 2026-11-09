@@ -46,9 +46,9 @@ class PesertaResource extends Resource
                         Forms\Components\TextInput::make('password')
                             ->label('Password')
                             ->password()
-                            ->dehydrateStateUsing(fn ($state) => Hash::make($state))
-                            ->dehydrated(fn ($state) => filled($state))
-                            ->required(fn (string $context): bool => $context === 'create')
+                            ->dehydrateStateUsing(fn($state) => Hash::make($state))
+                            ->dehydrated(fn($state) => filled($state))
+                            ->required(fn(string $context): bool => $context === 'create')
                             ->maxLength(255),
                     ])->columns(2),
 
@@ -85,6 +85,7 @@ class PesertaResource extends Resource
                             ->default('1'),
                         Forms\Components\FileUpload::make('profile_picture_path')
                             ->label('Foto Profil')
+                            ->disk('public')
                             ->image()
                             ->directory('profile_pictures')
                             ->columnSpanFull(),
@@ -125,7 +126,7 @@ class PesertaResource extends Resource
                 Tables\Columns\TextColumn::make('userProfile.gender')
                     ->label('L/P')
                     ->badge()
-                    ->color(fn (string $state): string => match ($state) {
+                    ->color(fn(string $state): string => match ($state) {
                         'L' => 'info',
                         'P' => 'success',
                         default => 'gray',

@@ -218,7 +218,7 @@ class UserProfileEditPage extends Page implements HasForms
                                         Forms\Components\FileUpload::make('profile_picture_path')
                                             ->label('Foto Profil')
                                             ->required()
-                                            // ->disk('public')
+                                            ->disk('public')
                                             ->directory('profile-picture')
                                             ->visibility('public')
                                             ->image()
