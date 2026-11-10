@@ -10,6 +10,7 @@ use Illuminate\Database\Query\Builder;
 use Illuminate\Database\Query\JoinClause;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
+use ReflectionClass;
 
 class PowerJoinClause extends JoinClause
 {
@@ -191,8 +192,24 @@ class PowerJoinClause extends JoinClause
         return new static($this->newParentQuery(), $this->type, $this->table, $this->model); // <-- The model param is needed
     }
 
+    /**
+     * Qualify the given column name by the alias or the table of the joined model.
+     */
+    public function qualifyColumn(string $column): string
+    {
+        if (Str::contains($column, '.')) {
+            return $column;
+        }
+
+        return ($this->alias ?? $this->tableName).'.'.$column;
+    }
+
     public function where($column, $operator = null, $value = null, $boolean = 'and'): self
     {
+        if ($this->alias && is_string($column) && Str::startsWith($column, "{$this->alias}.")) {
+            return parent::where($column, $operator, $value, $boolean);
+        }
+
         if ($this->alias && is_string($column) && Str::contains($column, $this->tableName)) {
             $column = str_replace("{$this->tableName}.", "{$this->alias}.", $column);
         } elseif ($this->alias && !is_callable($column)) {
@@ -204,9 +221,9 @@ class PowerJoinClause extends JoinClause
             $column($query);
 
             return $this->addNestedWhereQuery($query);
-        } else {
-            return parent::where($column, $operator, $value, $boolean);
         }
+
+        return parent::where($column, $operator, $value, $boolean);
     }
 
     /**
@@ -282,27 +299,58 @@ class PowerJoinClause extends JoinClause
 
     public function __call($name, $arguments)
     {
-        $scope = 'scope'.ucfirst($name);
-
         if (!$this->getModel()) {
             return;
         }
 
-        if (method_exists($this->getModel(), $scope)) {
+        if (method_exists($this->getModel(), 'scope'.ucfirst($name))) {
+            $scope = 'scope'.ucfirst($name);
+
             return $this->getModel()->{$scope}($this, ...$arguments);
-        } else {
-            if (static::hasMacro($name)) {
-                return $this->macroCall($name, $arguments);
-            }
-
-            $eloquentBuilder = $this->getModel()->newEloquentBuilder($this);
-            if (method_exists($eloquentBuilder, $name)) {
-                $eloquentBuilder->setModel($this->getModel());
-
-                return $eloquentBuilder->{$name}(...$arguments);
-            }
-
-            throw new InvalidArgumentException(sprintf('Method %s does not exist in PowerJoinClause class', $name));
         }
+
+        if ($this->hasLaravelScopeAttribute($name) && version_compare(app()->version(), '12.0.0', '>=')) {
+            return $this->getModel()->callNamedScope($name, array_merge([$this], $arguments));
+        }
+
+        if (static::hasMacro($name)) {
+            return $this->macroCall($name, $arguments);
+        }
+
+        $eloquentBuilder = $this->getModel()->newEloquentBuilder($this);
+        if (method_exists($eloquentBuilder, $name)) {
+            $eloquentBuilder->setModel($this->getModel());
+
+            return $eloquentBuilder->{$name}(...$arguments);
+        }
+
+        throw new InvalidArgumentException(sprintf('Method %s does not exist in PowerJoinClause class', $name));
+    }
+
+    /**
+     * Check if a method has the Laravel Scope attribute.
+     */
+    protected function hasLaravelScopeAttribute(string $methodName): bool
+    {
+        if (!method_exists($this->getModel(), $methodName)) {
+            return false;
+        }
+
+        $reflection = new ReflectionClass($this->getModel());
+
+        if (!$reflection->hasMethod($methodName)) {
+            return false;
+        }
+
+        $method = $reflection->getMethod($methodName);
+        $attributes = $method->getAttributes();
+
+        foreach ($attributes as $attribute) {
+            if ($attribute->getName() === 'Illuminate\Database\Eloquent\Attributes\Scope') {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

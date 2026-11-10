@@ -10,4 +10,18 @@ class CannotUpdateLockedPropertyException extends \Exception
             'Cannot update locked property: ['.$this->property.']'
         );
     }
+
+    public function report(): bool
+    {
+        return ! config('app.debug');
+    }
+
+    // In debug mode, let Laravel render the full error page.
+    // In production, return a generic 419 to avoid leaking details.
+    public function render($request)
+    {
+        if (config('app.debug')) return false;
+
+        return response('', 419);
+    }
 }

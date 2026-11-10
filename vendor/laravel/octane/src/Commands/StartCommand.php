@@ -22,9 +22,9 @@ class StartCommand extends Command implements SignalableCommandInterface
                     {--admin-port= : The port the admin server should be available on [FrankenPHP only]}
                     {--rpc-host= : The RPC IP address the server should bind to}
                     {--rpc-port= : The RPC port the server should be available on}
-                    {--workers=auto : The number of workers that should be available to handle requests}
-                    {--task-workers=auto : The number of task workers that should be available to handle tasks}
-                    {--max-requests=500 : The number of requests to process before reloading the server}
+                    {--workers= : The number of workers that should be available to handle requests}
+                    {--task-workers= : The number of task workers that should be available to handle tasks}
+                    {--max-requests= : The number of requests to process before reloading the server}
                     {--rr-config= : The path to the RoadRunner .rr.yaml file}
                     {--caddyfile= : The path to the FrankenPHP Caddyfile file}
                     {--https : Enable HTTPS, HTTP/2, and HTTP/3, and automatically generate and renew certificates [FrankenPHP only]}
@@ -67,9 +67,9 @@ class StartCommand extends Command implements SignalableCommandInterface
         return $this->call('octane:swoole', [
             '--host' => $this->getHost(),
             '--port' => $this->getPort(),
-            '--workers' => $this->option('workers'),
-            '--task-workers' => $this->option('task-workers'),
-            '--max-requests' => $this->option('max-requests'),
+            '--workers' => $this->option('workers') ?: config('octane.workers', 'auto'),
+            '--task-workers' => $this->option('task-workers') ?: config('octane.task_workers', 'auto'),
+            '--max-requests' => $this->option('max-requests') ?: config('octane.max_requests', 500),
             '--watch' => $this->option('watch'),
             '--poll' => $this->option('poll'),
         ]);
@@ -87,8 +87,8 @@ class StartCommand extends Command implements SignalableCommandInterface
             '--port' => $this->getPort(),
             '--rpc-host' => $this->option('rpc-host'),
             '--rpc-port' => $this->option('rpc-port'),
-            '--workers' => $this->option('workers'),
-            '--max-requests' => $this->option('max-requests'),
+            '--workers' => $this->option('workers') ?: config('octane.workers', 'auto'),
+            '--max-requests' => $this->option('max-requests') ?: config('octane.max_requests', 500),
             '--rr-config' => $this->option('rr-config'),
             '--watch' => $this->option('watch'),
             '--poll' => $this->option('poll'),
@@ -107,8 +107,8 @@ class StartCommand extends Command implements SignalableCommandInterface
             '--host' => $this->getHost(),
             '--port' => $this->getPort(),
             '--admin-port' => $this->option('admin-port'),
-            '--workers' => $this->option('workers'),
-            '--max-requests' => $this->option('max-requests'),
+            '--workers' => $this->option('workers') ?: config('octane.workers', 'auto'),
+            '--max-requests' => $this->option('max-requests') ?: config('octane.max_requests', 500),
             '--caddyfile' => $this->option('caddyfile'),
             '--https' => $this->option('https'),
             '--http-redirect' => $this->option('http-redirect'),
@@ -137,7 +137,8 @@ class StartCommand extends Command implements SignalableCommandInterface
      */
     protected function stopServer()
     {
-        $server = $this->option('server') ?: config('octane.server');
+        // A signal may arrive before the command's input has been bound...
+        $server = (isset($this->input) ? $this->option('server') : null) ?: config('octane.server');
 
         $this->callSilent('octane:stop', [
             '--server' => $server,

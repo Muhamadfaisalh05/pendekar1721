@@ -1,7 +1,5 @@
 <?php
 
-use Laravel\Octane\Octane;
-
 ini_set('display_errors', 'stderr');
 
 $_ENV['APP_RUNNING_IN_CONSOLE'] = false;
@@ -20,7 +18,7 @@ $_ENV['APP_RUNNING_IN_CONSOLE'] = false;
 $basePath = $_SERVER['APP_BASE_PATH'] ?? $_ENV['APP_BASE_PATH'] ?? $serverState['octaneConfig']['base_path'] ?? null;
 
 if (! is_string($basePath)) {
-    Octane::writeError('Cannot find application base path.');
+    echo 'Cannot find application base path.';
 
     exit(11);
 }
@@ -37,8 +35,10 @@ if (! is_string($basePath)) {
 |
 */
 
-if (! is_file($autoload_file = $basePath.'/vendor/autoload.php')) {
-    Octane::writeError("Composer autoload file was not found. Did you install the project's dependencies?");
+$vendorDir = $_ENV['COMPOSER_VENDOR_DIR'] ?? "{$basePath}/vendor";
+
+if (! is_file($autoload_file = "{$vendorDir}/autoload.php")) {
+    echo "Composer autoload file was not found. Did you install the project's dependencies?";
 
     exit(10);
 }

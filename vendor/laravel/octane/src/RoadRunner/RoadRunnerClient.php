@@ -12,6 +12,7 @@ use Laravel\Octane\Octane;
 use Laravel\Octane\OctaneResponse;
 use Laravel\Octane\RequestContext;
 use ReflectionFunction;
+use Spiral\RoadRunner\Http\Exception\StreamStoppedException;
 use Spiral\RoadRunner\Http\PSR7Worker;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -49,14 +50,11 @@ class RoadRunnerClient implements Client, StoppableClient
             );
         }
 
-        if (
-            ($octaneResponse->response instanceof StreamedResponse) &&
-            ($responseCallback = $octaneResponse->response->getCallback()) &&
-            ((new ReflectionFunction($responseCallback))->getReturnType()?->getName() === Generator::class)
-        ) {
+        if (($octaneResponse->response instanceof StreamedResponse) &&
+            ! is_null($responseCallback = static::resolveStreamResponseCallback($octaneResponse->response))) {
             $this->client->getHttpWorker()->respond(
                 $octaneResponse->response->getStatusCode(),
-                $responseCallback(),
+                static::endStreamWhenStopped($responseCallback()),
                 $this->toPsr7Response($octaneResponse->response)->getHeaders(),
             );
 
@@ -64,6 +62,46 @@ class RoadRunnerClient implements Client, StoppableClient
         }
 
         $this->client->respond($this->toPsr7Response($octaneResponse->response));
+    }
+
+    /**
+     * End the given stream quietly once RoadRunner reports that the client has stopped it.
+     */
+    protected static function endStreamWhenStopped(Generator|string $body): Generator|string
+    {
+        if (is_string($body)) {
+            return $body;
+        }
+
+        return (function () use ($body) {
+            try {
+                return yield from $body;
+            } catch (StreamStoppedException) {
+                //
+            }
+        })();
+    }
+
+    /**
+     * Resolve the stream response callback from the given response.
+     *
+     * @param  \Symfony\Component\HttpFoundation\StreamedResponse  $response
+     * @return \Closure|null
+     */
+    public static function resolveStreamResponseCallback(StreamedResponse $response)
+    {
+        if (is_null($responseCallback = $response->getCallback())) {
+            return null;
+        }
+
+        $reflection = new ReflectionFunction($responseCallback);
+
+        if ($reflection->isGenerator() || ($reflection->hasReturnType() === true &&
+            in_array($reflection->getReturnType()?->getName(), [Generator::class, 'string']))) {
+            return $responseCallback;
+        }
+
+        return null;
     }
 
     /**

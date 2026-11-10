@@ -18,6 +18,8 @@ use Doctrine\DBAL\Result;
 use Doctrine\DBAL\Statement;
 use Doctrine\DBAL\Types\Type;
 
+use function array_filter;
+use function array_intersect;
 use function array_key_exists;
 use function array_keys;
 use function array_merge;
@@ -25,6 +27,7 @@ use function array_unshift;
 use function count;
 use function implode;
 use function is_object;
+use function sprintf;
 use function substr;
 
 /**
@@ -161,6 +164,13 @@ class QueryBuilder
     private array $unionParts = [];
 
     /**
+     * The common table expression parts.
+     *
+     * @var CommonTableExpression[]
+     */
+    private array $commonTableExpressions = [];
+
+    /**
      * The query cache profile used for caching results.
      */
     private ?QueryCacheProfile $resultCacheProfile = null;
@@ -191,6 +201,14 @@ class QueryBuilder
     public function expr(): ExpressionBuilder
     {
         return $this->connection->createExpressionBuilder();
+    }
+
+    /**
+     * Returns a fresh query builder instance that can be used to build a subquery.
+     */
+    public function sub(): self
+    {
+        return $this->connection->createQueryBuilder();
     }
 
     /**
@@ -335,6 +353,8 @@ class QueryBuilder
      * </code>
      *
      * @return string The SQL query string.
+     *
+     * @throws Exception
      */
     public function getSQL(): string
     {
@@ -515,7 +535,9 @@ class QueryBuilder
      *
      * <code>
      *     $qb = $conn->createQueryBuilder()
-     *         ->union('SELECT 1 AS field1', 'SELECT 2 AS field1');
+     *         ->union('SELECT 1 AS field1')
+     *         ->addUnion('SELECT 2 AS field1')
+     *         ->addUnion('SELECT 3 AS field1');
      * </code>
      *
      * @return $this
@@ -537,10 +559,13 @@ class QueryBuilder
      * <code>
      *     $qb = $conn->createQueryBuilder()
      *         ->union('SELECT 1 AS field1')
-     *         ->addUnion('SELECT 2 AS field1', 'SELECT 3 AS field1')
+     *         ->addUnion('SELECT 2 AS field1')
+     *         ->addUnion('SELECT 3 AS field1');
      * </code>
      *
      * @return $this
+     *
+     * @throws QueryException
      */
     public function addUnion(string|QueryBuilder $part, UnionType $type = UnionType::DISTINCT): self
     {
@@ -551,6 +576,36 @@ class QueryBuilder
         }
 
         $this->unionParts[] = new Union($part, $type);
+
+        $this->sql = null;
+
+        return $this;
+    }
+
+    /**
+     * Add a Common Table Expression to be used for a select query.
+     *
+     * <code>
+     *     // WITH cte_name AS (SELECT id AS column1 FROM table_a)
+     *     $qb = $conn->createQueryBuilder()
+     *         ->with('cte_name', 'SELECT id AS column1 FROM table_a');
+     *
+     *     // WITH cte_name(column1) AS (SELECT id AS column1 FROM table_a)
+     *     $qb = $conn->createQueryBuilder()
+     *         ->with('cte_name', 'SELECT id AS column1 FROM table_a', ['column1']);
+     * </code>
+     *
+     * @param string        $name    The name of the CTE
+     * @param string[]|null $columns The optional columns list to select in the CTE.
+     *                               If not provided, the columns are inferred from the CTE.
+     *
+     * @return $this This QueryBuilder instance.
+     *
+     * @throws QueryException Setting an empty array as columns is not allowed.
+     */
+    public function with(string $name, string|QueryBuilder $part, ?array $columns = null): self
+    {
+        $this->commonTableExpressions[] = new CommonTableExpression($name, $part, $columns);
 
         $this->sql = null;
 
@@ -746,10 +801,10 @@ class QueryBuilder
      *         ->join('u', 'phonenumbers', 'p', 'p.is_primary = 1');
      * </code>
      *
-     * @param string $fromAlias The alias that points to a from clause.
-     * @param string $join      The table name to join.
-     * @param string $alias     The alias of the join table.
-     * @param string $condition The condition for the join.
+     * @param string      $fromAlias The alias that points to a from clause.
+     * @param string      $join      The table name to join.
+     * @param string      $alias     The alias of the join table.
+     * @param string|null $condition The condition for the join.
      *
      * @return $this This QueryBuilder instance.
      */
@@ -768,10 +823,10 @@ class QueryBuilder
      *         ->innerJoin('u', 'phonenumbers', 'p', 'p.is_primary = 1');
      * </code>
      *
-     * @param string $fromAlias The alias that points to a from clause.
-     * @param string $join      The table name to join.
-     * @param string $alias     The alias of the join table.
-     * @param string $condition The condition for the join.
+     * @param string      $fromAlias The alias that points to a from clause.
+     * @param string      $join      The table name to join.
+     * @param string      $alias     The alias of the join table.
+     * @param string|null $condition The condition for the join.
      *
      * @return $this This QueryBuilder instance.
      */
@@ -794,10 +849,10 @@ class QueryBuilder
      *         ->leftJoin('u', 'phonenumbers', 'p', 'p.is_primary = 1');
      * </code>
      *
-     * @param string $fromAlias The alias that points to a from clause.
-     * @param string $join      The table name to join.
-     * @param string $alias     The alias of the join table.
-     * @param string $condition The condition for the join.
+     * @param string      $fromAlias The alias that points to a from clause.
+     * @param string      $join      The table name to join.
+     * @param string      $alias     The alias of the join table.
+     * @param string|null $condition The condition for the join.
      *
      * @return $this This QueryBuilder instance.
      */
@@ -820,16 +875,42 @@ class QueryBuilder
      *         ->rightJoin('u', 'phonenumbers', 'p', 'p.is_primary = 1');
      * </code>
      *
-     * @param string $fromAlias The alias that points to a from clause.
-     * @param string $join      The table name to join.
-     * @param string $alias     The alias of the join table.
-     * @param string $condition The condition for the join.
+     * @param string      $fromAlias The alias that points to a from clause.
+     * @param string      $join      The table name to join.
+     * @param string      $alias     The alias of the join table.
+     * @param string|null $condition The condition for the join.
      *
      * @return $this This QueryBuilder instance.
      */
     public function rightJoin(string $fromAlias, string $join, string $alias, ?string $condition = null): self
     {
         $this->join[$fromAlias][] = Join::right($join, $alias, $condition);
+
+        $this->sql = null;
+
+        return $this;
+    }
+
+    /**
+     * Creates and adds a full join to the query.
+     *
+     * <code>
+     *     $qb = $conn->createQueryBuilder()
+     *         ->select('u.name')
+     *         ->from('users', 'u')
+     *         ->fullJoin('u', 'phonenumbers', 'p', 'p.is_primary = 1');
+     * </code>
+     *
+     * @param string      $fromAlias The alias that points to a from clause.
+     * @param string      $join      The table name to join.
+     * @param string      $alias     The alias of the join table.
+     * @param string|null $condition The condition for the join.
+     *
+     * @return $this This QueryBuilder instance.
+     */
+    public function fullJoin(string $fromAlias, string $join, string $alias, ?string $condition = null): self
+    {
+        $this->join[$fromAlias][] = Join::full($join, $alias, $condition);
 
         $this->sql = null;
 
@@ -1164,8 +1245,8 @@ class QueryBuilder
      * Specifies an ordering for the query results.
      * Replaces any previously specified orderings, if any.
      *
-     * @param string $sort  The ordering expression.
-     * @param string $order The ordering direction.
+     * @param string      $sort  The ordering expression.
+     * @param string|null $order The ordering direction.
      *
      * @return $this This QueryBuilder instance.
      */
@@ -1187,8 +1268,8 @@ class QueryBuilder
     /**
      * Adds an ordering to the query results.
      *
-     * @param string $sort  The ordering expression.
-     * @param string $order The ordering direction.
+     * @param string      $sort  The ordering expression.
+     * @param string|null $order The ordering direction.
      *
      * @return $this This QueryBuilder instance.
      */
@@ -1266,7 +1347,15 @@ class QueryBuilder
             throw new QueryException('No SELECT expressions given. Please use select() or addSelect().');
         }
 
-        return $this->connection->getDatabasePlatform()
+        $databasePlatform = $this->connection->getDatabasePlatform();
+        $selectParts      = [];
+        if (count($this->commonTableExpressions) > 0) {
+            $selectParts[] = $databasePlatform
+                ->createWithSQLBuilder()
+                ->buildSQL(...$this->commonTableExpressions);
+        }
+
+        $selectParts[] = $databasePlatform
             ->createSelectSQLBuilder()
             ->buildSQL(
                 new SelectQuery(
@@ -1281,6 +1370,8 @@ class QueryBuilder
                     $this->forUpdate,
                 ),
             );
+
+        return implode(' ', $selectParts);
     }
 
     /**
@@ -1367,6 +1458,8 @@ class QueryBuilder
 
     /**
      * Converts this instance into a UNION string in SQL.
+     *
+     * @throws Exception
      */
     private function getSQLForUnion(): string
     {
@@ -1378,7 +1471,15 @@ class QueryBuilder
             );
         }
 
-        return $this->connection->getDatabasePlatform()
+        $databasePlatform = $this->connection->getDatabasePlatform();
+        $unionParts       = [];
+        if (count($this->commonTableExpressions) > 0) {
+            $unionParts[] = $databasePlatform
+                ->createWithSQLBuilder()
+                ->buildSQL(...$this->commonTableExpressions);
+        }
+
+        $unionParts[] = $databasePlatform
             ->createUnionSQLBuilder()
             ->buildSQL(
                 new UnionQuery(
@@ -1387,6 +1488,8 @@ class QueryBuilder
                     new Limit($this->maxResults, $this->firstResult),
                 ),
             );
+
+        return implode(' ', $unionParts);
     }
 
     /**
@@ -1394,6 +1497,8 @@ class QueryBuilder
      * the final SQL query being constructed.
      *
      * @return string The string representation of this QueryBuilder.
+     *
+     * @throws Exception
      */
     public function __toString(): string
     {
@@ -1524,11 +1629,9 @@ class QueryBuilder
         }
 
         foreach ($this->params as $name => $param) {
-            if (! is_object($param)) {
-                continue;
+            if (is_object($param)) {
+                $this->params[$name] = clone $param;
             }
-
-            $this->params[$name] = clone $param;
         }
     }
 

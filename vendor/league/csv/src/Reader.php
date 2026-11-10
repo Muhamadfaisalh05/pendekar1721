@@ -18,18 +18,28 @@ use Closure;
 use Deprecated;
 use Iterator;
 use JsonSerializable;
+use League\Csv\Schema\Inspector;
+use League\Csv\Schema\Schema;
 use League\Csv\Serializer\Denormalizer;
 use League\Csv\Serializer\MappingFailed;
 use League\Csv\Serializer\TypeCastingFailed;
+use ReflectionException;
+use SeekableIterator;
 use SplFileObject;
 
 use function array_filter;
+use function array_reduce;
 use function array_unique;
+use function array_values;
+use function count;
 use function is_array;
+use function is_int;
+use function is_string;
 use function iterator_count;
 use function strlen;
 use function substr;
 
+use const PHP_INT_MAX;
 use const STREAM_FILTER_READ;
 
 /**
@@ -47,9 +57,9 @@ class Reader extends AbstractCsv implements TabularDataReader, JsonSerializable
     /** @var array<string> header record. */
     protected array $header = [];
 
-    public static function createFromPath(string $path, string $open_mode = 'r', $context = null): static
+    public static function from($filename, string $mode = 'r', $context = null): static
     {
-        return parent::createFromPath($path, $open_mode, $context);
+        return parent::from($filename, $mode, $context);
     }
 
     /**
@@ -149,22 +159,19 @@ class Reader extends AbstractCsv implements TabularDataReader, JsonSerializable
      */
     protected function setHeader(int $offset): array
     {
-        $inputBom = null;
-        $header = $this->seekRow($offset);
-        if (0 === $offset) {
-            $inputBom = Bom::tryFrom($this->getInputBOM());
-            $header = $this->removeBOM(
-                $header,
-                !$this->is_input_bom_included ? $inputBom?->length() ?? 0 : 0,
-                $this->enclosure
-            );
+        $header = [];
+        foreach ($this->getInnerIterator() as $key => $record) {
+            if ($key === $offset) {
+                $header = $record;
+                break;
+            }
         }
 
         return match (true) {
             [] === $header,
             [null] === $header,
             [false] === $header,
-            [''] === $header && 0 === $offset && null !== $inputBom => throw SyntaxError::dueToHeaderNotFound($offset),
+            [''] === $header && 0 === $offset => throw SyntaxError::dueToHeaderNotFound($offset),
             default => $header,
         };
     }
@@ -172,17 +179,26 @@ class Reader extends AbstractCsv implements TabularDataReader, JsonSerializable
     /**
      * @throws Exception
      *
-     * Returns the row at a given offset.
+     * @return CallbackFilterIterator<int, array, SeekableIterator<int, array>>
      */
-    protected function seekRow(int $offset): array
+    protected function getInnerIterator(): CallbackFilterIterator
     {
-        $this->getDocument()->seek($offset);
-        $record = $this->document->current();
+        return new CallbackFilterIterator(
+            $this->getSeekableIterator(),
+            fn ($record): bool => is_array($record) && ($this->is_empty_records_included || $record !== [null])
+        );
+    }
 
-        return match (true) {
-            false === $record => [],
-            default => (array) $record,
-        };
+    /**
+     * @throws Exception
+     *
+     * @return SeekableIterator<int, array>
+     */
+    protected function getSeekableIterator(): SeekableIterator
+    {
+        $document = $this->getDocument();
+
+        return $this->is_input_bom_included ? $document : new BomSkippingIterator($document);
     }
 
     /**
@@ -192,34 +208,17 @@ class Reader extends AbstractCsv implements TabularDataReader, JsonSerializable
      */
     protected function getDocument(): SplFileObject|Stream
     {
-        $this->document->setFlags(SplFileObject::READ_CSV | SplFileObject::READ_AHEAD);
+        // SplFileObject returns an empty record instead of false when it reads past
+        // the last line; SKIP_EMPTY drops that read but keeps the empty lines.
+        $flags = SplFileObject::READ_CSV;
+        if ($this->document instanceof SplFileObject) {
+            $flags |= SplFileObject::SKIP_EMPTY;
+        }
+        $this->document->setFlags($flags);
         $this->document->setCsvControl($this->delimiter, $this->enclosure, $this->escape);
         $this->document->rewind();
 
         return $this->document;
-    }
-
-    /**
-     * Strips the BOM sequence from a record.
-     *
-     * @param array<string> $record
-     *
-     * @return array<string>
-     */
-    protected function removeBOM(array $record, int $bom_length, string $enclosure): array
-    {
-        if ([] === $record || !is_string($record[0]) || 0 === $bom_length || strlen($record[0]) < $bom_length) {
-            return $record;
-        }
-
-        $record[0] = substr($record[0], $bom_length);
-        if ($enclosure.$enclosure !== substr($record[0].$record[0], strlen($record[0]) - 1, 2)) {
-            return $record;
-        }
-
-        $record[0] = substr($record[0], 1, -1);
-
-        return $record;
     }
 
     public function fetchColumn(string|int $index = 0): Iterator
@@ -229,7 +228,7 @@ class Reader extends AbstractCsv implements TabularDataReader, JsonSerializable
 
     public function value(int|string $column = 0): mixed
     {
-        return ResultSet::from($this)->value($column);
+        return $this->selectedColumnValue($this->first(), $column);
     }
 
     /**
@@ -238,6 +237,69 @@ class Reader extends AbstractCsv implements TabularDataReader, JsonSerializable
     public function first(): array
     {
         return ResultSet::from($this)->first();
+    }
+
+    protected function getLastRecord(array $header): array
+    {
+        $document = $this->getSeekableIterator();
+        $document->seek(PHP_INT_MAX);
+        $offset = $document->key();
+        $row = false;
+        for (; $offset >= 0; --$offset) {
+            if ($this->header_offset === $offset) {
+                continue;
+            }
+            $document->seek($offset);
+            /** @var array|false $row */
+            $row = $document->current(); /* @phpstan-ignore-line */
+            if ($row !== [null] && false !== $row) {
+                break;
+            }
+        }
+
+        if (false === $row || $row === [null]) {
+            return [];
+        }
+
+        $formatter = fn (array $record): array => array_reduce(
+            $this->formatters,
+            fn (array $record, Closure $formatter): array => $formatter($record),
+            $record
+        );
+
+        $record = $row;
+        if ([] === $header) {
+            $header = $this->getHeader();
+        }
+
+        if ([] !== $header) {
+            $record = [];
+            foreach ($header as $index => $headerName) {
+                $record[$headerName] = $row[$index] ?? null;
+            }
+        }
+
+        return $formatter($record);
+    }
+
+    public function last(): array
+    {
+        return $this->getLastRecord([]);
+    }
+
+    /**
+     * @param class-string $className
+     *
+     * @throws ReflectionException
+     */
+    public function lastAsObject(string $className, array $header = []): ?object
+    {
+        $lastRecord = $this->getLastRecord($header);
+        if ([] === $lastRecord) {
+            return null;
+        }
+
+        return Denormalizer::assign($className, $lastRecord);
     }
 
     /**
@@ -278,7 +340,7 @@ class Reader extends AbstractCsv implements TabularDataReader, JsonSerializable
      */
     public function count(): int
     {
-        if (-1 === $this->nb_records) {
+        if (0 > $this->nb_records) {
             $this->nb_records = iterator_count($this->getRecords());
         }
 
@@ -344,10 +406,63 @@ class Reader extends AbstractCsv implements TabularDataReader, JsonSerializable
         return MapIterator::fromIterable($this, $callback);
     }
 
+    public function inferSchema(?Inspector $inspector = null, array $header = []): Schema
+    {
+        return ($inspector ?? Inspector::default())->schema($this, $header);
+    }
+
+    public function inferRecords(?Inspector $inspector = null, array $header = []): Iterator
+    {
+        return $this->inferSchema($inspector, $header)->parse($this);
+    }
+
+    public function firstInferred(?Inspector $inspector = null, array $header = []): array
+    {
+        return $this->inferSchema($inspector, $header)->format($this->first());
+    }
+
+    public function lastInferred(?Inspector $inspector = null, array $header = []): array
+    {
+        return $this->inferSchema($inspector, $header)->format($this->last());
+    }
+
+    /**
+     * @param int<0, max> $nth
+     *
+     * @throws Exception
+     */
+    public function nthInferred(int $nth, ?Inspector $inspector = null, array $header = []): array
+    {
+        return $this->inferSchema($inspector, $header)->format($this->nth($nth));
+    }
+
+    public function valueInferred(int|string $column = 0, ?Inspector $inspector = null, array $header = []): mixed
+    {
+        return $this->selectedColumnValue($this->firstInferred($inspector, $header), $column);
+    }
+
+    private function selectedColumnValue(array $record, int|string $column = 0): mixed
+    {
+        if ([] === $record) {
+            return null;
+        }
+
+        if (is_string($column)) {
+            return $record[$column] ?? null;
+        }
+
+        $record = array_values($record);
+        if ($column < 0) {
+            $column += count($record);
+        }
+
+        return $record[$column] ?? null;
+    }
+
     /**
      * @param positive-int $recordsCount
      *
-     * @throws InvalidArgument
+     * @throws InvalidArgument|SyntaxError
      *
      * @return iterable<TabularDataReader>
      */
@@ -367,8 +482,7 @@ class Reader extends AbstractCsv implements TabularDataReader, JsonSerializable
     /**
      * @param \League\Csv\Query\Predicate|Closure(array, array-key): bool $predicate
      *
-     * @throws Exception
-     * @throws SyntaxError
+     * @throws Exception|SyntaxError|ReflectionException
      */
     public function filter(Query\Predicate|Closure $predicate): TabularDataReader
     {
@@ -379,8 +493,7 @@ class Reader extends AbstractCsv implements TabularDataReader, JsonSerializable
      * @param int<0, max> $offset
      * @param int<-1, max> $length
      *
-     * @throws Exception
-     * @throws SyntaxError
+     * @throws Exception|SyntaxError
      */
     public function slice(int $offset, int $length = -1): TabularDataReader
     {
@@ -390,8 +503,7 @@ class Reader extends AbstractCsv implements TabularDataReader, JsonSerializable
     /**
      * @param Closure(mixed, mixed): int $orderBy
      *
-     * @throws Exception
-     * @throws SyntaxError
+     * @throws Exception|SyntaxError
      */
     public function sorted(Query\Sort|Closure $orderBy): TabularDataReader
     {
@@ -406,6 +518,7 @@ class Reader extends AbstractCsv implements TabularDataReader, JsonSerializable
      * @experimental since version 9.12.0
      *
      * @throws SyntaxError
+     *
      * @return iterable<int, TabularDataReader>
      */
     public function matching(string $expression): iterable
@@ -461,10 +574,7 @@ class Reader extends AbstractCsv implements TabularDataReader, JsonSerializable
      */
     public function getRecords(array $header = []): Iterator
     {
-        return $this->combineHeader(
-            $this->prepareRecords(),
-            $this->prepareHeader($header)
-        );
+        return $this->combineHeader($this->prepareRecords(), $this->prepareHeader($header));
     }
 
     /**
@@ -495,13 +605,7 @@ class Reader extends AbstractCsv implements TabularDataReader, JsonSerializable
      */
     protected function prepareRecords(): Iterator
     {
-        $normalized = fn ($record): bool => is_array($record) && ($this->is_empty_records_included || $record !== [null]);
-        $bom = null;
-        if (!$this->is_input_bom_included) {
-            $bom = Bom::tryFrom($this->getInputBOM());
-        }
-
-        $records = $this->stripBOM(new CallbackFilterIterator($this->getDocument(), $normalized), $bom);
+        $records = $this->getInnerIterator();
         if (null !== $this->header_offset) {
             $records = new CallbackFilterIterator($records, fn (array $record, int $offset): bool => $offset !== $this->header_offset);
         }
@@ -514,35 +618,6 @@ class Reader extends AbstractCsv implements TabularDataReader, JsonSerializable
     }
 
     /**
-     * Strips the BOM sequence from the returned records if necessary.
-     */
-    protected function stripBOM(Iterator $iterator, ?Bom $bom): Iterator
-    {
-        if (null === $bom) {
-            return $iterator;
-        }
-
-        $bomLength = $bom->length();
-        $mapper = function (array $record, int $index) use ($bomLength): array {
-            if (0 !== $index) {
-                return $record;
-            }
-
-            $record = $this->removeBOM($record, $bomLength, $this->enclosure);
-
-            return match ($record) {
-                [''] => [null],
-                default => $record,
-            };
-        };
-
-        return new CallbackFilterIterator(
-            new MapIterator($iterator, $mapper),
-            fn (array $record): bool => $this->is_empty_records_included || $record !== [null]
-        );
-    }
-
-    /**
      * @param array<string> $header
      *
      * @throws SyntaxError
@@ -551,7 +626,7 @@ class Reader extends AbstractCsv implements TabularDataReader, JsonSerializable
      */
     protected function prepareHeader($header = []): array
     {
-        $header == array_filter($header, is_string(...)) || throw SyntaxError::dueToInvalidHeaderColumnNames();
+        $header === array_filter($header, is_string(...)) || throw SyntaxError::dueToInvalidHeaderColumnNames();
 
         return $this->computeHeader($header);
     }
@@ -602,9 +677,93 @@ class Reader extends AbstractCsv implements TabularDataReader, JsonSerializable
     /**
      * DEPRECATION WARNING! This method will be removed in the next major point release.
      *
+     * Returns the row at a given offset.
+     *
+     * @deprecated
      * @throws Exception
      *
-     * @deprecated since version 9.23.0
+     * @deprecated since version 9.29 without any replacement
+     * @codeCoverageIgnore
+     */
+    protected function seekRow(int $offset): array
+    {
+        $this->getDocument()->seek($offset);
+        $record = $this->document->current();
+
+        return match (true) {
+            false === $record => [],
+            default => (array) $record,
+        };
+    }
+
+    /**
+     * Strips the BOM sequence from a record.
+     *
+     * DEPRECATION WARNING! This method will be removed in the next major point release.
+     *
+     * @param array<string> $record
+     *
+     * @return array<string>
+     *
+     * @deprecated since version 9.29 without any replacement
+     * @codeCoverageIgnore
+     */
+    protected function removeBOM(array $record, int $bom_length, string $enclosure): array
+    {
+        if ([] === $record || !is_string($record[0]) || 0 === $bom_length || strlen($record[0]) < $bom_length) {
+            return $record;
+        }
+
+        $record[0] = substr($record[0], $bom_length);
+        if ($enclosure.$enclosure !== substr($record[0].$record[0], strlen($record[0]) - 1, 2)) {
+            return $record;
+        }
+
+        $record[0] = substr($record[0], 1, -1);
+
+        return $record;
+    }
+
+    /**
+     * Strips the BOM sequence from the returned records if necessary.
+     *
+     * DEPRECATION WARNING! This method will be removed in the next major point release.
+     *
+     * @deprecated since version 9.29 without any replacement
+     * @codeCoverageIgnore
+     */
+    protected function stripBOM(Iterator $iterator, ?Bom $bom): Iterator
+    {
+        if (null === $bom) {
+            return $iterator;
+        }
+
+        $bomLength = $bom->length();
+        $mapper = function (array $record, int $index) use ($bomLength): array {
+            if (0 !== $index) {
+                return $record;
+            }
+
+            $record = $this->removeBOM($record, $bomLength, $this->enclosure);
+
+            return match ($record) {
+                [''] => [null],
+                default => $record,
+            };
+        };
+
+        return new CallbackFilterIterator(
+            new MapIterator($iterator, $mapper),
+            fn (array $record): bool => $this->is_empty_records_included || $record !== [null]
+        );
+    }
+
+    /**
+     * DEPRECATION WARNING! This method will be removed in the next major point release.
+     *
+     * @throws Exception
+     *
+     * @deprecated since version 9.23.0, use League\Csv\Resultset::fetchColumn() instead
      * @codeCoverageIgnore
      *
      * @see ResultSet::fetchColumn()
@@ -620,7 +779,7 @@ class Reader extends AbstractCsv implements TabularDataReader, JsonSerializable
      *
      * @throws Exception
      *
-     * @deprecated since version 9.23.0
+     * @deprecated since version 9.23.0, use League\Csv\Resultset::fetchColumn() instead
      * @codeCoverageIgnore
      *
      * @see ResultSet::fetchColumn()
@@ -635,7 +794,7 @@ class Reader extends AbstractCsv implements TabularDataReader, JsonSerializable
      * DEPRECATION WARNING! This method will be removed in the next major point release.
      *
      * @see Reader::nth()
-     * @deprecated since version 9.9.0
+     * @deprecated since version 9.9.0, use League\Csv\Reader::nth() instead
      * @codeCoverageIgnore
      */
     #[Deprecated(message:'use League\Csv\Reader::nth() instead', since:'league/csv:9.9.0')]
@@ -648,7 +807,7 @@ class Reader extends AbstractCsv implements TabularDataReader, JsonSerializable
      * DEPRECATION WARNING! This method will be removed in the next major point release.
      *
      * @see Reader::getRecordsAsObject()
-     * @deprecated Since version 9.15.0
+     * @deprecated Since version 9.15.0, use League\Csv\Reader::getRecordsAsObject() instead
      * @codeCoverageIgnore
      *
      * @param class-string $className
@@ -662,5 +821,23 @@ class Reader extends AbstractCsv implements TabularDataReader, JsonSerializable
     public function getObjects(string $className, array $header = []): Iterator
     {
         return $this->getRecordsAsObject($className, $header);
+    }
+
+    /**
+     * DEPRECATION WARNING! This method will be removed in the next major point release.
+     * @codeCoverageIgnore
+     * @deprecated since version 9.27.0, use League\Csv\AbstractCsv::from() instead
+     *
+     * Returns a new instance from a file path.
+     *
+     * @param non-empty-string $open_mode
+     * @param resource|null $context the resource context
+     *
+     * @throws UnavailableStream
+     */
+    #[Deprecated(message:'use League\Csv\AbstractCsv::from() instead', since:'league/csv:9.27.0')]
+    public static function createFromPath(string $path, string $open_mode = 'r', $context = null): static
+    {
+        return parent::from($path, $open_mode, $context);
     }
 }

@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace Doctrine\DBAL\Query;
 
 /** @internal */
-final class Join
+final readonly class Join
 {
     private function __construct(
-        public readonly string $type,
-        public readonly string $table,
-        public readonly string $alias,
-        public readonly ?string $condition,
+        public string $type,
+        public string $table,
+        public string $alias,
+        public ?string $condition,
     ) {
     }
 
@@ -28,5 +28,10 @@ final class Join
     public static function right(string $table, string $alias, ?string $condition): Join
     {
         return new self('RIGHT', $table, $alias, $condition);
+    }
+
+    public static function full(string $table, string $alias, ?string $condition): Join
+    {
+        return new self('FULL', $table, $alias, $condition);
     }
 }

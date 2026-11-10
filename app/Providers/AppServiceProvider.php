@@ -35,8 +35,15 @@ class AppServiceProvider extends ServiceProvider
 
         Model::unguard();
 
-        // Paginator::defaultView('pagination::default');
-        //
-        // Paginator::defaultSimpleView('pagination::simple-default');
+        /*
+         * Sebelumnya dua baris ini di-set oleh
+         * LaravelFrontendPresets\Tall\TallServiceProvider::boot().
+         * Paket laravel-frontend-presets/tall tidak kompatibel dengan
+         * Laravel 12, sehingga setting pagination dipindahkan ke sini agar
+         * view resources/views/vendor/pagination/{default,simple-default}.blade.php
+         * tetap dipakai dan tampilan pagination tidak berubah.
+         */
+        Paginator::defaultView('pagination::default');
+        Paginator::defaultSimpleView('pagination::simple-default');
     }
 }

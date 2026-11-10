@@ -43,8 +43,7 @@ class JsonResponse extends Response
         | JSON_HEX_QUOT
         | JSON_UNESCAPED_SLASHES;
 
-    /** @var mixed */
-    private $payload;
+    private mixed $payload;
 
     /**
      * Create a JSON response with the given data.
@@ -60,7 +59,7 @@ class JsonResponse extends Response
      *
      * @param mixed $data Data to convert to JSON.
      * @param int $status Integer status code for the response; 200 by default.
-     * @param array $headers Array of headers to use at initialization.
+     * @param array<non-empty-string, string|string[]> $headers Array of headers to use at initialization.
      * @param int $encodingOptions JSON encoding options to use.
      * @throws Exception\InvalidArgumentException If unable to encode the $data to JSON.
      */
@@ -126,9 +125,6 @@ class JsonResponse extends Response
         if (is_resource($data)) {
             throw new Exception\InvalidArgumentException('Cannot JSON encode resources');
         }
-
-        // Clear json_last_error()
-        json_encode(null);
 
         try {
             return json_encode($data, $encodingOptions | JSON_THROW_ON_ERROR);

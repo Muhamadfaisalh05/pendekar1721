@@ -23,7 +23,7 @@ FileUpload::make('attachment')
 
 <AutoScreenshot name="forms/fields/file-upload/simple" alt="File upload" version="3.x" />
 
-> Filament also supports [`spatie/laravel-medialibrary`](https://github.com/spatie/laravel-medialibrary). See our [plugin documentation](/plugins/filament-spatie-media-library) for more information.
+> Filament also supports [`spatie/laravel-medialibrary`](https://github.com/spatie/laravel-medialibrary). See our [plugin documentation](https://filamentphp.com/plugins/filament-spatie-media-library) for more information.
 
 ## Configuring the storage disk and directory
 
@@ -92,7 +92,7 @@ By default, a random file name will be generated for newly-uploaded files. This 
 
 Before using the `preserveFilenames()` or `getUploadedFileNameForStorageUsing()` methods, please be aware of the security implications. If you allow users to upload files with their own file names, there are ways that they can exploit this to upload malicious files. **This applies even if you use the [`acceptedFileTypes()`](#file-type-validation) method** to restrict the types of files that can be uploaded, since it uses Laravel's `mimetypes` rule which does not validate the extension of the file, only its mime type, which could be manipulated.
 
-This is specifically an issue with the `getClientOriginalName()` method on the `TemporaryUploadedFile` object, which the `preserveFilenames()` method uses. By default, Livewire generates a random file name for each file uploaded, and uses the mime type of the file to determine the file extension.
+This is specifically an issue with the `getClientOriginalName()` method on the `TemporaryUploadedFile` object, which the `preserveFilenames()` method uses. By default, Filament uses Laravel's `hashName()` method to generate a random file name and determine the file extension from the file's mime type.
 
 Using these methods **with the `local` or `public` filesystem disks** will make your app vulnerable to remote code execution if the attacker uploads a PHP file with a deceptive mime type. **Using an S3 disk protects you from this specific attack vector**, as S3 will not execute PHP files in the same way that your server might when serving files from local storage.
 
@@ -412,6 +412,17 @@ FileUpload::make('attachment')
     ->deletable(false)
 ```
 
+## Preventing pasting files
+
+You can disable the ability to paste files via the clipboard using the `pasteable(false)` method:
+
+```php
+use Filament\Forms\Components\FileUpload;
+
+FileUpload::make('attachment')
+    ->pasteable(false)
+```
+
 ## Prevent file information fetching
 
 While the form is loaded, it will automatically detect whether the files exist, what size they are, and what type of files they are. This is all done on the backend. When using remote storage with many files, this can be time-consuming. You can use the `fetchFileInformation(false)` method to disable this feature:
@@ -507,7 +518,7 @@ Livewire also validates file size before uploading. To publish the Livewire conf
 php artisan livewire:publish --config
 ```
 
-The [max upload size can be adjusted in the `rules` key of `temporary_file_upload`]((https://livewire.laravel.com/docs/uploads#global-validation)). In this instance, KB are used in the rule, and 120MB is 122880KB:
+The [max upload size can be adjusted in the `rules` key of `temporary_file_upload`](https://livewire.laravel.com/docs/uploads#global-validation). In this instance, KB are used in the rule, and 120MB is 122880KB:
 
 ```php
 'temporary_file_upload' => [

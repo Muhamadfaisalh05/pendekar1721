@@ -30,16 +30,14 @@ trait MessageTrait
     /**
      * List of all registered headers, as key => array of values.
      *
-     * @var array
-     * @psalm-var array<non-empty-string, list<string>>
+     * @var array<non-empty-string, list<string>>
      */
     protected $headers = [];
 
     /**
      * Map of normalized header name to original name used to register header.
      *
-     * @var array
-     * @psalm-var array<non-empty-string, non-empty-string>
+     * @var array<non-empty-string, non-empty-string>
      */
     protected $headerNames = [];
 
@@ -112,14 +110,14 @@ trait MessageTrait
     /**
      * Checks if a header exists by the given case-insensitive name.
      *
-     * @param string $header Case-insensitive header name.
+     * @param string $name Case-insensitive header name.
      * @return bool Returns true if any header names match the given header
      *     name using a case-insensitive string comparison. Returns false if
      *     no matching header name is found in the message.
      */
-    public function hasHeader(string $header): bool
+    public function hasHeader(string $name): bool
     {
-        return isset($this->headerNames[strtolower($header)]);
+        return isset($this->headerNames[strtolower($name)]);
     }
 
     /**
@@ -131,20 +129,21 @@ trait MessageTrait
      * If the header does not appear in the message, this method MUST return an
      * empty array.
      *
-     * @param string $header Case-insensitive header field name.
+     * @param string $name Case-insensitive header field name.
      * @return string[] An array of string values as provided for the given
      *    header. If the header does not appear in the message, this method MUST
      *    return an empty array.
      */
-    public function getHeader(string $header): array
+    public function getHeader(string $name): array
     {
-        if (! $this->hasHeader($header)) {
+        if (! $this->hasHeader($name)) {
             return [];
         }
 
-        $header = $this->headerNames[strtolower($header)];
+        /** @psalm-suppress PossiblyInvalidArrayOffset */
+        $name = $this->headerNames[strtolower($name)];
 
-        return $this->headers[$header];
+        return $this->headers[$name];
     }
 
     /**
@@ -307,6 +306,7 @@ trait MessageTrait
             return $stream;
         }
 
+        /** @psalm-suppress DocblockTypeContradiction */
         if (! is_string($stream) && ! is_resource($stream)) {
             throw new Exception\InvalidArgumentException(
                 'Stream must be a string stream resource identifier, '
@@ -323,7 +323,7 @@ trait MessageTrait
      *
      * Used by message constructors to allow setting all initial headers at once.
      *
-     * @param array $originalHeaders Headers to filter.
+     * @param array<non-empty-string, string|string[]> $originalHeaders Headers to filter.
      */
     private function setHeaders(array $originalHeaders): void
     {
@@ -355,9 +355,9 @@ trait MessageTrait
             );
         }
 
-        // HTTP/1 uses a "<major>.<minor>" numbering scheme to indicate
-        // versions of the protocol, while HTTP/2 does not.
-        if (! preg_match('#^(1\.[01]|2(\.0)?)$#', $version)) {
+        // HTTP/1 uses a "<major>.<minor>" version schema while
+        // HTTP/2 and HTTP/3 use just "<major>" or "<major>.0".
+        if (! preg_match('#^(?:1\.[01]|[23](?:\.0)?)\z#', $version)) {
             throw new Exception\InvalidArgumentException(sprintf(
                 'Unsupported HTTP protocol version "%s" provided',
                 $version
@@ -395,10 +395,10 @@ trait MessageTrait
     /**
      * Ensure header name and values are valid.
      *
-     * @param string $name
+     * @psalm-assert non-empty-string $name
      * @throws Exception\InvalidArgumentException
      */
-    private function assertHeader($name): void
+    private function assertHeader(mixed $name): void
     {
         HeaderSecurity::assertValidName($name);
     }
