@@ -26,14 +26,14 @@ Aplikasi ini dirancang untuk mengelola:
 - **📊 Master Data Management** - Kelola data referensi: kota, agama, etnis, pendidikan, keahlian, pelatihan
 - **🌐 Profil Publik** - Direktori profil yang dapat diakses publik dengan URL berbasis slug
 - **🔄 Status Workflow** - Sistem status pengguna menggunakan PHP 8.2 enums (Draft/Published/Archived)
-- **⚡ Modern Tech Stack** - Laravel 11, Filament 3, Livewire 3, TailwindCSS, Vite
+- **⚡ Modern Tech Stack** - Laravel 13, Filament 3, Livewire 3, TailwindCSS, Vite
 
 ## 🛠️ Teknologi
 
 ### Backend
 
-- **PHP 8.2+** - Bahasa pemrograman utama
-- **Laravel 11.9** - Framework PHP
+- **PHP 8.4.1+** - Bahasa pemrograman utama (wajib; Symfony 8.1 menolak PHP < 8.4.1)
+- **Laravel 13.40** - Framework PHP
 - **Filament 3.2** - Admin panel framework
 - **Livewire 3.5** - Dynamic UI components
 - **Laravel Octane 2.5** - Performance optimization

@@ -5,7 +5,7 @@
     "keywords": ["laravel", "framework"],
     "license": "MIT",
     "require": {
-        "php": "^8.3",
+        "php": "^8.4",
         "blade-ui-kit/blade-icons": "^1.7",
         "filament/filament": "^3.2",
         "laravel/framework": "^13.0",
