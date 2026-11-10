@@ -57,8 +57,12 @@ class ImportData extends Page implements HasForms
                         ])
                         ->required()
                         ->maxSize(5120)
+                        // SECURITY (FASE 3): file mentah berisi PII disimpan di
+                        // disk "local" (storage/app/imports) yang tidak diekspos
+                        // lewat public/storage, dan nama filenya diacak.
+                        ->disk('local')
                         ->directory('imports')
-                        ->preserveFilenames(),
+                        ->visibility('private'),
 
                     Forms\Components\FileUpload::make('photos')
                         ->label('Foto Profil (Opsional - Bisa pilih banyak file)')
@@ -70,6 +74,16 @@ class ImportData extends Page implements HasForms
                         ->disk('public')
                         ->directory('profile_pictures')
                         ->preserveFilenames(),
+                ]),
+
+            Forms\Components\Section::make('Kata Sandi Awal Peserta')
+                ->description('Opsional. Jika diisi, seluruh peserta hasil import memakai kata sandi ini untuk login pertama (harus cocok dengan IMPORT_PASSWORD_HASH di server). Jika dikosongkan, peserta diberi kata sandi acak dan wajib melakukan reset password.')
+                ->schema([
+                    Forms\Components\TextInput::make('import_password')
+                        ->label('Kata Sandi Awal')
+                        ->password()
+                        ->revealable()
+                        ->maxLength(255),
                 ]),
         ];
     }
@@ -132,7 +146,9 @@ class ImportData extends Page implements HasForms
 
         $writer = new Xlsx($spreadsheet);
         $fileName = 'Template_Import_Klien.xlsx';
-        $tempPath = storage_path('app/public/' . $fileName);
+        // File template sementara disimpan di storage/app (bukan app/public)
+        // agar tidak pernah bisa diunduh langsung dari web.
+        $tempPath = storage_path('app/' . $fileName);
         $writer->save($tempPath);
 
         return response()->download($tempPath)->deleteFileAfterSend(true);
@@ -192,7 +208,9 @@ class ImportData extends Page implements HasForms
         $table->addCell(1500)->addText('siti.jpg');
 
         $fileName = 'Template_Import_Klien.docx';
-        $tempPath = storage_path('app/public/' . $fileName);
+        // File template sementara disimpan di storage/app (bukan app/public)
+        // agar tidak pernah bisa diunduh langsung dari web.
+        $tempPath = storage_path('app/' . $fileName);
         $objWriter = \PhpOffice\PhpWord\IOFactory::createWriter($phpWord, 'Word2007');
         $objWriter->save($tempPath);
 
@@ -211,8 +229,17 @@ class ImportData extends Page implements HasForms
         $this->isProcessing = true;
 
         try {
-            $filePath = storage_path('app/public/' . $data['file']);
-            $extension = pathinfo($filePath, PATHINFO_EXTENSION);
+            // SECURITY (FASE 3): file disimpan pada disk "local"
+            // (storage/app/imports) dan dibaca lewat path disk tersebut,
+            // bukan lewat storage_path('app/public/...').
+            $disk = Storage::disk('local');
+
+            if (! is_string($data['file']) || ! $disk->exists($data['file'])) {
+                throw new \Exception('File import tidak ditemukan, silakan unggah ulang.');
+            }
+
+            $filePath = $disk->path($data['file']);
+            $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
 
             $service = new ImportService();
             $this->previewData = $service->parseAndValidate($filePath, $extension);
@@ -241,9 +268,21 @@ class ImportData extends Page implements HasForms
         try {
             $data = $this->form->getState();
             $uploadedPhotos = $data['photos'] ?? [];
+            $importPassword = $data['import_password'] ?? null;
+
+            // SECURITY (FASE 3): kata sandi awal harus cocok dengan hash
+            // yang tersimpan di server (IMPORT_PASSWORD_HASH).
+            if (! ImportService::initialPasswordMatches($importPassword)) {
+                Notification::make()
+                    ->title('Kata sandi awal tidak valid atau belum dikonfigurasi di server.')
+                    ->danger()
+                    ->send();
+
+                return;
+            }
 
             $service = new ImportService();
-            $service->importData($this->previewData['valid'], $uploadedPhotos);
+            $service->importData($this->previewData['valid'], $uploadedPhotos, auth()->id(), $importPassword);
 
             $totalValid = count($this->previewData['valid']);
             $totalDuplikat = count($this->previewData['duplicates']);

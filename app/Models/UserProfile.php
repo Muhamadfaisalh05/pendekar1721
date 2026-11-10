@@ -45,6 +45,35 @@ class UserProfile extends Model
 {
     use HasFactory;
 
+    /**
+     * The attributes that are mass assignable.
+     *
+     * Catatan: user_id sengaja TIDAK fillable agar relasi kepemilikan
+     * tidak bisa dibelokkan lewat mass assignment. Gunakan relasi
+     * ($user->userProfile()->create([...])) untuk membuat profil.
+     *
+     * @var array<int, string>
+     */
+    protected $fillable = [
+        'description',
+        'birth_place',
+        'birth_date',
+        'gender',
+        'ktp_address',
+        'ktp_city_id',
+        'domisili_address',
+        'domisili_city_id',
+        'education_degree_id',
+        'body_weight',
+        'body_height',
+        'religion_id',
+        'ethnic_group_id',
+        'profile_picture_path',
+        'skck_status',
+        'surat_kesehatan_status',
+        'hire_status',
+    ];
+
     protected $appends = ['birth_date_day', 'birth_date_month', 'birth_date_year'];
 
     protected function casts(): array

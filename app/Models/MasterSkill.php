@@ -17,6 +17,15 @@ class MasterSkill extends Model
     use HasFactory;
 
     /**
+     * The attributes that are mass assignable.
+     *
+     * @var array<int, string>
+     */
+    protected $fillable = [
+        'title',
+    ];
+
+    /**
      * Get the users that have this skill.
      *
      * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany<User>

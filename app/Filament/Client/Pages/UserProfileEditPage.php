@@ -264,7 +264,15 @@ class UserProfileEditPage extends Page implements HasForms
         $userExperiences = $data['work_experiences'];
         unset($data['work_experiences']);
 
-        UserProfile::updateOrCreate(['user_id' => auth()->user()->id], $data);
+        // user_id bukan atribut mass-assignable. Ambil instance yang sudah ada
+        // atau buat lewat relasi agar foreign key terisi tanpa mass assignment.
+        $userProfile = $this->userProfile;
+
+        if (! $userProfile->exists) {
+            $userProfile = auth()->user()->userProfile()->make();
+        }
+
+        $userProfile->fill($data)->save();
 
         UserExperience::query()
             ->whereBelongsTo(auth()->user())

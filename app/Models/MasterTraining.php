@@ -17,6 +17,15 @@ class MasterTraining extends Model
     use HasFactory;
 
     /**
+     * The attributes that are mass assignable.
+     *
+     * @var array<int, string>
+     */
+    protected $fillable = [
+        'title',
+    ];
+
+    /**
      * Get the users that have this training.
      *
      * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany<User>

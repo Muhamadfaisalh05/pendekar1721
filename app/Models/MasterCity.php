@@ -17,6 +17,15 @@ class MasterCity extends Model
     use HasFactory;
 
     /**
+     * The attributes that are mass assignable.
+     *
+     * @var array<int, string>
+     */
+    protected $fillable = [
+        'title',
+    ];
+
+    /**
      * Get the users that have this city as their work location.
      *
      * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany<User>

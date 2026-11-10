@@ -23,8 +23,17 @@ class PesertaResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        // Hanya menampilkan user_type = client
-        return parent::getEloquentQuery()->where('user_type', 'client');
+        $query = parent::getEloquentQuery()->where('user_type', 'client');
+
+        // SECURITY (FASE 2 / Opsi A): klien hanya boleh melihat & mengelola
+        // peserta yang ia daftarkan sendiri (created_by = dirinya).
+        // Filament memakai query ini juga untuk resolve record pada halaman
+        // edit, sehingga ID peserta milik klien lain otomatis 404.
+        if (auth()->check() && auth()->user()->user_type === 'client') {
+            $query->where('created_by', auth()->id());
+        }
+
+        return $query;
     }
 
     public static function form(Form $form): Form
