@@ -183,7 +183,6 @@
                 </section>
             </div>
         </div>
-    @endsection
     </section>
 
     {{-- ======= KETERAMPILAN / SKILLS ======= --}}

@@ -19,9 +19,12 @@ use Doctrine\DBAL\Platforms\Exception\NotSupported;
 use Doctrine\DBAL\Platforms\Keywords\KeywordList;
 use Doctrine\DBAL\Schema\AbstractSchemaManager;
 use Doctrine\DBAL\Schema\Column;
+use Doctrine\DBAL\Schema\DefaultExpression;
 use Doctrine\DBAL\Schema\ForeignKeyConstraint;
 use Doctrine\DBAL\Schema\Identifier;
 use Doctrine\DBAL\Schema\Index;
+use Doctrine\DBAL\Schema\Metadata\MetadataProvider;
+use Doctrine\DBAL\Schema\Name\UnquotedIdentifierFolding;
 use Doctrine\DBAL\Schema\SchemaDiff;
 use Doctrine\DBAL\Schema\Sequence;
 use Doctrine\DBAL\Schema\Table;
@@ -31,11 +34,14 @@ use Doctrine\DBAL\SQL\Builder\DefaultSelectSQLBuilder;
 use Doctrine\DBAL\SQL\Builder\DefaultUnionSQLBuilder;
 use Doctrine\DBAL\SQL\Builder\SelectSQLBuilder;
 use Doctrine\DBAL\SQL\Builder\UnionSQLBuilder;
+use Doctrine\DBAL\SQL\Builder\WithSQLBuilder;
 use Doctrine\DBAL\SQL\Parser;
 use Doctrine\DBAL\TransactionIsolationLevel;
 use Doctrine\DBAL\Types;
 use Doctrine\DBAL\Types\Exception\TypeNotFound;
+use Doctrine\DBAL\Types\Exception\TypesException;
 use Doctrine\DBAL\Types\Type;
+use Doctrine\Deprecations\Deprecation;
 
 use function addcslashes;
 use function array_map;
@@ -46,7 +52,6 @@ use function assert;
 use function count;
 use function explode;
 use function implode;
-use function in_array;
 use function is_array;
 use function is_bool;
 use function is_float;
@@ -69,7 +74,15 @@ use function strtoupper;
  * point of abstraction of platform-specific behaviors, features and SQL dialects.
  * They are a passive source of information.
  *
- * @todo Remove any unnecessary methods.
+ * @phpstan-import-type ColumnProperties from Column
+ * @phpstan-type CreateTableParameters = array{
+ *    primary?: list<string>,
+ *    primary_index?: Index,
+ *    indexes?: list<Index>,
+ *    uniqueConstraints?: list<UniqueConstraint>,
+ *    foreignKeys?: list<ForeignKeyConstraint>,
+ *    comment?: string,
+ * }
  */
 abstract class AbstractPlatform
 {
@@ -84,41 +97,62 @@ abstract class AbstractPlatform
 
     /**
      * Holds the KeywordList instance for the current platform.
+     *
+     * @deprecated
      */
     protected ?KeywordList $_keywords = null;
 
     /**
+     * Defines how the platform folds the case of unquoted identifiers.
+     */
+    private ?UnquotedIdentifierFolding $unquotedIdentifierFolding = null;
+
+    public function __construct(?UnquotedIdentifierFolding $unquotedIdentifierFolding = null)
+    {
+        if ($unquotedIdentifierFolding === null) {
+            Deprecation::trigger(
+                'doctrine/dbal',
+                'https://github.com/doctrine/dbal/pull/6823',
+                'Not passing $unquotedIdentifierFolding to %s() is deprecated.',
+                __METHOD__,
+            );
+        }
+
+        $this->unquotedIdentifierFolding = $unquotedIdentifierFolding ?? UnquotedIdentifierFolding::UPPER;
+    }
+
+    /**
      * Returns the SQL snippet that declares a boolean column.
      *
-     * @param mixed[] $column
+     * @param array<string, mixed> $column
      */
     abstract public function getBooleanTypeDeclarationSQL(array $column): string;
 
     /**
      * Returns the SQL snippet that declares a 4 byte integer column.
      *
-     * @param mixed[] $column
+     * @param array<string, mixed> $column
      */
     abstract public function getIntegerTypeDeclarationSQL(array $column): string;
 
     /**
      * Returns the SQL snippet that declares an 8 byte integer column.
      *
-     * @param mixed[] $column
+     * @param array<string, mixed> $column
      */
     abstract public function getBigIntTypeDeclarationSQL(array $column): string;
 
     /**
      * Returns the SQL snippet that declares a 2 byte integer column.
      *
-     * @param mixed[] $column
+     * @param array<string, mixed> $column
      */
     abstract public function getSmallIntTypeDeclarationSQL(array $column): string;
 
     /**
      * Returns the SQL snippet that declares common properties of an integer column.
      *
-     * @param mixed[] $column
+     * @param array<string, mixed> $column
      */
     abstract protected function _getCommonIntegerTypeDeclarationSQL(array $column): string;
 
@@ -130,6 +164,8 @@ abstract class AbstractPlatform
     /**
      * Initializes Doctrine Type Mappings with the platform defaults
      * and with all additional type mappings.
+     *
+     * @throws TypesException
      */
     private function initializeAllDoctrineTypeMappings(): void
     {
@@ -214,6 +250,18 @@ abstract class AbstractPlatform
             ? max(...array_map(mb_strlen(...), $column['values']))
             : mb_strlen($column['values'][key($column['values'])]);
 
+        if (isset($column['length'])) {
+            if ($length > $column['length']) {
+                throw new InvalidArgumentException(sprintf(
+                    'Specified column length (%d) is less than the maximum length of provided values (%d).',
+                    $column['length'],
+                    $length,
+                ));
+            }
+
+            $length = $column['length'];
+        }
+
         return $this->getStringTypeDeclarationSQL(['length' => $length]);
     }
 
@@ -239,11 +287,29 @@ abstract class AbstractPlatform
      * By default this maps directly to a CLOB and only maps to more
      * special datatypes when the underlying databases support this datatype.
      *
-     * @param mixed[] $column
+     * @param array<string, mixed> $column
      */
     public function getJsonTypeDeclarationSQL(array $column): string
     {
+        if (! empty($column['jsonb'])) {
+            Deprecation::trigger(
+                'doctrine/dbal',
+                'https://github.com/doctrine/dbal/pull/6939',
+                'The "jsonb" column platform option is deprecated. Use the "JSONB" type instead.',
+            );
+        }
+
         return $this->getClobTypeDeclarationSQL($column);
+    }
+
+    /**
+     * Returns the SQL snippet to declare a JSONB column.
+     *
+     * @param array<string, mixed> $column
+     */
+    public function getJsonbTypeDeclarationSQL(array $column): string
+    {
+        return $this->getJsonTypeDeclarationSQL($column);
     }
 
     /**
@@ -309,14 +375,14 @@ abstract class AbstractPlatform
     /**
      * Returns the SQL snippet used to declare a CLOB column type.
      *
-     * @param mixed[] $column
+     * @param array<string, mixed> $column
      */
     abstract public function getClobTypeDeclarationSQL(array $column): string;
 
     /**
      * Returns the SQL Snippet used to declare a BLOB column type.
      *
-     * @param mixed[] $column
+     * @param array<string, mixed> $column
      */
     abstract public function getBlobTypeDeclarationSQL(array $column): string;
 
@@ -341,6 +407,8 @@ abstract class AbstractPlatform
 
     /**
      * Gets the Doctrine type that is mapped for the given database column type.
+     *
+     * @throws TypesException
      */
     public function getDoctrineTypeMapping(string $dbType): string
     {
@@ -363,6 +431,8 @@ abstract class AbstractPlatform
 
     /**
      * Checks if a database type is currently supported by this platform.
+     *
+     * @throws TypesException
      */
     public function hasDoctrineTypeMappingFor(string $dbType): bool
     {
@@ -804,6 +874,11 @@ abstract class AbstractPlatform
         return new DefaultUnionSQLBuilder($this);
     }
 
+    public function createWithSQLBuilder(): WithSQLBuilder
+    {
+        return new WithSQLBuilder();
+    }
+
     /**
      * @internal
      *
@@ -812,6 +887,57 @@ abstract class AbstractPlatform
     final protected function getCreateTableWithoutForeignKeysSQL(Table $table): array
     {
         return $this->buildCreateTableSQL($table, false);
+    }
+
+    /**
+     * Resolves the DBAL type instance of a column or of a column definition array.
+     *
+     * @param array<string, mixed>|Column $column Column properties.
+     */
+    final protected function getColumnType(array|Column $column): Type
+    {
+        if ($column instanceof Column) {
+            // @phpstan-ignore missingType.checkedException
+            return Type::getType($column->getTypeName());
+        }
+
+        $type = $this->getColumnTypeOrNull($column);
+
+        if ($type === null) {
+            $name = $column['name'] ?? '';
+
+            throw InvalidColumnDeclaration::fromMissingColumnType(is_string($name) ? $name : '');
+        }
+
+        return $type;
+    }
+
+    /**
+     * Resolves the DBAL type instance of a column or of a column definition array, or null when the definition
+     * carries no type.
+     *
+     * @param array<string, mixed> $column Column properties.
+     */
+    final protected function getColumnTypeOrNull(array $column): ?Type
+    {
+        if (isset($column['typeName']) && is_string($column['typeName'])) {
+            // @phpstan-ignore missingType.checkedException
+            return Type::getType($column['typeName']);
+        }
+
+        if (isset($column['type']) && $column['type'] instanceof Type) {
+            Deprecation::trigger(
+                'doctrine/dbal',
+                'https://github.com/doctrine/dbal/pull/7490',
+                'Providing a %s instance under the "type" key of a column definition array is deprecated.'
+                    . ' Provide the type name under the "typeName" key instead.',
+                Type::class,
+            );
+
+            return $column['type'];
+        }
+
+        return null;
     }
 
     /** @return list<string> */
@@ -823,9 +949,10 @@ abstract class AbstractPlatform
 
         $tableName                    = $table->getQuotedName($this);
         $options                      = $table->getOptions();
-        $options['uniqueConstraints'] = [];
-        $options['indexes']           = [];
         $options['primary']           = [];
+        $options['indexes']           = [];
+        $options['uniqueConstraints'] = [];
+        $options['foreignKeys']       = [];
 
         foreach ($table->getIndexes() as $index) {
             if (! $index->isPrimary()) {
@@ -843,8 +970,6 @@ abstract class AbstractPlatform
         }
 
         if ($createForeignKeys) {
-            $options['foreignKeys'] = [];
-
             foreach ($table->getForeignKeys() as $fkConstraint) {
                 $options['foreignKeys'][] = $fkConstraint;
             }
@@ -853,13 +978,7 @@ abstract class AbstractPlatform
         $columns = [];
 
         foreach ($table->getColumns() as $column) {
-            $columnData = $this->columnToArray($column);
-
-            if (in_array($column->getName(), $options['primary'], true)) {
-                $columnData['primary'] = true;
-            }
-
-            $columns[] = $columnData;
+            $columns[] = $this->columnToArray($column);
         }
 
         $sql = $this->_getCreateTableSQL($tableName, $columns, $options);
@@ -872,11 +991,9 @@ abstract class AbstractPlatform
             foreach ($table->getColumns() as $column) {
                 $comment = $column->getComment();
 
-                if ($comment === '') {
-                    continue;
+                if ($comment !== '') {
+                    $sql[] = $this->getCommentOnColumnSQL($tableName, $column->getQuotedName($this), $comment);
                 }
-
-                $sql[] = $this->getCommentOnColumnSQL($tableName, $column->getQuotedName($this), $comment);
             }
         }
 
@@ -975,26 +1092,28 @@ abstract class AbstractPlatform
     /**
      * Returns the SQL used to create a table.
      *
-     * @param mixed[][] $columns
-     * @param mixed[]   $options
+     * @param list<ColumnProperties> $columns
+     * @param CreateTableParameters  $options
      *
      * @return list<string>
      */
     protected function _getCreateTableSQL(string $name, array $columns, array $options = []): array
     {
+        $this->validateCreateTableOptions($options, __METHOD__);
+
         $columnListSql = $this->getColumnDeclarationListSQL($columns);
 
-        if (isset($options['uniqueConstraints']) && ! empty($options['uniqueConstraints'])) {
+        if (! empty($options['uniqueConstraints'])) {
             foreach ($options['uniqueConstraints'] as $definition) {
                 $columnListSql .= ', ' . $this->getUniqueConstraintDeclarationSQL($definition);
             }
         }
 
-        if (isset($options['primary']) && ! empty($options['primary'])) {
-            $columnListSql .= ', PRIMARY KEY(' . implode(', ', array_unique(array_values($options['primary']))) . ')';
+        if (! empty($options['primary'])) {
+            $columnListSql .= ', PRIMARY KEY (' . implode(', ', array_unique(array_values($options['primary']))) . ')';
         }
 
-        if (isset($options['indexes']) && ! empty($options['indexes'])) {
+        if (! empty($options['indexes'])) {
             foreach ($options['indexes'] as $definition) {
                 $columnListSql .= ', ' . $this->getIndexDeclarationSQL($definition);
             }
@@ -1018,6 +1137,31 @@ abstract class AbstractPlatform
         }
 
         return $sql;
+    }
+
+    /**
+     * @internal
+     *
+     * @param CreateTableParameters $options
+     */
+    final protected function validateCreateTableOptions(array $options, string $methodName): void
+    {
+        if (
+            ! isset(
+                $options['primary'],
+                $options['indexes'],
+                $options['uniqueConstraints'],
+                $options['foreignKeys'],
+            )
+        ) {
+            Deprecation::trigger(
+                'doctrine/dbal',
+                'https://github.com/doctrine/dbal/pull/6805',
+                'Not passing $options or any of its following keys to %s() is deprecated:'
+                    . ' "primary", "indexes", "uniqueConstraints", "foreignKeys".',
+                $methodName,
+            );
+        }
     }
 
     public function getCreateTemporaryTableSnippetSQL(): string
@@ -1147,9 +1291,18 @@ abstract class AbstractPlatform
 
     /**
      * Returns the SQL to create an unnamed primary key constraint.
+     *
+     * @deprecated
      */
     public function getCreatePrimaryKeySQL(Index $index, string $table): string
     {
+        Deprecation::triggerIfCalledFromOutside(
+            'doctrine/dbal',
+            'https://github.com/doctrine/dbal/pull/6867',
+            '%s() is deprecated.',
+            __METHOD__,
+        );
+
         return 'ALTER TABLE ' . $table . ' ADD PRIMARY KEY (' . implode(', ', $index->getQuotedColumns($this)) . ')';
     }
 
@@ -1170,13 +1323,7 @@ abstract class AbstractPlatform
      */
     public function getCreateUniqueConstraintSQL(UniqueConstraint $constraint, string $tableName): string
     {
-        $sql = 'ALTER TABLE ' . $tableName . ' ADD';
-
-        if ($constraint->getName() !== '') {
-            $sql .= ' CONSTRAINT ' . $constraint->getQuotedName($this);
-        }
-
-        return $sql . ' UNIQUE (' . implode(', ', $constraint->getQuotedColumns($this)) . ')';
+        return 'ALTER TABLE ' . $tableName . ' ADD ' . $this->getUniqueConstraintDeclarationSQL($constraint);
     }
 
     /**
@@ -1200,12 +1347,24 @@ abstract class AbstractPlatform
      * you SHOULD use them. In general, they end up causing way more
      * problems than they solve.
      *
+     * @deprecated Use {@link quoteSingleIdentifier()} individually for each part of a qualified name instead.
+     *
      * @param string $identifier The identifier name to be quoted.
      *
      * @return string The quoted identifier string.
      */
     public function quoteIdentifier(string $identifier): string
     {
+        Deprecation::trigger(
+            'doctrine/dbal',
+            'https://github.com/doctrine/dbal/pull/6590',
+            <<<'DEPRECATION'
+            Method %s is deprecated and will be removed in 5.0.
+            Use quoteSingleIdentifier() individually for each part of a qualified name instead.
+            DEPRECATION,
+            __METHOD__,
+        );
+
         if (str_contains($identifier, '.')) {
             $parts = array_map($this->quoteSingleIdentifier(...), explode('.', $identifier));
 
@@ -1346,25 +1505,7 @@ abstract class AbstractPlatform
     /**
      * Gets declaration of a number of columns in bulk.
      *
-     * @param mixed[][] $columns A multidimensional array.
-     *                           The first dimension determines the ordinal position of the column,
-     *                           while the second dimension is keyed with the name of the properties
-     *                           of the column being declared as array indexes. Currently, the types
-     *                           of supported column properties are as follows:
-     *
-     *      length
-     *          Integer value that determines the maximum length of the text
-     *          column. If this argument is missing the column should be
-     *          declared to have the longest length allowed by the DBMS.
-     *      default
-     *          Text value to be used as default for this column.
-     *      notnull
-     *          Boolean flag that indicates whether this column is constrained
-     *          to not be set to null.
-     *      charset
-     *          Text value with the default CHARACTER SET for this column.
-     *      collation
-     *          Text value with the default COLLATION for this column.
+     * @param list<ColumnProperties> $columns The properties of the columns to be declared.
      */
     public function getColumnDeclarationListSQL(array $columns): string
     {
@@ -1383,26 +1524,8 @@ abstract class AbstractPlatform
      *
      * @internal The method should be only used from within the {@see AbstractPlatform} class hierarchy.
      *
-     * @param string  $name   The name the column to be declared.
-     * @param mixed[] $column An associative array with the name of the properties
-     *                        of the column being declared as array indexes. Currently, the types
-     *                        of supported column properties are as follows:
-     *
-     *      length
-     *          Integer value that determines the maximum length of the text
-     *          column. If this argument is missing the column should be
-     *          declared to have the longest length allowed by the DBMS.
-     *      default
-     *          Text value to be used as default for this column.
-     *      notnull
-     *          Boolean flag that indicates whether this column is constrained
-     *          to not be set to null.
-     *      charset
-     *          Text value with the default CHARACTER SET for this column.
-     *      collation
-     *          Text value with the default COLLATION for this column.
-     *      columnDefinition
-     *          a string that defines the complete column
+     * @param string           $name   The name of the column to be declared.
+     * @param ColumnProperties $column Column properties.
      *
      * @return string DBMS specific SQL code portion that should be used to declare the column.
      */
@@ -1421,7 +1544,7 @@ abstract class AbstractPlatform
 
             $notnull = ! empty($column['notnull']) ? ' NOT NULL' : '';
 
-            $typeDecl    = $column['type']->getSQLDeclaration($column, $this);
+            $typeDecl    = $this->getColumnType($column)->getSQLDeclaration($column, $this);
             $declaration = $typeDecl . $charset . $default . $notnull . $collation;
 
             if ($this->supportsInlineColumnComments() && isset($column['comment']) && $column['comment'] !== '') {
@@ -1435,20 +1558,16 @@ abstract class AbstractPlatform
     /**
      * Returns the SQL snippet that declares a floating point column of arbitrary precision.
      *
-     * @param mixed[] $column
+     * @param array<string, mixed> $column
      */
     public function getDecimalTypeDeclarationSQL(array $column): string
     {
         if (! isset($column['precision'])) {
-            $e = ColumnPrecisionRequired::new();
-        } elseif (! isset($column['scale'])) {
-            $e = ColumnScaleRequired::new();
-        } else {
-            $e = null;
+            throw InvalidColumnDeclaration::fromInvalidColumnType($column['name'], ColumnPrecisionRequired::new());
         }
 
-        if ($e !== null) {
-            throw InvalidColumnDeclaration::fromInvalidColumnType($column['name'], $e);
+        if (! isset($column['scale'])) {
+            throw InvalidColumnDeclaration::fromInvalidColumnType($column['name'], ColumnScaleRequired::new());
         }
 
         return 'NUMERIC(' . $column['precision'] . ', ' . $column['scale'] . ')';
@@ -1460,7 +1579,7 @@ abstract class AbstractPlatform
      *
      * @internal The method should be only used from within the {@see AbstractPlatform} class hierarchy.
      *
-     * @param mixed[] $column The column definition array.
+     * @param array<string, mixed> $column The column definition array.
      *
      * @return string DBMS specific SQL code portion needed to set a default value.
      */
@@ -1472,25 +1591,50 @@ abstract class AbstractPlatform
 
         $default = $column['default'];
 
-        if (! isset($column['type'])) {
-            return " DEFAULT '" . $default . "'";
+        if ($default instanceof DefaultExpression) {
+            return ' DEFAULT ' . $default->toSQL($this);
         }
 
-        $type = $column['type'];
+        $type = $this->getColumnTypeOrNull($column);
+
+        if ($type === null) {
+            return " DEFAULT '" . $default . "'";
+        }
 
         if ($type instanceof Types\PhpIntegerMappingType) {
             return ' DEFAULT ' . $default;
         }
 
         if ($type instanceof Types\PhpDateTimeMappingType && $default === $this->getCurrentTimestampSQL()) {
+            Deprecation::trigger(
+                'doctrine/dbal',
+                'https://github.com/doctrine/dbal/pull/7195',
+                'Using "%s" as a column default value is deprecated. Use a CurrentTimestamp instance instead.',
+                $default,
+            );
+
             return ' DEFAULT ' . $this->getCurrentTimestampSQL();
         }
 
         if ($type instanceof Types\PhpTimeMappingType && $default === $this->getCurrentTimeSQL()) {
+            Deprecation::trigger(
+                'doctrine/dbal',
+                'https://github.com/doctrine/dbal/pull/7195',
+                'Using "%s" as a column default value is deprecated. Use a CurrentTime instance instead.',
+                $default,
+            );
+
             return ' DEFAULT ' . $this->getCurrentTimeSQL();
         }
 
         if ($type instanceof Types\PhpDateMappingType && $default === $this->getCurrentDateSQL()) {
+            Deprecation::trigger(
+                'doctrine/dbal',
+                'https://github.com/doctrine/dbal/pull/7195',
+                'Using "%s" as a column default value is deprecated. Use a CurrentDate instance instead.',
+                $default,
+            );
+
             return ' DEFAULT ' . $this->getCurrentDateSQL();
         }
 
@@ -1502,6 +1646,10 @@ abstract class AbstractPlatform
             return ' DEFAULT ' . $default;
         }
 
+        if ($type instanceof Types\PhpFloatMappingType) {
+            return ' DEFAULT ' . (float) $default;
+        }
+
         return ' DEFAULT ' . $this->quoteStringLiteral($default);
     }
 
@@ -1509,7 +1657,9 @@ abstract class AbstractPlatform
      * Obtains DBMS specific SQL code portion needed to set a CHECK constraint
      * declaration to be used in statements like CREATE TABLE.
      *
-     * @param string[]|mixed[][] $definition The check definition.
+     * @internal The method should be only used from within the {@see AbstractPlatform} class hierarchy.
+     *
+     * @param list<string|ColumnProperties> $definition The check definition.
      *
      * @return string DBMS specific SQL code portion needed to set a CHECK constraint.
      */
@@ -1518,17 +1668,23 @@ abstract class AbstractPlatform
         $constraints = [];
         foreach ($definition as $def) {
             if (is_string($def)) {
+                Deprecation::trigger(
+                    'doctrine/dbal',
+                    'https://github.com/doctrine/dbal/pull/6805',
+                    'Passing column definition to %s() as string is deprecated. Pass the definition as array'
+                        . ' instead.',
+                    __METHOD__,
+                );
+
                 $constraints[] = 'CHECK (' . $def . ')';
             } else {
                 if (isset($def['min'])) {
                     $constraints[] = 'CHECK (' . $def['name'] . ' >= ' . $def['min'] . ')';
                 }
 
-                if (! isset($def['max'])) {
-                    continue;
+                if (isset($def['max'])) {
+                    $constraints[] = 'CHECK (' . $def['name'] . ' <= ' . $def['max'] . ')';
                 }
-
-                $constraints[] = 'CHECK (' . $def['name'] . ' <= ' . $def['max'] . ')';
             }
         }
 
@@ -1536,16 +1692,18 @@ abstract class AbstractPlatform
     }
 
     /**
-     * Obtains DBMS specific SQL code portion needed to set a unique
-     * constraint declaration to be used in statements like CREATE TABLE.
+     * Obtains DBMS specific DDL fragment that defines a unique constraint to be used in statements like <code>CREATE
+     * TABLE</code> or <code>ALTER TABLE</code>.
+     *
+     * @internal The method should be only used from within the {@see AbstractPlatform} class hierarchy.
      *
      * @param UniqueConstraint $constraint The unique constraint definition.
      *
-     * @return string DBMS specific SQL code portion needed to set a constraint.
+     * @return string DBMS specific DDL fragment that defines the constraint.
      */
     public function getUniqueConstraintDeclarationSQL(UniqueConstraint $constraint): string
     {
-        $columns = $constraint->getColumns();
+        $columns = $constraint->getQuotedColumns($this);
 
         if (count($columns) === 0) {
             throw new InvalidArgumentException('Incomplete definition. "columns" required.');
@@ -1639,6 +1797,32 @@ abstract class AbstractPlatform
     }
 
     /**
+     * Returns the SQL fragment representing the deferrability of a constraint.
+     */
+    protected function getConstraintDeferrabilitySQL(ForeignKeyConstraint $foreignKey): string
+    {
+        $sql = '';
+
+        if ($foreignKey->hasOption('deferrable')) {
+            if ($foreignKey->getOption('deferrable') !== false) {
+                $sql .= ' DEFERRABLE';
+            } else {
+                $sql .= ' NOT DEFERRABLE';
+            }
+        }
+
+        if ($foreignKey->hasOption('deferred')) {
+            if ($foreignKey->getOption('deferred') !== false) {
+                $sql .= ' INITIALLY DEFERRED';
+            } else {
+                $sql .= ' INITIALLY IMMEDIATE';
+            }
+        }
+
+        return $sql;
+    }
+
+    /**
      * Returns the given referential action in uppercase if valid, otherwise throws an exception.
      *
      * @internal The method should be only used from within the {@see AbstractPlatform} class hierarchy.
@@ -1662,6 +1846,8 @@ abstract class AbstractPlatform
     /**
      * Obtains DBMS specific SQL code portion needed to set the FOREIGN KEY constraint
      * of a column declaration to be used in statements like CREATE TABLE.
+     *
+     * @internal The method should be only used from within the {@see AbstractPlatform} class hierarchy.
      */
     public function getForeignKeyBaseDeclarationSQL(ForeignKeyConstraint $foreignKey): string
     {
@@ -1740,11 +1926,9 @@ abstract class AbstractPlatform
     {
         if (is_array($item)) {
             foreach ($item as $k => $value) {
-                if (! is_bool($value)) {
-                    continue;
+                if (is_bool($value)) {
+                    $item[$k] = (int) $value;
                 }
-
-                $item[$k] = (int) $value;
             }
         } elseif (is_bool($item)) {
             $item = (int) $item;
@@ -1888,14 +2072,14 @@ abstract class AbstractPlatform
      * Obtains DBMS specific SQL to be used to create datetime columns in
      * statements like CREATE TABLE.
      *
-     * @param mixed[] $column
+     * @param array<string, mixed> $column
      */
     abstract public function getDateTimeTypeDeclarationSQL(array $column): string;
 
     /**
      * Obtains DBMS specific SQL to be used to create datetime with timezone offset columns.
      *
-     * @param mixed[] $column
+     * @param array<string, mixed> $column
      */
     public function getDateTimeTzTypeDeclarationSQL(array $column): string
     {
@@ -1906,7 +2090,7 @@ abstract class AbstractPlatform
      * Obtains DBMS specific SQL to be used to create date columns in statements
      * like CREATE TABLE.
      *
-     * @param mixed[] $column
+     * @param array<string, mixed> $column
      */
     abstract public function getDateTypeDeclarationSQL(array $column): string;
 
@@ -1914,17 +2098,17 @@ abstract class AbstractPlatform
      * Obtains DBMS specific SQL to be used to create time columns in statements
      * like CREATE TABLE.
      *
-     * @param mixed[] $column
+     * @param array<string, mixed> $column
      */
     abstract public function getTimeTypeDeclarationSQL(array $column): string;
 
-    /** @param mixed[] $column */
+    /** @param array<string, mixed> $column */
     public function getFloatDeclarationSQL(array $column): string
     {
         return 'DOUBLE PRECISION';
     }
 
-    /** @param mixed[] $column */
+    /** @param array<string, mixed> $column */
     public function getSmallFloatDeclarationSQL(array $column): string
     {
         return 'REAL';
@@ -1973,9 +2157,18 @@ abstract class AbstractPlatform
 
     /**
      * Whether the platform supports indexes with column length definitions.
+     *
+     * @deprecated
      */
     public function supportsColumnLengthIndexes(): bool
     {
+        Deprecation::triggerIfCalledFromOutside(
+            'doctrine/dbal',
+            'https://github.com/doctrine/dbal/pull/6886',
+            '%s is deprecated.',
+            __METHOD__,
+        );
+
         return false;
     }
 
@@ -2110,6 +2303,8 @@ abstract class AbstractPlatform
 
     /**
      * Maximum length of any given database identifier, like tables or column names.
+     *
+     * @return positive-int
      */
     public function getMaxIdentifierLength(): int
     {
@@ -2147,6 +2342,8 @@ abstract class AbstractPlatform
 
     /**
      * Returns the SQL to create a new savepoint.
+     *
+     * This method should be invoked only if {@see supportsSavepoints()} returns true.
      */
     public function createSavePoint(string $savepoint): string
     {
@@ -2155,6 +2352,8 @@ abstract class AbstractPlatform
 
     /**
      * Returns the SQL to release a savepoint.
+     *
+     * This method should be invoked only if {@see supportsReleaseSavepoints()} returns true.
      */
     public function releaseSavePoint(string $savepoint): string
     {
@@ -2163,6 +2362,8 @@ abstract class AbstractPlatform
 
     /**
      * Returns the SQL to rollback a savepoint.
+     *
+     * This method should be invoked only if {@see supportsSavepoints()} returns true.
      */
     public function rollbackSavePoint(string $savepoint): string
     {
@@ -2171,15 +2372,26 @@ abstract class AbstractPlatform
 
     /**
      * Returns the keyword list instance of this platform.
+     *
+     * @deprecated
      */
     final public function getReservedKeywordsList(): KeywordList
     {
+        Deprecation::triggerIfCalledFromOutside(
+            'doctrine/dbal',
+            'https://github.com/doctrine/dbal/pull/6607',
+            '%s is deprecated.',
+            __METHOD__,
+        );
+
         // Store the instance so it doesn't need to be generated on every request.
         return $this->_keywords ??= $this->createReservedKeywordsList();
     }
 
     /**
      * Creates an instance of the reserved keyword list of this platform.
+     *
+     * @deprecated
      */
     abstract protected function createReservedKeywordsList(): KeywordList;
 
@@ -2220,12 +2432,12 @@ abstract class AbstractPlatform
     }
 
     /**
-     * @return array<string,mixed> An associative array with the name of the properties
-     *                             of the column being declared as array indexes.
+     * @return ColumnProperties An associative array with the name of the properties of the column being declared as
+     *                          array keys.
      */
     private function columnToArray(Column $column): array
     {
-        return array_merge($column->toArray(), [
+        return array_merge($column->toArray(true), [
             'name' => $column->getQuotedName($this),
             'version' => $column->hasPlatformOption('version') ? $column->getPlatformOption('version') : false,
             'comment' => $column->getComment(),
@@ -2252,8 +2464,8 @@ abstract class AbstractPlatform
         $column2Array = $this->columnToArray($column2);
 
         // ignore explicit columnDefinition since it's not set on the Column generated by the SchemaManager
-        unset($column1Array['columnDefinition']);
-        unset($column2Array['columnDefinition']);
+        $column1Array['columnDefinition'] = null;
+        $column2Array['columnDefinition'] = null;
 
         if (
             $this->getColumnDeclarationSQL('', $column1Array)
@@ -2292,6 +2504,32 @@ abstract class AbstractPlatform
     public function getUnionDistinctSQL(): string
     {
         return 'UNION';
+    }
+
+    public function getUnquotedIdentifierFolding(): UnquotedIdentifierFolding
+    {
+        if ($this->unquotedIdentifierFolding === null) {
+            Deprecation::trigger(
+                'doctrine/dbal',
+                'https://github.com/doctrine/dbal/pull/6823',
+                'Not calling the %s constructor from child class constructors is deprecated.',
+                self::class,
+            );
+
+            $this->unquotedIdentifierFolding = UnquotedIdentifierFolding::UPPER;
+        }
+
+        return $this->unquotedIdentifierFolding;
+    }
+
+    /**
+     * Creates a metadata provider that can be used access the metadata of the underlying database schema.
+     *
+     * @throws Exception
+     */
+    public function createMetadataProvider(Connection $connection): MetadataProvider
+    {
+        throw NotSupported::new(__METHOD__);
     }
 
     /**

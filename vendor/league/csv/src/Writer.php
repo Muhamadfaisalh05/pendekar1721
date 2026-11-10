@@ -15,12 +15,11 @@ namespace League\Csv;
 
 use Closure;
 use Deprecated;
+use SplFileInfo;
 
 use function array_map;
 use function array_reduce;
 use function implode;
-use function restore_error_handler;
-use function set_error_handler;
 use function str_replace;
 
 use const STREAM_FILTER_WRITE;
@@ -43,28 +42,48 @@ class Writer extends AbstractCsv implements TabularDataWriter
     protected int $enclose_all = self::ENCLOSE_NECESSARY;
     /** @var array{0:array<string>,1:array<string>} */
     protected array $enclosure_replace = [[], []];
-    /** @var Closure(array): (int|false) */
-    protected Closure $insertRecord;
+
+    /**
+     * @param SplFileInfo|string $path an SPL file object, a file path or a stream URI
+     * @param non-empty-string $mode the file path open mode
+     * @param resource|null $context the resource context used with a file path or a SplFileInfo object
+     *
+     * @throws UnavailableStream
+     */
+    public static function fromPath(SplFileInfo|string $path, string $mode = 'r+', $context = null): static
+    {
+        return parent::fromPath($path, $mode, $context);
+    }
 
     protected function resetProperties(): void
     {
         parent::resetProperties();
 
-        $this->enclosure_replace = [
-            [$this->enclosure, $this->escape.$this->enclosure.$this->enclosure],
-            [$this->enclosure.$this->enclosure, $this->escape.$this->enclosure],
-        ];
+        // With an empty escape the two-step replacement cancels itself, so
+        // fall back to plain RFC-4180 enclosure doubling as fputcsv does.
+        $this->enclosure_replace = '' === $this->escape
+            ? [[$this->enclosure], [$this->enclosure.$this->enclosure]]
+            : [
+                [$this->enclosure, $this->escape.$this->enclosure.$this->enclosure],
+                [$this->enclosure.$this->enclosure, $this->escape.$this->enclosure],
+            ];
+    }
 
-        $this->insertRecord = match ($this->enclose_all) {
-            self::ENCLOSE_ALL => fn (array $record): int|false => $this->document->fwrite(implode(
+    protected function insertRecord(array $record): int|false
+    {
+        return match ($this->enclose_all) {
+            self::ENCLOSE_ALL => $this->document->fwrite(implode(
                 $this->delimiter,
                 array_map(
-                    fn ($content) => $this->enclosure.$content.$this->enclosure,
-                    str_replace($this->enclosure_replace[0], $this->enclosure_replace[1], $record)
+                    fn ($content): string =>
+                         $this->enclosure
+                         .str_replace($this->enclosure, $this->enclosure.$this->enclosure, (string) $content)
+                         .$this->enclosure,
+                    $record
                 )
             ).$this->newline),
-            self::ENCLOSE_NONE => fn (array $record): int|false => $this->document->fwrite(implode($this->delimiter, $record).$this->newline),
-            default => fn (array $record): int|false => $this->document->fputcsv($record, $this->delimiter, $this->enclosure, $this->escape, $this->newline),
+            self::ENCLOSE_NONE => $this->document->fwrite(implode($this->delimiter, $record).$this->newline),
+            default => $this->document->fputcsv($record, $this->delimiter, $this->enclosure, $this->escape, $this->newline),
         };
     }
 
@@ -116,10 +135,14 @@ class Writer extends AbstractCsv implements TabularDataWriter
      * @throws CannotInsertRecord
      * @throws Exception
      */
-    public function insertAll(iterable $records): int
+    public function insertAll(TabularDataProvider|TabularData|iterable $records): int
     {
         $bytes = 0;
-        foreach ($records as $record) {
+        foreach (match (true) {
+            $records instanceof TabularDataProvider => $records->getTabularData()->getRecords(),
+            $records instanceof TabularData => $records->getRecords(),
+            default => $records,
+        } as $record) {
             $bytes += $this->insertOne($record);
         }
 
@@ -142,9 +165,8 @@ class Writer extends AbstractCsv implements TabularDataWriter
     {
         $record = array_reduce($this->formatters, fn (array $record, callable $formatter): array => $formatter($record), $record);
         $this->validateRecord($record);
-        set_error_handler(fn (int $errno, string $errstr, string $errfile, int $errline) => true);
-        $bytes = ($this->insertRecord)($record);
-        restore_error_handler();
+        /** @var int|false $bytes */
+        $bytes = Warning::cloak($this->insertRecord(...), $record);
         if (false === $bytes) {
             throw CannotInsertRecord::triggerOnInsertion($record);
         }
@@ -243,7 +265,7 @@ class Writer extends AbstractCsv implements TabularDataWriter
     /**
      * DEPRECATION WARNING! This method will be removed in the next major point release.
      *
-     * @deprecated since version 9.8.0
+     * @deprecated since version 9.8.0, no longer affecting the class behaviour
      * @codeCoverageIgnore
      *
      * Format a record.
@@ -262,7 +284,7 @@ class Writer extends AbstractCsv implements TabularDataWriter
     /**
      * DEPRECATION WARNING! This method will be removed in the next major point release.
      *
-     * @deprecated Since version 9.9.0
+     * @deprecated Since version 9.9.0, no longer affecting the class behaviour
      * @codeCoverageIgnore
      *
      * Adds a single record to a CSV Document using PHP algorithm.
@@ -278,7 +300,7 @@ class Writer extends AbstractCsv implements TabularDataWriter
     /**
      * DEPRECATION WARNING! This method will be removed in the next major point release.
      *
-     * @deprecated Since version 9.9.0
+     * @deprecated Since version 9.9.0, no longer affecting the class behaviour
      * @codeCoverageIgnore
      *
      * Applies post insertion actions.
@@ -303,7 +325,7 @@ class Writer extends AbstractCsv implements TabularDataWriter
      * DEPRECATION WARNING! This method will be removed in the next major point release.
      *
      * @see Writer::getEndOfLine()
-     * @deprecated Since version 9.10.0
+     * @deprecated Since version 9.10.0, use League\Csv\Writer::getEndOfLine()
      * @codeCoverageIgnore
      *
      * Returns the current newline sequence characters.
@@ -318,7 +340,7 @@ class Writer extends AbstractCsv implements TabularDataWriter
      * DEPRECATION WARNING! This method will be removed in the next major point release.
      *
      * @see Writer::setEndOfLine()
-     * @deprecated Since version 9.10.0
+     * @deprecated Since version 9.10.0, use League\Csv\Writer::setEndOfLine()
      * @codeCoverageIgnore
      *
      * Sets the newline sequence.
@@ -333,7 +355,7 @@ class Writer extends AbstractCsv implements TabularDataWriter
      * DEPRECATION WARNING! This method will be removed in the next major point release.
      *
      * @see Writer::necessaryEnclosure()
-     * @deprecated Since version 9.22.0
+     * @deprecated Since version 9.22.0, use League\Csv\Writer::necessaryEnclosure()
      * @codeCoverageIgnore
      *
      * Sets the enclosure threshold to only enclose necessary fields.

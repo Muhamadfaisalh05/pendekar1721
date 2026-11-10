@@ -144,7 +144,7 @@ class XMLConverter
      *
      * @throws Exception
      */
-    public function download(iterable $records, ?string $filename = null, string $encoding = 'utf-8', bool $formatOutput = false): int|false
+    public function download(TabularDataProvider|TabularData|iterable $records, ?string $filename = null, string $encoding = 'utf-8', bool $formatOutput = false): int|false
     {
         /** @var XMLDocument|DOMDocument $document */
         $document = self::newXmlDocument(XMLDocument::class);
@@ -167,14 +167,25 @@ class XMLConverter
      * Creates a new DOMElement related to the given DOMDocument.
      *
      * **DOES NOT** attach to the DOMDocument
+     *
+     * @return ($doc is DOMDocument ? DOMElement : Element)
      */
-    public function import(iterable $records, DOMDocument|XMLDocument $doc): DOMElement|Element
+    public function import(TabularDataProvider|TabularData|iterable $records, DOMDocument|XMLDocument $doc): DOMElement|Element
     {
+        if ($records instanceof TabularDataProvider) {
+            $records = $records->getTabularData();
+        }
+
+        if ($records instanceof TabularData) {
+            $records = $records->getRecords();
+        }
+
         if (null !== $this->formatter) {
             $records = MapIterator::fromIterable($records, $this->formatter);
         }
 
         $root = $doc->createElement($this->root_name);
+        false !== $root || throw new DOMException('The record could not be created.');
         foreach ($records as $offset => $record) {
             $root->appendChild($this->recordToElement($doc, $record, $offset));
         }
@@ -185,10 +196,13 @@ class XMLConverter
     /**
      * Converts a CSV record into a DOMElement and
      * adds its offset as DOMElement attribute.
+     *
+     * @return ($document is DOMDocument ? DOMElement : Element)
      */
     protected function recordToElement(DOMDocument|XMLDocument $document, array $record, int $offset): DOMElement|Element
     {
         $node = $document->createElement($this->record_name);
+        false !== $node || throw new DOMException('The record could not be created.');
         foreach ($record as $node_name => $value) {
             $node->appendChild($this->fieldToElement($document, (string) $value, $node_name));
         }
@@ -205,11 +219,14 @@ class XMLConverter
      *
      * Converts the CSV item into a DOMElement and adds the item offset
      * as attribute to the returned DOMElement
+     *
+     * @return ($document is DOMDocument ? DOMElement : Element)
      */
     protected function fieldToElement(DOMDocument|XMLDocument $document, string $value, int|string $node_name): DOMElement|Element
     {
         $node_name = (string) $node_name;
         $item = $document->createElement($this->field_name ?? $node_name);
+        false !== $item || throw new DOMException('Unable to create the '.($this->field_name ?? $node_name).' element.');
         $item->appendChild($document->createTextNode($value));
 
         if ('' !== $this->column_attr) {
@@ -250,7 +267,9 @@ class XMLConverter
             return null;
         }
 
-        return self::newXmlDocument(XMLDocument::class)->createElement($value)->tagName;
+        $element = self::newXmlDocument(XMLDocument::class)->createElement($value);
+
+        return false !== $element ? $element->tagName : throw new DOMException('The element could not be resolved.');
     }
 
     /**
@@ -276,13 +295,13 @@ class XMLConverter
      * DEPRECATION WARNING! This method will be removed in the next major point release.
      *
      * @see XMLConverter::import()
-     * @deprecated Since version 9.22.0
+     * @deprecated Since version 9.22.0, use League\Csv\XMLConverter::impoprt()
      * @codeCoverageIgnore
      *
      * Converts a Record collection into a DOMDocument.
      */
     #[Deprecated(message:'use League\Csv\XMLConverter::impoprt()', since:'league/csv:9.22.0')]
-    public function convert(iterable $records): DOMDocument
+    public function convert(TabularDataProvider|TabularData|iterable $records): DOMDocument
     {
         $document = new DOMDocument(encoding: 'UTF-8');
         $document->appendChild($this->import($records, $document));
@@ -294,7 +313,7 @@ class XMLConverter
      * DEPRECATION WARNING! This method will be removed in the next major point release.
      *
      * @see XMLConverter::__construct()
-     * @deprecated Since version 9.22.0
+     * @deprecated Since version 9.22.0, use League\Csv\XMLConverter::__construct()
      * @codeCoverageIgnore
      *
      * Returns an new instance.

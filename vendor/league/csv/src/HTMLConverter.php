@@ -15,8 +15,8 @@ namespace League\Csv;
 
 use Closure;
 use Deprecated;
+use Dom\Element;
 use Dom\HTMLDocument;
-use Dom\HTMLElement;
 use Dom\XMLDocument;
 use DOMDocument;
 use DOMElement;
@@ -54,13 +54,22 @@ class HTMLConverter
      * @param array<string> $header_record An optional array of headers outputted using the `<thead>` and `<th>` elements
      * @param array<string> $footer_record An optional array of footers outputted using the `<tfoot>` and `<th>` elements
      */
-    public function convert(iterable $records, array $header_record = [], array $footer_record = []): string
+    public function convert(iterable|TabularData|TabularDataProvider $records, array $header_record = [], array $footer_record = []): string
     {
+        if ($records instanceof TabularDataProvider) {
+            $records = $records->getTabularData();
+        }
+
+        if ($records instanceof TabularData) {
+            $records = $records->getRecords();
+        }
+
         if (null !== $this->formatter) {
             $records = MapIterator::fromIterable($records, $this->formatter);
         }
 
         $document = self::supportsModernDom() ? HTMLDocument::createEmpty() : new DOMDocument('1.0');
+        /** @var DOMElement|Element $table */
         $table = $document->createElement('table');
         if ('' !== $this->class_name) {
             $table->setAttribute('class', $this->class_name);
@@ -90,7 +99,7 @@ class HTMLConverter
                 if ('' !== $this->column_attr) {
                     $td->setAttribute($this->column_attr, (string) $field_name);
                 }
-                $td->appendChild($document->createTextNode($field_value));
+                $td->appendChild($document->createTextNode((string) $field_value));
                 $tr->appendChild($td);
             }
 
@@ -107,7 +116,7 @@ class HTMLConverter
      *
      * @throws DOMException
      */
-    protected function appendHeaderSection(string $node_name, array $record, DOMElement|HTMLElement $table): void
+    protected function appendHeaderSection(string $node_name, array $record, DOMElement|Element $table): void
     {
         if ([] === $record) {
             return;
@@ -115,12 +124,14 @@ class HTMLConverter
 
         /** @var DOMDocument|HTMLDocument $document */
         $document = $table->ownerDocument;
+        /** @var DOMElement|Element $header */
         $header = $document->createElement($node_name);
+        /** @var DOMElement|Element $tr */
         $tr = $document->createElement('tr');
         foreach ($record as $field_value) {
             $th = $document->createElement('th');
             $th->setAttribute('scope', 'col');
-            $th->appendChild($document->createTextNode($field_value));
+            $th->appendChild($document->createTextNode((string) $field_value));
             $tr->appendChild($th);
         }
 
@@ -232,7 +243,7 @@ class HTMLConverter
      * DEPRECATION WARNING! This method will be removed in the next major point release.
      *
      * @see XMLConverter::__construct()
-     * @deprecated Since version 9.22.0
+     * @deprecated Since version 9.22.0, use League\Csv\HTMLConverter::__construct()
      * @codeCoverageIgnore
      *
      * Returns an new instance.

@@ -1,10 +1,13 @@
 <?php
 
+use Illuminate\Container\Container;
+use Illuminate\Contracts\Debug\ExceptionHandler;
 use Laravel\Octane\ApplicationFactory;
 use Laravel\Octane\FrankenPhp\FrankenPhpClient;
 use Laravel\Octane\RequestContext;
 use Laravel\Octane\Stream;
 use Laravel\Octane\Worker;
+use Symfony\Component\Console\Output\ConsoleOutput;
 use Symfony\Component\HttpFoundation\Response;
 
 if ((! ($_SERVER['FRANKENPHP_WORKER'] ?? false)) || ! function_exists('frankenphp_handle_request')) {
@@ -30,8 +33,35 @@ $basePath = require __DIR__.'/bootstrap.php';
 
 $frankenPhpClient = new FrankenPhpClient();
 
-$worker = null;
+try {
+    $worker = tap(new Worker(
+        new ApplicationFactory($basePath), $frankenPhpClient
+    ))->boot();
+} catch (Throwable $e) {
+    try {
+        $container = Container::getInstance();
+
+        if ($container && $container->bound(ExceptionHandler::class)) {
+            $container->make(ExceptionHandler::class)
+                ->renderForConsole(new ConsoleOutput, $e);
+        } else {
+            fwrite(STDERR, sprintf(
+                "[octane bootstrap] %s: %s\n  in %s:%d\n%s\n",
+                $e::class, $e->getMessage(), $e->getFile(), $e->getLine(), $e->getTraceAsString()
+            ));
+        }
+    } catch (Throwable) {
+        fwrite(STDERR, sprintf(
+            "[octane bootstrap] %s: %s\n  in %s:%d\n%s\n",
+            $e::class, $e->getMessage(), $e->getFile(), $e->getLine(), $e->getTraceAsString()
+        ));
+    }
+
+    exit(1);
+}
+
 $requestCount = 0;
+$debugMode = $_ENV['APP_DEBUG'] ?? $_SERVER['APP_DEBUG'] ?? 'false';
 $maxRequests = $_ENV['MAX_REQUESTS'] ?? $_SERVER['MAX_REQUESTS'] ?? 1000;
 $requestMaxExecutionTime = $_ENV['REQUEST_MAX_EXECUTION_TIME'] ?? $_SERVER['REQUEST_MAX_EXECUTION_TIME'] ?? null;
 
@@ -40,14 +70,8 @@ if (PHP_OS_FAMILY === 'Linux' && ! is_null($requestMaxExecutionTime)) {
 }
 
 try {
-    $handleRequest = static function () use (&$worker, $basePath, $frankenPhpClient) {
+    $handleRequest = static function () use ($worker, $frankenPhpClient, $debugMode) {
         try {
-            $worker ??= tap(
-                new Worker(
-                    new ApplicationFactory($basePath), $frankenPhpClient
-                )
-            )->boot();
-
             [$request, $context] = $frankenPhpClient->marshalRequest(new RequestContext());
 
             $worker->handle($request, $context);
@@ -57,7 +81,7 @@ try {
             }
 
             $response = new Response(
-                'Internal Server Error',
+                $debugMode === 'true' ? (string) $e : 'Internal Server Error',
                 500,
                 [
                     'Status' => '500 Internal Server Error',
@@ -71,7 +95,7 @@ try {
         }
     };
 
-    while ($requestCount < $maxRequests && frankenphp_handle_request($handleRequest)) {
+    while ($requestCount < $maxRequests && @frankenphp_handle_request($handleRequest)) {
         $requestCount++;
     }
 } finally {

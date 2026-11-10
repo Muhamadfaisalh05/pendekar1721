@@ -11,6 +11,7 @@ use Laravel\Octane\MimeType;
 use Laravel\Octane\Octane;
 use Laravel\Octane\OctaneResponse;
 use Laravel\Octane\RequestContext;
+use Laravel\Octane\StreamsGeneratorResponses;
 use ReflectionClass;
 use Swoole\Http\Response as SwooleResponse;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -20,6 +21,8 @@ use Throwable;
 
 class SwooleClient implements Client, ServesStaticFiles
 {
+    use StreamsGeneratorResponses;
+
     const STATUS_CODE_REASONS = [
         419 => 'Page Expired',
         425 => 'Too Early',
@@ -50,6 +53,13 @@ class SwooleClient implements Client, ServesStaticFiles
      */
     public function canServeRequestAsStaticFile(Request $request, RequestContext $context): bool
     {
+        $octaneConfig = $context->octaneConfig ?? [];
+
+        if (array_key_exists('serve_static_files', $octaneConfig) &&
+            ! $octaneConfig['serve_static_files']) {
+            return false;
+        }
+
         if (! ($context->publicPath ?? false) ||
             $request->path() === '/') {
             return false;
@@ -224,6 +234,12 @@ class SwooleClient implements Client, ServesStaticFiles
         }
 
         if ($octaneResponse->response instanceof StreamedResponse) {
+            $this->streamGeneratorResponse($octaneResponse->response, function ($chunk) use ($swooleResponse) {
+                if ((string) $chunk !== '') {
+                    return $swooleResponse->write($chunk);
+                }
+            });
+
             ob_start(function ($data) use ($swooleResponse) {
                 if (strlen($data) > 0) {
                     $swooleResponse->write($data);
@@ -232,9 +248,11 @@ class SwooleClient implements Client, ServesStaticFiles
                 return '';
             }, 1);
 
-            $octaneResponse->response->sendContent();
-
-            ob_end_clean();
+            try {
+                $octaneResponse->response->sendContent();
+            } finally {
+                ob_end_clean();
+            }
 
             $swooleResponse->end();
 

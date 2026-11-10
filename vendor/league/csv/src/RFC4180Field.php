@@ -22,8 +22,6 @@ use TypeError;
 use function array_map;
 use function in_array;
 use function is_string;
-use function restore_error_handler;
-use function set_error_handler;
 use function str_replace;
 use function strcspn;
 use function stream_bucket_append;
@@ -102,7 +100,7 @@ class RFC4180Field extends php_user_filter
     #[Deprecated(message: 'use League\Csv\Reader::setEscape or League\Csv\Writer::setEscape instead', since: 'league/csv:9.2.0')]
     public static function addFormatterTo(Writer $csv, string $whitespace_replace): Writer
     {
-        if ('' == $whitespace_replace || strlen($whitespace_replace) !== strcspn($whitespace_replace, self::$force_enclosure)) {
+        if ('' === $whitespace_replace || strlen($whitespace_replace) !== strcspn($whitespace_replace, self::$force_enclosure)) {
             throw new InvalidArgumentException('The sequence contains a character that enforces enclosure or is a CSV control character or is an empty string.');
         }
 
@@ -152,9 +150,9 @@ class RFC4180Field extends php_user_filter
             return PSFS_ERR_FATAL;
         }
 
-        set_error_handler(fn (int $errno, string $errstr, string $errfile, int $errline) => true);
-        stream_bucket_append($out, stream_bucket_new($this->stream, $data));
-        restore_error_handler();
+        Warning::cloak(function () use ($data, $out) {
+            stream_bucket_append($out, stream_bucket_new($this->stream, $data));
+        });
 
         return PSFS_PASS_ON;
     }
@@ -169,8 +167,8 @@ class RFC4180Field extends php_user_filter
         static $mode_list = [STREAM_FILTER_READ => 1, STREAM_FILTER_WRITE => 1];
 
         $state = isset($this->params['enclosure'], $this->params['escape'], $this->params['mode'], $mode_list[$this->params['mode']])
-            && 1 === strlen($this->params['enclosure'])
-            && 1 === strlen($this->params['escape']);
+            && 1 === strlen((string) $this->params['enclosure'])
+            && 1 === strlen((string) $this->params['escape']);
 
         if (false === $state) {
             return false;
@@ -201,8 +199,8 @@ class RFC4180Field extends php_user_filter
         static $mode_list = [STREAM_FILTER_READ => 1, STREAM_FILTER_WRITE => 1];
 
         return isset($params['enclosure'], $params['escape'], $params['mode'], $mode_list[$params['mode']])
-            && 1 === strlen($params['enclosure'])
-            && 1 === strlen($params['escape']);
+            && 1 === strlen((string) $params['enclosure'])
+            && 1 === strlen((string) $params['escape']);
     }
 
     /**
@@ -211,6 +209,6 @@ class RFC4180Field extends php_user_filter
     protected function isValidSequence(array $params): bool
     {
         return isset($params['whitespace_replace'])
-            && strlen($params['whitespace_replace']) === strcspn($params['whitespace_replace'], self::$force_enclosure);
+            && strlen((string) $params['whitespace_replace']) === strcspn((string) $params['whitespace_replace'], self::$force_enclosure);
     }
 }

@@ -13,15 +13,16 @@ declare(strict_types=1);
 
 namespace League\Csv;
 
+use Deprecated;
 use RuntimeException;
 use SeekableIterator;
+use SplFileInfo;
 use SplFileObject;
 use Stringable;
 use TypeError;
 use ValueError;
 
 use function array_keys;
-use function array_walk_recursive;
 use function fclose;
 use function feof;
 use function fflush;
@@ -36,10 +37,8 @@ use function get_resource_type;
 use function gettype;
 use function is_array;
 use function is_resource;
-use function restore_error_handler;
+use function is_string;
 use function rewind;
-use function set_error_handler;
-use function stream_filter_append;
 use function stream_filter_remove;
 use function stream_get_meta_data;
 use function strlen;
@@ -53,10 +52,6 @@ use const SEEK_SET;
  */
 final class Stream implements SeekableIterator
 {
-    /** @var resource */
-    private $stream;
-    private bool $is_seekable;
-    private bool $should_close_stream = false;
     /** @var mixed can be a null, false or a scalar type value. Current iterator value. */
     private mixed $value = null;
     /** Current iterator key. */
@@ -73,26 +68,28 @@ final class Stream implements SeekableIterator
     /**
      * @param resource $stream stream type resource
      */
-    private function __construct($stream)
-    {
-        $this->is_seekable = stream_get_meta_data($stream)['seekable'];
-        $this->stream = $stream;
+    private function __construct(
+        private $stream,
+        private readonly bool $is_seekable,
+        private readonly bool $should_close_stream = false,
+    ) {
     }
 
     public function __destruct()
     {
-        set_error_handler(fn (int $errno, string $errstr, string $errfile, int $errline) => true);
-
-        array_walk_recursive($this->filters, static function ($filter): void {
-            if (is_resource($filter)) {
-                stream_filter_remove($filter);
+        Warning::cloak(
+            array_walk_recursive(...),
+            $this->filters,
+            static function ($filter): void {
+                if (is_resource($filter)) {
+                    stream_filter_remove($filter);
+                }
             }
-        });
+        );
+
         if ($this->should_close_stream && is_resource($this->stream)) {
             fclose($this->stream);
         }
-
-        restore_error_handler();
 
         unset($this->stream);
     }
@@ -128,52 +125,42 @@ final class Stream implements SeekableIterator
     /**
      * Returns a new instance from a file path.
      *
+     * @param resource|string|SplFileInfo $filename
      * @param resource|null $context
      *
-     * @throws UnavailableStream if the stream resource can not be created
+     * @throws UnavailableStream if the stream resource cannot be created
      */
-    public static function createFromPath(string $path, string $open_mode = 'r', $context = null): self
+    public static function from($filename, string $mode = 'r', $context = null): self
     {
-        $args = [$path, $open_mode];
-        if (null !== $context) {
-            $args[] = false;
-            $args[] = $context;
+        $should_close_stream = false;
+        if ($filename instanceof SplFileInfo) {
+            $filename = $filename->getPathname();
         }
 
-        set_error_handler(fn (int $errno, string $errstr, string $errfile, int $errline) => true);
-        $resource = fopen(...$args);
-        restore_error_handler();
+        if (is_string($filename)) {
+            $should_close_stream = true;
+            /** @var resource|false $resource */
+            $resource = @fopen(filename: $filename, mode: $mode, context: $context);
+            is_resource($resource) || throw UnavailableStream::dueToPathNotFound($filename);
 
-        is_resource($resource) || throw UnavailableStream::dueToPathNotFound($path);
+            $filename = $resource;
+        }
 
-        $instance = new self($resource);
-        $instance->should_close_stream = true;
+        is_resource($filename) || throw new TypeError('Argument passed must be a stream resource or a string, '.gettype($filename).' given.');
+        'stream' === ($type = get_resource_type($filename)) || throw new TypeError('Argument passed must be a stream resource, '.$type.' resource given');
 
-        return $instance;
+        return new self($filename, stream_get_meta_data($filename)['seekable'], $should_close_stream);
     }
 
     /**
      * Returns a new instance from a string.
      */
-    public static function createFromString(Stringable|string $content = ''): self
+    public static function fromString(Stringable|string $content = ''): self
     {
-        /** @var resource $resource */
-        $resource = fopen('php://temp', 'r+');
-        fwrite($resource, (string) $content);
-
-        $instance = new self($resource);
-        $instance->should_close_stream = true;
+        $instance = self::from('php://temp', 'r+');
+        $instance->fwrite((string) $content);
 
         return $instance;
-    }
-
-    public static function createFromResource(mixed $stream): self
-    {
-        return match (true) {
-            !is_resource($stream) => throw new TypeError('Argument passed must be a stream resource, '.gettype($stream).' given.'),
-            'stream' !== ($type = get_resource_type($stream)) => throw new TypeError('Argument passed must be a stream resource, '.$type.' resource given'),
-            default => new self($stream),
-        };
     }
 
     /**
@@ -183,7 +170,7 @@ final class Stream implements SeekableIterator
      */
     public function getPathname(): string
     {
-        return stream_get_meta_data($this->stream)['uri'];
+        return stream_get_meta_data($this->stream)['uri'] ?? '';
     }
 
     /**
@@ -195,9 +182,8 @@ final class Stream implements SeekableIterator
      */
     public function appendFilter(string $filtername, int $read_write, mixed $params = null): void
     {
-        set_error_handler(fn (int $errno, string $errstr, string $errfile, int $errline) => true);
-        $res = stream_filter_append($this->stream, $filtername, $read_write, $params);
-        restore_error_handler();
+        /** @var resource|false $res */
+        $res = Warning::cloak(stream_filter_append(...), $this->stream, $filtername, $read_write, $params);
         is_resource($res) || throw InvalidArgument::dueToStreamFilterNotFound($filtername);
 
         $this->filters[$filtername][] = $res;
@@ -212,9 +198,8 @@ final class Stream implements SeekableIterator
      */
     public function prependFilter(string $filtername, int $read_write, mixed $params = null): void
     {
-        set_error_handler(fn (int $errno, string $errstr, string $errfile, int $errline) => true);
-        $res = stream_filter_prepend($this->stream, $filtername, $read_write, $params);
-        restore_error_handler();
+        /** @var resource|false $res */
+        $res = Warning::cloak(stream_filter_prepend(...), $this->stream, $filtername, $read_write, $params);
         is_resource($res) || throw InvalidArgument::dueToStreamFilterNotFound($filtername);
 
         $this->filters[$filtername][] = $res;
@@ -254,7 +239,7 @@ final class Stream implements SeekableIterator
      *
      * @see https://www.php.net/manual/en/splfileobject.getcsvcontrol.php
      *
-     * @return array<string>
+     * @return array{0: string, 1: string, 2: string}
      */
     public function getCsvControl(): array
     {
@@ -468,7 +453,7 @@ final class Stream implements SeekableIterator
      *
      * @see https://www.php.net/manual/en/splfileobject.fpassthru.php
      */
-    public function fpassthru(): int|false
+    public function fpassthru(): int
     {
         return fpassthru($this->stream);
     }
@@ -538,5 +523,54 @@ final class Stream implements SeekableIterator
     public function getContents(?int $length = null, int $offset = -1): string|false
     {
         return stream_get_contents($this->stream, $length, $offset);
+    }
+
+    /**
+     * DEPRECATION WARNING! This method will be removed in the next major point release.
+     * @deprecated since version 9.27.0, use League\Csv\Stream::from() instead
+     * @codeCoverageIgnore
+     *
+     * @param resource $stream
+     *
+     * @throws UnavailableStream if the stream resource is invalid
+     *
+     * Returns a new instance from a stream resource
+     */
+    #[Deprecated(message:'use League\Csv\Stream::from() instead', since:'league/csv:9.27.0')]
+    public static function createFromResource(mixed $stream): self
+    {
+        is_resource($stream) || throw new TypeError('Argument passed must be a stream resource or a string, '.gettype($stream).' given.');
+
+        return self::from($stream);
+    }
+
+    /**
+     * DEPRECATION WARNING! This method will be removed in the next major point release.
+     * @deprecated since version 9.27.0, use League\Csv\Stream::from() instead
+     * @codeCoverageIgnore
+     *
+     * @param resource|null $context
+     *
+     * @throws UnavailableStream if the stream resource cannot be created
+     *
+     * Returns a new instance from a file path.
+     */
+    #[Deprecated(message:'use League\Csv\Stream::from() instead', since:'league/csv:9.27.0')]
+    public static function createFromPath(string $path, string $open_mode = 'r', $context = null): self
+    {
+        return self::from($path, $open_mode, $context);
+    }
+
+    /**
+     * DEPRECATION WARNING! This method will be removed in the next major point release.
+     * @deprecated since version 9.27.0, use League\Csv\Stream::fromString() instead
+     * @codeCoverageIgnore
+     *
+     * Returns a new instance from a string.
+     */
+    #[Deprecated(message:'use League\Csv\Stream::fromString() instead', since:'league/csv:9.27.0')]
+    public static function createFromString(Stringable|string $content = ''): self
+    {
+        return self::fromString($content);
     }
 }
