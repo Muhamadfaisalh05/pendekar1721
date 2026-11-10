@@ -14,6 +14,11 @@ class CreatePeserta extends CreateRecord
     {
         $data['user_type'] = 'client';
         $data['status'] = 'published';
+
+        // SECURITY (FASE 2 / Opsi A): catat pemilik data agar panel /klien
+        // hanya menampilkan peserta milik klien yang membuatnya.
+        $data['created_by'] = auth()->id();
+
         return $data;
     }
 }

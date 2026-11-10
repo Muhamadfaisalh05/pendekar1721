@@ -22,6 +22,22 @@ class UserExperience extends Model
     use HasFactory;
 
     /**
+     * The attributes that are mass assignable.
+     *
+     * user_id sengaja tidak fillable; gunakan relasi
+     * ($user->userExperiences()->create([...])).
+     *
+     * @var array<int, string>
+     */
+    protected $fillable = [
+        'experience_year',
+        'experience_description',
+        'experience_job_name',
+        'sort_order',
+        'is_current_job',
+    ];
+
+    /**
      * Get the user that owns this experience.
      *
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo<User>

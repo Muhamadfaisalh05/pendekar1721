@@ -6,3 +6,6 @@ vendor_old/
 .phpunit.result.cache
 .env
 /production.env
+
+# Karantina skrip/sampah hasil audit keamanan (FASE 0)
+/_backups/

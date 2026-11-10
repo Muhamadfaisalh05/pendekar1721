@@ -40,7 +40,11 @@ class User extends Authenticatable implements FilamentUser
     protected $fillable = [
         'name',
         'email',
+        'email_verified_at',
         'password',
+        'user_type',
+        'status',
+        'created_by',
     ];
 
     /**
@@ -136,6 +140,26 @@ class User extends Authenticatable implements FilamentUser
     public function userWorkLocations()
     {
         return $this->belongsToMany(MasterCity::class, 'user_work_locations');
+    }
+
+    /**
+     * Get the user (klien/admin) that registered this user.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo<User, $this>
+     */
+    public function creator(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * Get the peserta registered by this user.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany<User, $this>
+     */
+    public function createdUsers(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(User::class, 'created_by');
     }
 
     /**

@@ -2,7 +2,6 @@
 
 namespace App\Providers;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
@@ -33,7 +32,12 @@ class AppServiceProvider extends ServiceProvider
             URL::forceScheme($forceScheme);
         }
 
-        Model::unguard();
+        /*
+         * SECURITY (FASE 2): Model::unguard() global DIHAPUS.
+         * Setiap model kini memakai $fillable eksplisit agar atribut
+         * sensitif (user_type, status, created_by, user_id relasi)
+         * tidak bisa diubah lewat mass assignment dari input pengguna.
+         */
 
         /*
          * Sebelumnya dua baris ini di-set oleh

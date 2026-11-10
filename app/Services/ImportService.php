@@ -6,11 +6,10 @@ use App\Models\MasterCity;
 use App\Models\MasterEducationDegree;
 use App\Models\MasterTraining;
 use App\Models\User;
-use App\Models\UserProfile;
-use App\Models\UserExperience;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpWord\IOFactory as WordIOFactory;
 
@@ -46,12 +45,27 @@ class ImportService
             throw new \Exception("Format file tidak didukung: {$extension}");
         }
 
+        // SECURITY (FASE 3): batasi jumlah baris agar file raksasa tidak
+        // menghabiskan memori/CPU server (DoS).
+        $maxRows = (int) config('pendekar.import.max_rows', 2000);
+
+        if ($maxRows > 0 && count($rows) > $maxRows) {
+            throw new \Exception(
+                'File berisi ' . count($rows) . " baris, melebihi batas {$maxRows} baris. Pecah file menjadi beberapa bagian."
+            );
+        }
+
         return $this->validateRows($rows);
     }
 
     protected function parseExcel($filePath)
     {
-        $spreadsheet = IOFactory::load($filePath);
+        // setReadDataOnly(true): jangan memuat style, objek, atau makro dari
+        // file yang diunggah pengguna; hanya nilai sel yang dibutuhkan.
+        $reader = IOFactory::createReaderForFile($filePath);
+        $reader->setReadDataOnly(true);
+
+        $spreadsheet = $reader->load($filePath);
         $worksheet = $spreadsheet->getActiveSheet();
         $rows = [];
         $header = [];
@@ -292,8 +306,45 @@ class ImportService
         return $results;
     }
 
-    public function importData(array $validData, array $uploadedPhotos = [])
+    /**
+     * Cek kata sandi awal import terhadap hash di IMPORT_PASSWORD_HASH.
+     *
+     * @param string|null $password Kata sandi yang diketik operator (opsional).
+     * @return bool True bila kosong (tidak memakai kata sandi awal) atau cocok.
+     */
+    public static function initialPasswordMatches(?string $password): bool
     {
+        if (blank($password)) {
+            return true;
+        }
+
+        $hash = config('pendekar.import.password_hash');
+
+        if (blank($hash)) {
+            return false;
+        }
+
+        return Hash::check($password, $hash);
+    }
+
+    /**
+     * Simpan data hasil preview menjadi user + profil.
+     *
+     * @param array<int, array<string, mixed>> $validData
+     * @param array<int, string> $uploadedPhotos
+     * @param int|null $createdBy Pemilik data (id klien/admin yang mengimpor).
+     * @param string|null $initialPassword Kata sandi awal opsional (sudah diverifikasi
+     *                                    terhadap IMPORT_PASSWORD_HASH). Bila null,
+     *                                    peserta mendapat password acak.
+     */
+    public function importData(array $validData, array $uploadedPhotos = [], ?int $createdBy = null, ?string $initialPassword = null)
+    {
+        // SECURITY (FASE 3): tidak ada password default yang diketahui publik.
+        // Tanpa kata sandi awal, peserta tidak bisa login sampai reset password.
+        $plainPassword = filled($initialPassword)
+            ? $initialPassword
+            : Str::password((int) config('pendekar.import.password_length', 32));
+
         DB::beginTransaction();
         try {
             foreach ($validData as $data) {
@@ -301,9 +352,10 @@ class ImportService
                 $user = User::create([
                     'name' => $data['name'],
                     'email' => $data['email'],
-                    'password' => Hash::make('password123'),
+                    'password' => Hash::make($plainPassword),
                     'user_type' => 'client',
                     'status' => 'published',
+                    'created_by' => $createdBy,
                 ]);
 
                 // Match Photo
@@ -321,8 +373,8 @@ class ImportService
                 }
 
                 // 2. Create UserProfile
-                UserProfile::create([
-                    'user_id' => $user->id,
+                // user_id diisi otomatis oleh relasi (bukan mass assignment).
+                $user->userProfile()->create([
                     'gender' => $data['gender'] ?? null,
                     'birth_place' => $data['birth_place'] ?? null,
                     'birth_date' => $data['birth_date'] ?? null,
@@ -346,8 +398,7 @@ class ImportService
 
                 // 5. Create current job experience if applicable
                 if (!empty($data['is_current_job']) && $data['is_current_job'] === true) {
-                    UserExperience::create([
-                        'user_id' => $user->id,
+                    $user->userExperiences()->create([
                         'experience_job_name' => 'Bekerja Saat Ini',
                         'experience_description' => 'Di-import dari sistem',
                         'is_current_job' => true,
@@ -356,6 +407,14 @@ class ImportService
                 }
             }
             DB::commit();
+
+            // Jejak audit: siapa mengimpor berapa baris.
+            Log::info('import.peserta', [
+                'actor_id' => $createdBy,
+                'rows' => count($validData),
+                'pakai_kata_sandi_awal' => filled($initialPassword),
+            ]);
+
             return true;
         } catch (\Exception $e) {
             DB::rollBack();
