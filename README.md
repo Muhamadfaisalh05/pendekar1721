@@ -1,23 +1,23 @@
 # kholis
 
-![Laravel](https://img.shields.io/badge/Laravel-11.9-FF2D20?style=for-the-badge&logo=laravel)
-![PHP](https://img.shields.io/badge/PHP-8.2%2B-777BB4?style=for-the-badge&logo=php)
+![Laravel](https://img.shields.io/badge/Laravel-13.40-FF2D20?style=for-the-badge&logo=laravel)
+![PHP](https://img.shields.io/badge/PHP-8.4.1%2B-777BB4?style=for-the-badge&logo=php)
 ![Filament](https://img.shields.io/badge/Filament-3.2-EAB308?style=for-the-badge&logo=filament)
 
-Sistem Manajemen Profil Pengguna dan Data Master dengan Laravel 11 dan Filament 3
+Sistem Manajemen Profil Pengguna dan Data Master dengan Laravel 13 dan Filament 3
 
 ---
 
 ## 📋 Tentang kholis
 
-**PENDEKAR1721** adalah aplikasi manajemen profil pengguna yang komprehensif dengan sistem data master terintegrasi. Aplikasi ini menggunakan framework Laravel 11 combined dengan Filament 3 untuk menyediakan antarmuka admin yang modern dan user-friendly.
+**PENDEKAR1721** adalah aplikasi manajemen profil pengguna yang komprehensif dengan sistem data master terintegrasi. Aplikasi ini menggunakan framework Laravel 13 combined dengan Filament 3 untuk menyediakan antarmuka admin yang modern dan user-friendly.
 
 Aplikasi ini dirancang untuk mengelola:
 
 - Profil pengguna dengan informasi personal, pengalaman kerja, keahlian, dan pelatihan
 - Data master referensi (kota, pendidikan, agama, etnis, keahlian, pelatihan)
 - Direktori profil publik yang dapat diakses melalui URL berbasis slug
-- Sistem alur kerja status berbasis enum PHP 8.2
+- Sistem alur kerja status berbasis PHP enum
 
 ## ✨ Fitur Utama
 
@@ -25,7 +25,7 @@ Aplikasi ini dirancang untuk mengelola:
 - **👥 Manajemen Pengguna** - Profil lengkap termasuk info personal, pengalaman kerja, keahlian, dan pelatihan
 - **📊 Master Data Management** - Kelola data referensi: kota, agama, etnis, pendidikan, keahlian, pelatihan
 - **🌐 Profil Publik** - Direktori profil yang dapat diakses publik dengan URL berbasis slug
-- **🔄 Status Workflow** - Sistem status pengguna menggunakan PHP 8.2 enums (Draft/Published/Archived)
+- **🔄 Status Workflow** - Sistem status pengguna menggunakan PHP 8.4 enums (Draft/Published/Archived)
 - **⚡ Modern Tech Stack** - Laravel 13, Filament 3, Livewire 3, TailwindCSS, Vite
 
 ## 🛠️ Teknologi
@@ -54,7 +54,7 @@ Aplikasi ini dirancang untuk mengelola:
 
 Sebelum memulai, pastikan sistem Anda memenuhi persyaratan berikut:
 
-- **PHP >= 8.2**
+- **PHP >= 8.4.1**
 - **Composer >= 2.0**
 - **Node.js >= 18.0**
 - **NPM >= 9.0**
@@ -266,7 +266,7 @@ Berikut adalah struktur direktori utama aplikasi:
 
 ```
 app/
-├── Enums/                    # PHP 8.2 backed enums
+├── Enums/                    # PHP 8.4 backed enums
 │   └── UserStatus.php       # Enum status user
 ├── Filament/                 # Admin panel resources
 │   ├── Resources/           # Admin panel resources
@@ -390,4 +390,4 @@ Jika Anda mengalami masalah atau memiliki pertanyaan:
 
 ---
 
-**Dibuat dengan ❤️ menggunakan Laravel 11 dan Filament 3**
+**Dibuat dengan ❤️ menggunakan Laravel 13 dan Filament 3**

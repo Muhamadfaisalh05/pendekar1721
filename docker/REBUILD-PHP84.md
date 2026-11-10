@@ -72,7 +72,21 @@ docker compose logs --tail=50 pendekar_php
 Cek manual: halaman publik `/`, `/admin/login`, `/klien/login` harus 200 dan user lama **tetap login**
 (config sesi tidak diubah, cookie tetap `laravel_session`).
 
-## 6. Rollback
+## 7. Konsekuensi `.env` tidak lagi di-track
+
+Sejak commit `chore(security)`, `.env` dan `/production.env` masuk `.gitignore`. Untuk deploy baru
+dari clone bersih, siapkan env secara manual:
+
+```bash
+cp .env.example .env
+php artisan key:generate          # HANYA untuk instalasi baru
+# atau salin production.env yang sudah ada di server
+```
+
+Jangan jalankan `php artisan key:generate` di server produksi yang sudah berjalan — `APP_KEY`
+berubah = seluruh data terenkripsi & sesi lama tidak bisa dibaca (semua user ter-logout).
+
+## 8. Rollback
 
 ```bash
 docker compose down pendekar_php
