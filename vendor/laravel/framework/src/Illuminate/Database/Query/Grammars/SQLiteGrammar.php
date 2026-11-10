@@ -179,13 +179,19 @@ class SQLiteGrammar extends Grammar
             return '';
         }
 
-        $index = $indexHint->index;
+        $indexes = array_map('trim', explode(',', $indexHint->index));
 
-        if (! preg_match('/^[a-zA-Z0-9_$]+$/', $index)) {
-            throw new InvalidArgumentException('Index name contains invalid characters.');
+        foreach ($indexes as $index) {
+            if (! preg_match('/^[a-zA-Z0-9_$]+$/', $index)) {
+                throw new InvalidArgumentException('Index name contains invalid characters.');
+            }
         }
 
-        return "indexed by {$index}";
+        if (count($indexes) > 1 || strtolower($indexes[0]) === 'primary') {
+            return '';
+        }
+
+        return "indexed by {$indexes[0]}";
     }
 
     /**
@@ -286,6 +292,25 @@ class SQLiteGrammar extends Grammar
     public function compileInsertOrIgnore(Builder $query, array $values)
     {
         return Str::replaceFirst('insert', 'insert or ignore', $this->compileInsert($query, $values));
+    }
+
+    /**
+     * Compile an insert or ignore statement with a returning clause into SQL.
+     *
+     * @param  \Illuminate\Database\Query\Builder  $query
+     * @param  array  $values
+     * @param  array  $returning
+     * @param  array|null  $uniqueBy
+     * @return string
+     */
+    public function compileInsertOrIgnoreReturning(Builder $query, array $values, array $returning, ?array $uniqueBy)
+    {
+        $insert = $this->compileInsert($query, $values);
+
+        return match ($uniqueBy) {
+            null => "{$insert} on conflict do nothing returning {$this->columnize($returning)}",
+            default => "{$insert} on conflict ({$this->columnize($uniqueBy)}) do nothing returning {$this->columnize($returning)}",
+        };
     }
 
     /**
