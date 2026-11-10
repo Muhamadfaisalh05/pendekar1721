@@ -39,11 +39,15 @@ class AppServiceProvider extends ServiceProvider
          * Sebelumnya dua baris ini di-set oleh
          * LaravelFrontendPresets\Tall\TallServiceProvider::boot().
          * Paket laravel-frontend-presets/tall tidak kompatibel dengan
-         * Laravel 12, sehingga setting pagination dipindahkan ke sini agar
-         * view resources/views/vendor/pagination/{default,simple-default}.blade.php
+         * Laravel 12+, sehingga setting pagination dipindahkan ke sini agar
+         * view resources/views/vendor/pagination/{bootstrap-3,simple-bootstrap-3}.blade.php
          * tetap dipakai dan tampilan pagination tidak berubah.
+         *
+         * Laravel 13 mengganti nama view bawaan Bootstrap 3:
+         *   pagination::default         -> pagination::bootstrap-3
+         *   pagination::simple-default  -> pagination::simple-bootstrap-3
          */
-        Paginator::defaultView('pagination::default');
-        Paginator::defaultSimpleView('pagination::simple-default');
+        Paginator::defaultView('pagination::bootstrap-3');
+        Paginator::defaultSimpleView('pagination::simple-bootstrap-3');
     }
 }
