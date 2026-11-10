@@ -4,3 +4,5 @@ node_modules
 *.bak
 vendor_old/
 .phpunit.result.cache
+.env
+/production.env
