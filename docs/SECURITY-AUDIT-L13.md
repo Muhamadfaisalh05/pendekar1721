@@ -1053,3 +1053,71 @@ git push origin v13.1.0-secured
 6. **Document root** wajib `public/`; `SecurityHeaders` + `.env` di luar `public/` sudah aman, tetapi salah konfigurasi Apache/Nginx akan mengekspos seluruh proyek.
 
 
+
+### 11.10 Insiden pasca-rilis: `.env` hilang -> HTTP 500 (MissingAppKeyException)
+
+**Gejala.** Setelah `v13.1.0-secured` di-commit, halaman `http://127.0.0.1:8000` mengembalikan
+`500 Server Error`. `storage/logs/laravel.log` mencatat:
+
+```
+production.ERROR: No application encryption key has been specified.
+Illuminate\Encryption\MissingAppKeyException at .../EncryptionServiceProvider.php:83
+```
+
+**Akar masalah.** File `.env` **tidak ada lagi di root proyek**. Tanpa `.env`, `config('app.key')`
+kosong, `APP_ENV` jatuh ke default `production`, dan `APP_DEBUG` ke `false` (karena itu yang tampil
+halaman 500 generik, bukan stack trace). Bukti saat kejadian:
+
+```
+Get-ChildItem -Force -Filter '.env*'   -> hanya .env.example + _backups/env/.env.before-key-rotation
+php artisan tinker --execute="..."     -> env=production keyLen=0 cached=no
+```
+
+Penyebab pasti hilangnya file tidak dapat dibuktikan dari log (tidak ada perintah yang menghapus
+`.env`; kandidat tersangka: antivirus/Windows Defender mengarantina file dotfile, atau penulisan
+file yang terinterupsi saat sesi sebelumnya). Karena itu mitigasinya bersifat pencegahan
+(salinan cadangan berkala), bukan sekadar rekonstruksi.
+
+**Pemulihan yang dilakukan (tanpa menurunkan keamanan).**
+
+1. Rekonstruksi `.env` dari `_backups/env/.env.before-key-rotation` (berisi seluruh variabel
+   non-rahasia: `DB_CONNECTION=sqlite`, `SESSION_*`, `MAIL_*`, dll.).
+2. `APP_KEY` **tidak** dikembalikan ke kunci lama (kunci lama sudah dianggap bocor di FASE 0/1).
+   Dibuat kunci baru `base64:...` (32 byte, len 51) pada 2026-11-10 15:57.
+3. Kunci lama dipasang sebagai `APP_PREVIOUS_KEYS` sehingga payload lama tetap dapat didekripsi.
+4. `IMPORT_MAX_ROWS`, `IMPORT_PASSWORD_LENGTH`, `IMPORT_PASSWORD_HASH` ditulis ulang (hash bcrypt
+   baru, cost 12, untuk kata sandi awal import yang baru).
+5. Salinan `.env` pasca-pemulihan disimpan di `_backups/env/.env.restored-<timestamp>`
+   (direktori `/_backups/` sudah masuk `.gitignore`, jadi tidak pernah ter-commit).
+
+**Verifikasi setelah pemulihan.**
+
+```
+env=local                     debug=true
+keyLen=51                     prevKeys=1
+cipher=AES-256-CBC            db=sqlite
+users=1 (admin=1, client=0)   created_by_col=yes
+prevDecrypt=probe-lama        <- payload ber-kunci lama tetap terbaca via APP_PREVIOUS_KEYS
+importHashCheck=ok            unguarded=false
+```
+
+```
+Invoke-WebRequest http://127.0.0.1:8000        -> 200 (19.540 byte)
+Invoke-WebRequest http://127.0.0.1:8000/admin  -> 200
+php artisan test                               -> 28 passed (63 assertions)
+```
+
+**Dampak.** Tidak ada data bisnis yang hilang (tidak ada kolom ber-cast `encrypted`; kata sandi
+memakai bcrypt, bukan enkripsi). Yang terpengaruh hanya **sesi login** yang terbentuk dengan kunci
+sementara yang hilang -- semua pengguna perlu login ulang. Pesan error bersifat fail-closed:
+tanpa `APP_KEY`, aplikasi menolak melayani request (tidak ada data yang disajikan dengan kunci salah).
+
+**Pencegahan (checklist operasional).**
+
+- Simpan salinan `.env` produksi di tempat aman (password manager / secret manager), bukan hanya di server.
+- Rujuk `_backups/env/` sebagai cadangan lokal; jangan pernah commit (sudah di-ignore).
+- Bila memakai hosting/CI: `APP_KEY` di-inject lewat environment variabel, bukan file, agar
+  hilangnya file tidak mematikan aplikasi.
+- Setelah memulihkan `APP_KEY`: `php artisan config:clear` (dan `config:cache` bila memakai cache config),
+  lalu verifikasi `keyLen=44/51` serta lakukan login uji.
+
