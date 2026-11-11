@@ -1,0 +1,156 @@
+{
+    "name": "get-evaluasi-setelah-batch",
+    "request": {
+        "method": "GET",
+        "uri": "/api.php?action=evaluasi&tanggal=2026-09-24",
+        "payload": null
+    },
+    "response": {
+        "status": 200,
+        "headers": {
+            "content-type": "application/json; charset=utf-8",
+            "x-powered-by": null
+        },
+        "body": "[{\"anak_id\":\"AN-001\",\"kegiatan_id\":1,\"tanggal\":\"2026-09-24\",\"nilai\":\"sesuai\"},{\"anak_id\":\"AN-001\",\"kegiatan_id\":2,\"tanggal\":\"2026-09-24\",\"nilai\":\"arahan\"},{\"anak_id\":\"AN-001\",\"kegiatan_id\":3,\"tanggal\":\"2026-09-24\",\"nilai\":\"telat\"},{\"anak_id\":\"AN-001\",\"kegiatan_id\":4,\"tanggal\":\"2026-09-24\",\"nilai\":\"sesuai\"},{\"anak_id\":\"AN-001\",\"kegiatan_id\":5,\"tanggal\":\"2026-09-24\",\"nilai\":\"sesuai\"},{\"anak_id\":\"AN-001\",\"kegiatan_id\":6,\"tanggal\":\"2026-09-24\",\"nilai\":\"telat\"},{\"anak_id\":\"AN-001\",\"kegiatan_id\":7,\"tanggal\":\"2026-09-24\",\"nilai\":\"sesuai\"},{\"anak_id\":\"AN-001\",\"kegiatan_id\":8,\"tanggal\":\"2026-09-24\",\"nilai\":\"sesuai\"},{\"anak_id\":\"AN-002\",\"kegiatan_id\":1,\"tanggal\":\"2026-09-24\",\"nilai\":\"arahan\"},{\"anak_id\":\"AN-002\",\"kegiatan_id\":2,\"tanggal\":\"2026-09-24\",\"nilai\":\"sesuai\"},{\"anak_id\":\"AN-002\",\"kegiatan_id\":3,\"tanggal\":\"2026-09-24\",\"nilai\":\"sesuai\"},{\"anak_id\":\"AN-002\",\"kegiatan_id\":4,\"tanggal\":\"2026-09-24\",\"nilai\":\"arahan\"},{\"anak_id\":\"AN-002\",\"kegiatan_id\":5,\"tanggal\":\"2026-09-24\",\"nilai\":\"sesuai\"},{\"anak_id\":\"AN-003\",\"kegiatan_id\":1,\"tanggal\":\"2026-09-24\",\"nilai\":\"sesuai\"},{\"anak_id\":\"AN-003\",\"kegiatan_id\":2,\"tanggal\":\"2026-09-24\",\"nilai\":\"sesuai\"},{\"anak_id\":\"AN-003\",\"kegiatan_id\":3,\"tanggal\":\"2026-09-24\",\"nilai\":\"sesuai\"},{\"anak_id\":\"AN-003\",\"kegiatan_id\":4,\"tanggal\":\"2026-09-24\",\"nilai\":\"arahan\"},{\"anak_id\":\"AN-004\",\"kegiatan_id\":1,\"tanggal\":\"2026-09-24\",\"nilai\":\"sesuai\"},{\"anak_id\":\"AN-004\",\"kegiatan_id\":2,\"tanggal\":\"2026-09-24\",\"nilai\":\"arahan\"},{\"anak_id\":\"AN-004\",\"kegiatan_id\":3,\"tanggal\":\"2026-09-24\",\"nilai\":\"sesuai\"},{\"anak_id\":\"AN-005\",\"kegiatan_id\":1,\"tanggal\":\"2026-09-24\",\"nilai\":\"tidak\"},{\"anak_id\":\"AN-005\",\"kegiatan_id\":2,\"tanggal\":\"2026-09-24\",\"nilai\":\"arahan\"},{\"anak_id\":\"AN-005\",\"kegiatan_id\":3,\"tanggal\":\"2026-09-24\",\"nilai\":\"sesuai\"}]",
+        "json": [
+            {
+                "anak_id": "AN-001",
+                "kegiatan_id": 1,
+                "tanggal": "2026-09-24",
+                "nilai": "sesuai"
+            },
+            {
+                "anak_id": "AN-001",
+                "kegiatan_id": 2,
+                "tanggal": "2026-09-24",
+                "nilai": "arahan"
+            },
+            {
+                "anak_id": "AN-001",
+                "kegiatan_id": 3,
+                "tanggal": "2026-09-24",
+                "nilai": "telat"
+            },
+            {
+                "anak_id": "AN-001",
+                "kegiatan_id": 4,
+                "tanggal": "2026-09-24",
+                "nilai": "sesuai"
+            },
+            {
+                "anak_id": "AN-001",
+                "kegiatan_id": 5,
+                "tanggal": "2026-09-24",
+                "nilai": "sesuai"
+            },
+            {
+                "anak_id": "AN-001",
+                "kegiatan_id": 6,
+                "tanggal": "2026-09-24",
+                "nilai": "telat"
+            },
+            {
+                "anak_id": "AN-001",
+                "kegiatan_id": 7,
+                "tanggal": "2026-09-24",
+                "nilai": "sesuai"
+            },
+            {
+                "anak_id": "AN-001",
+                "kegiatan_id": 8,
+                "tanggal": "2026-09-24",
+                "nilai": "sesuai"
+            },
+            {
+                "anak_id": "AN-002",
+                "kegiatan_id": 1,
+                "tanggal": "2026-09-24",
+                "nilai": "arahan"
+            },
+            {
+                "anak_id": "AN-002",
+                "kegiatan_id": 2,
+                "tanggal": "2026-09-24",
+                "nilai": "sesuai"
+            },
+            {
+                "anak_id": "AN-002",
+                "kegiatan_id": 3,
+                "tanggal": "2026-09-24",
+                "nilai": "sesuai"
+            },
+            {
+                "anak_id": "AN-002",
+                "kegiatan_id": 4,
+                "tanggal": "2026-09-24",
+                "nilai": "arahan"
+            },
+            {
+                "anak_id": "AN-002",
+                "kegiatan_id": 5,
+                "tanggal": "2026-09-24",
+                "nilai": "sesuai"
+            },
+            {
+                "anak_id": "AN-003",
+                "kegiatan_id": 1,
+                "tanggal": "2026-09-24",
+                "nilai": "sesuai"
+            },
+            {
+                "anak_id": "AN-003",
+                "kegiatan_id": 2,
+                "tanggal": "2026-09-24",
+                "nilai": "sesuai"
+            },
+            {
+                "anak_id": "AN-003",
+                "kegiatan_id": 3,
+                "tanggal": "2026-09-24",
+                "nilai": "sesuai"
+            },
+            {
+                "anak_id": "AN-003",
+                "kegiatan_id": 4,
+                "tanggal": "2026-09-24",
+                "nilai": "arahan"
+            },
+            {
+                "anak_id": "AN-004",
+                "kegiatan_id": 1,
+                "tanggal": "2026-09-24",
+                "nilai": "sesuai"
+            },
+            {
+                "anak_id": "AN-004",
+                "kegiatan_id": 2,
+                "tanggal": "2026-09-24",
+                "nilai": "arahan"
+            },
+            {
+                "anak_id": "AN-004",
+                "kegiatan_id": 3,
+                "tanggal": "2026-09-24",
+                "nilai": "sesuai"
+            },
+            {
+                "anak_id": "AN-005",
+                "kegiatan_id": 1,
+                "tanggal": "2026-09-24",
+                "nilai": "tidak"
+            },
+            {
+                "anak_id": "AN-005",
+                "kegiatan_id": 2,
+                "tanggal": "2026-09-24",
+                "nilai": "arahan"
+            },
+            {
+                "anak_id": "AN-005",
+                "kegiatan_id": 3,
+                "tanggal": "2026-09-24",
+                "nilai": "sesuai"
+            }
+        ]
+    }
+}

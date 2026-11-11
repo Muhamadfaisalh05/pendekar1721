@@ -1,0 +1,375 @@
+{
+    "generated_at": "2026-11-11T02:21:23+00:00",
+    "source": "semarak native (salinan read-only)",
+    "base_url": "http://127.0.0.1:8123",
+    "scenarios": [
+        {
+            "file": "01-get-anak.json",
+            "name": "get-anak",
+            "method": "GET",
+            "uri": "/api.php?action=anak",
+            "status": 200,
+            "body_sha256": "2c569a213092237892b26c0c324bc81e928feebda280251715adbe5afa0929d5"
+        },
+        {
+            "file": "02-get-anak-list.json",
+            "name": "get-anak-list",
+            "method": "GET",
+            "uri": "/api.php?action=anak_list",
+            "status": 200,
+            "body_sha256": "2c569a213092237892b26c0c324bc81e928feebda280251715adbe5afa0929d5"
+        },
+        {
+            "file": "03-get-anak-detail.json",
+            "name": "get-anak-detail",
+            "method": "GET",
+            "uri": "/api.php?action=anak_detail&id=AN-001",
+            "status": 200,
+            "body_sha256": "e0274ef331ffe3cf9b59cfcc77a31263e61a3552d127bd108b60ae604b3a47da"
+        },
+        {
+            "file": "04-get-anak-detail-tidak-ada.json",
+            "name": "get-anak-detail-tidak-ada",
+            "method": "GET",
+            "uri": "/api.php?action=anak_detail&id=AN-999",
+            "status": 200,
+            "body_sha256": "8d1471992c743a3ed2cfce297019a02e448a42f5652f2d0fde68fda7b049f6c7"
+        },
+        {
+            "file": "05-get-kegiatan.json",
+            "name": "get-kegiatan",
+            "method": "GET",
+            "uri": "/api.php?action=kegiatan",
+            "status": 200,
+            "body_sha256": "e2924d7f58661cc73882efe7db798c1d8f1d29f16c92b81713026e87b3df4586"
+        },
+        {
+            "file": "06-get-evaluasi-tanggal.json",
+            "name": "get-evaluasi-tanggal",
+            "method": "GET",
+            "uri": "/api.php?action=evaluasi&tanggal=2026-09-24",
+            "status": 200,
+            "body_sha256": "0b7a184ba95788f6f75dd1ff3b2eea4b10525ebbc98d6a25e4f5cedf593de1d7"
+        },
+        {
+            "file": "07-get-evaluasi-tanggal-invalid.json",
+            "name": "get-evaluasi-tanggal-invalid",
+            "method": "GET",
+            "uri": "/api.php?action=evaluasi&tanggal=2026-13-01",
+            "status": 400,
+            "body_sha256": "078904b9616480de4e2ac7ec5ad5994586f83f2871d3345c05810479a392a244"
+        },
+        {
+            "file": "08-get-settings.json",
+            "name": "get-settings",
+            "method": "GET",
+            "uri": "/api.php?action=settings",
+            "status": 200,
+            "body_sha256": "0e622de473d002bedc6ac7f5f547ae7601d3cfb340aea99a46f1933c64b0e222"
+        },
+        {
+            "file": "09-get-summary-default-id.json",
+            "name": "get-summary-default-id",
+            "method": "GET",
+            "uri": "/api.php?action=summary",
+            "status": 200,
+            "body_sha256": "5f67364fa8c6a4e89735e43f809e51acbaf299defcdf290a2b1c3cde40624b3c"
+        },
+        {
+            "file": "10-get-summary-rentang.json",
+            "name": "get-summary-rentang",
+            "method": "GET",
+            "uri": "/api.php?action=summary&id=AN-001&mulai=2026-09-01&sampai=2026-09-30",
+            "status": 200,
+            "body_sha256": "82bc3019b4edf9355ad494ca0d30d7f399d7d78a6bdc8dba683c59bc564ec211"
+        },
+        {
+            "file": "11-get-summary-anak-tidak-ada.json",
+            "name": "get-summary-anak-tidak-ada",
+            "method": "GET",
+            "uri": "/api.php?action=summary&id=AN-999",
+            "status": 200,
+            "body_sha256": "1f290cdf889206b5de83f8c6e12d9a79af053d3293c6b9500592bbb430ddc030"
+        },
+        {
+            "file": "12-get-report-default.json",
+            "name": "get-report-default",
+            "method": "GET",
+            "uri": "/api.php?action=report&id=AN-001",
+            "status": 200,
+            "body_sha256": "464ee4f10ac3890bafaa6e60abb08357266bfea1dc8445124a7bd9812d87bb4f"
+        },
+        {
+            "file": "13-get-report-rentang.json",
+            "name": "get-report-rentang",
+            "method": "GET",
+            "uri": "/api.php?action=report&id=AN-001&mulai=2026-09-01&sampai=2026-09-30",
+            "status": 200,
+            "body_sha256": "3d9400e74f52a873ad80df9483dbc720a9a840edee9a8f27b76c521a34764d7e"
+        },
+        {
+            "file": "14-get-report-anak-tidak-ada.json",
+            "name": "get-report-anak-tidak-ada",
+            "method": "GET",
+            "uri": "/api.php?action=report&id=AN-999",
+            "status": 200,
+            "body_sha256": "f155c004340a6d99ddf05a6c18a564146d718218ad92f166414dffc66460538e"
+        },
+        {
+            "file": "15-get-dashboard.json",
+            "name": "get-dashboard",
+            "method": "GET",
+            "uri": "/api.php?action=dashboard",
+            "status": 200,
+            "body_sha256": "053d525aff02e71b4c9084f8ee82d0efbaf3d5cad9e78ad909e7aba8643a3d4b"
+        },
+        {
+            "file": "16-get-dashboard-filter-angkatan.json",
+            "name": "get-dashboard-filter-angkatan",
+            "method": "GET",
+            "uri": "/api.php?action=dashboard&angkatan=Angkatan%20II",
+            "status": 200,
+            "body_sha256": "ca9b52dfdb16cf8697029c4aa4142413a0cd89cad09cef35dfff0d96f2f64ce6"
+        },
+        {
+            "file": "17-get-dashboard-filter-rentang.json",
+            "name": "get-dashboard-filter-rentang",
+            "method": "GET",
+            "uri": "/api.php?action=dashboard&mulai=2026-09-24&sampai=2026-09-24",
+            "status": 200,
+            "body_sha256": "d4326a88ee3d80f36306746119e3a5a6f0acdc7bc01603ad09f217f2c3f11827"
+        },
+        {
+            "file": "18-get-dashboard-filter-status.json",
+            "name": "get-dashboard-filter-status",
+            "method": "GET",
+            "uri": "/api.php?action=dashboard&status_anak=Aktif",
+            "status": 200,
+            "body_sha256": "053d525aff02e71b4c9084f8ee82d0efbaf3d5cad9e78ad909e7aba8643a3d4b"
+        },
+        {
+            "file": "19-get-dashboard-rentang-terbalik.json",
+            "name": "get-dashboard-rentang-terbalik",
+            "method": "GET",
+            "uri": "/api.php?action=dashboard&mulai=2026-09-30&sampai=2026-09-01",
+            "status": 400,
+            "body_sha256": "7846e748e5ae78052f56b002c3834c5de97f5b487c7333c876f45dcee8cb24ab"
+        },
+        {
+            "file": "20-get-action-tidak-dikenal.json",
+            "name": "get-action-tidak-dikenal",
+            "method": "GET",
+            "uri": "/api.php?action=tidak_ada",
+            "status": 404,
+            "body_sha256": "a7195e27f8033fe9fcb52ecb076fd7d64cab9d4326d9d3d2b12b65649f3bb207"
+        },
+        {
+            "file": "21-post-save-evaluasi.json",
+            "name": "post-save-evaluasi",
+            "method": "POST",
+            "uri": "/api.php?action=save_evaluasi",
+            "status": 200,
+            "body_sha256": "c8a745120d56d87cdf9f37967963399f1b3764dc0b27ac2edb870aa30a5234ee"
+        },
+        {
+            "file": "22-post-save-evaluasi-nilai-invalid.json",
+            "name": "post-save-evaluasi-nilai-invalid",
+            "method": "POST",
+            "uri": "/api.php?action=save_evaluasi",
+            "status": 400,
+            "body_sha256": "b05ecc3c44dfec22d02e903a90c30bab5e153e5bdc18da1c485abe556034af56"
+        },
+        {
+            "file": "23-post-save-evaluasi-anak-tidak-ada.json",
+            "name": "post-save-evaluasi-anak-tidak-ada",
+            "method": "POST",
+            "uri": "/api.php?action=save_evaluasi",
+            "status": 400,
+            "body_sha256": "582a11deed6f2162c7e0a56a291733674f7a337fbfcd1513ead4cf455db8a50f"
+        },
+        {
+            "file": "24-post-save-evaluasi-kegiatan-tidak-ada.json",
+            "name": "post-save-evaluasi-kegiatan-tidak-ada",
+            "method": "POST",
+            "uri": "/api.php?action=save_evaluasi",
+            "status": 400,
+            "body_sha256": "9fc934048326ae17e650989e70b0942f64a83117a5427c9004ecfd72628348b9"
+        },
+        {
+            "file": "25-post-batch.json",
+            "name": "post-batch",
+            "method": "POST",
+            "uri": "/api.php?action=save_evaluasi_batch",
+            "status": 200,
+            "body_sha256": "192592b801b994bb85135808f6aa2c2e12c40f59ccffd8f5792a2447fc1b9ce5"
+        },
+        {
+            "file": "26-post-batch-kosong.json",
+            "name": "post-batch-kosong",
+            "method": "POST",
+            "uri": "/api.php?action=save_evaluasi_batch",
+            "status": 400,
+            "body_sha256": "97c82328db7c741d3ec6a00297e0aab8f05c4e51127d438647eb07348726aa85"
+        },
+        {
+            "file": "27-get-evaluasi-setelah-batch.json",
+            "name": "get-evaluasi-setelah-batch",
+            "method": "GET",
+            "uri": "/api.php?action=evaluasi&tanggal=2026-09-24",
+            "status": 200,
+            "body_sha256": "a8602e15f849caf46da4045f6d279f68046d1eff840ad0dd4700fdc833e95136"
+        },
+        {
+            "file": "28-post-batch-sebagian-gagal.json",
+            "name": "post-batch-sebagian-gagal",
+            "method": "POST",
+            "uri": "/api.php?action=save_evaluasi_batch",
+            "status": 400,
+            "body_sha256": "582a11deed6f2162c7e0a56a291733674f7a337fbfcd1513ead4cf455db8a50f"
+        },
+        {
+            "file": "29-get-evaluasi-setelah-batch-gagal.json",
+            "name": "get-evaluasi-setelah-batch-gagal",
+            "method": "GET",
+            "uri": "/api.php?action=evaluasi&tanggal=2026-09-24",
+            "status": 200,
+            "body_sha256": "a8602e15f849caf46da4045f6d279f68046d1eff840ad0dd4700fdc833e95136"
+        },
+        {
+            "file": "30-post-anak-store.json",
+            "name": "post-anak-store",
+            "method": "POST",
+            "uri": "/api.php?action=anak_store",
+            "status": 200,
+            "body_sha256": "4853492883b7c6353a13251ffae4b0ef97f6fcfe3a660a6c28b6e8a914f929e3"
+        },
+        {
+            "file": "31-post-anak-store-duplikat.json",
+            "name": "post-anak-store-duplikat",
+            "method": "POST",
+            "uri": "/api.php?action=anak_store",
+            "status": 400,
+            "body_sha256": "fc7f1c30b7696131c79653c5427da78f7464a9995c01737ad7b4d6582342f170"
+        },
+        {
+            "file": "32-post-anak-store-nama-kosong.json",
+            "name": "post-anak-store-nama-kosong",
+            "method": "POST",
+            "uri": "/api.php?action=anak_store",
+            "status": 400,
+            "body_sha256": "45bdd846c4002af07094902b0e7419c95bc5f90e45d37a0caca56dc82c63dc02"
+        },
+        {
+            "file": "33-post-anak-update.json",
+            "name": "post-anak-update",
+            "method": "POST",
+            "uri": "/api.php?action=anak_update",
+            "status": 200,
+            "body_sha256": "88424ede62d505663c77068b9dc868302a2fe3aa011621ed3b2510bb7f2845dd"
+        },
+        {
+            "file": "34-post-anak-update-tidak-ada.json",
+            "name": "post-anak-update-tidak-ada",
+            "method": "POST",
+            "uri": "/api.php?action=anak_update",
+            "status": 400,
+            "body_sha256": "8d1471992c743a3ed2cfce297019a02e448a42f5652f2d0fde68fda7b049f6c7"
+        },
+        {
+            "file": "35-post-anak-delete.json",
+            "name": "post-anak-delete",
+            "method": "POST",
+            "uri": "/api.php?action=anak_delete&id=AN-007",
+            "status": 200,
+            "body_sha256": "5bcc74a4fb0e079c2dcf44aa561751d02540b885e1c49bf414ea5bc693bc35b2"
+        },
+        {
+            "file": "36-post-anak-delete-tidak-ada.json",
+            "name": "post-anak-delete-tidak-ada",
+            "method": "POST",
+            "uri": "/api.php?action=anak_delete&id=AN-999",
+            "status": 400,
+            "body_sha256": "8d1471992c743a3ed2cfce297019a02e448a42f5652f2d0fde68fda7b049f6c7"
+        },
+        {
+            "file": "37-post-settings-save.json",
+            "name": "post-settings-save",
+            "method": "POST",
+            "uri": "/api.php?action=settings_save",
+            "status": 200,
+            "body_sha256": "54a7f55a48446ed2a7d4192ab354184a75ea5ed350058ad429349193bcfc6dcb"
+        },
+        {
+            "file": "38-post-settings-save-aturan-invalid.json",
+            "name": "post-settings-save-aturan-invalid",
+            "method": "POST",
+            "uri": "/api.php?action=settings_save",
+            "status": 400,
+            "body_sha256": "79dd9068980d279efb528fdffd53e669dc517687c47415c3034a0abe02c716ce"
+        },
+        {
+            "file": "39-post-settings-save-hari-invalid.json",
+            "name": "post-settings-save-hari-invalid",
+            "method": "POST",
+            "uri": "/api.php?action=settings_save",
+            "status": 400,
+            "body_sha256": "355229c65ef365421023cf458c06356377a26bb2d8fe1f5d2dc5d447c85ba680"
+        },
+        {
+            "file": "40-post-settings-save-rentang-terbalik.json",
+            "name": "post-settings-save-rentang-terbalik",
+            "method": "POST",
+            "uri": "/api.php?action=settings_save",
+            "status": 400,
+            "body_sha256": "c56594673b2bb4c706675fe109a58e78ecefe1a7ccba1b4a13a035ebfe7e33a5"
+        },
+        {
+            "file": "41-get-settings-setelah-simpan.json",
+            "name": "get-settings-setelah-simpan",
+            "method": "GET",
+            "uri": "/api.php?action=settings",
+            "status": 200,
+            "body_sha256": "147c8ee4047457b2135357ec5da1eedf28e3341f55e024244bd1fea0dd2796f6"
+        },
+        {
+            "file": "42-post-report-notes-save.json",
+            "name": "post-report-notes-save",
+            "method": "POST",
+            "uri": "/api.php?action=report_notes_save",
+            "status": 200,
+            "body_sha256": "84eafddad1fb2e2272ff7402a12c5d477534753e374c4cd18f6ecb0c371d81e7"
+        },
+        {
+            "file": "43-post-report-notes-save-periode-invalid.json",
+            "name": "post-report-notes-save-periode-invalid",
+            "method": "POST",
+            "uri": "/api.php?action=report_notes_save",
+            "status": 400,
+            "body_sha256": "7846e748e5ae78052f56b002c3834c5de97f5b487c7333c876f45dcee8cb24ab"
+        },
+        {
+            "file": "44-get-report-setelah-catatan.json",
+            "name": "get-report-setelah-catatan",
+            "method": "GET",
+            "uri": "/api.php?action=report&id=AN-001&mulai=2026-09-01&sampai=2026-09-30",
+            "status": 200,
+            "body_sha256": "2e842cfcb6ea608f69c070d2cc3ce15540db0e87e8160b48f5c030d54a38fe7e"
+        },
+        {
+            "file": "45-post-ke-action-get.json",
+            "name": "post-ke-action-get",
+            "method": "POST",
+            "uri": "/api.php?action=dashboard",
+            "status": 200,
+            "body_sha256": "d46ffe9bc6b3ac0ef6c6ec20a5927deea6a8fca67a716d52a676f651de582a99"
+        },
+        {
+            "file": "46-get-ke-action-post.json",
+            "name": "get-ke-action-post",
+            "method": "GET",
+            "uri": "/api.php?action=save_evaluasi",
+            "status": 404,
+            "body_sha256": "a7195e27f8033fe9fcb52ecb076fd7d64cab9d4326d9d3d2b12b65649f3bb207"
+        }
+    ]
+}

@@ -1,0 +1,41 @@
+{
+    "name": "get-dashboard-filter-rentang",
+    "request": {
+        "method": "GET",
+        "uri": "/api.php?action=dashboard&mulai=2026-09-24&sampai=2026-09-24",
+        "payload": null
+    },
+    "response": {
+        "status": 200,
+        "headers": {
+            "content-type": "application/json; charset=utf-8",
+            "x-powered-by": null
+        },
+        "body": "{\"total_anak\":6,\"total_kegiatan\":22,\"status\":{\"sesuai\":15,\"arahan\":6,\"telat\":1,\"tidak\":1,\"libur\":0},\"presentase\":{\"sesuai\":65.2,\"arahan\":26.1,\"telat\":4.3,\"tidak\":4.3},\"total_penilaian\":23,\"tren\":[{\"tanggal\":\"2026-09-24\",\"total\":\"23\",\"sesuai\":\"15\"}]}",
+        "json": {
+            "total_anak": 6,
+            "total_kegiatan": 22,
+            "status": {
+                "sesuai": 15,
+                "arahan": 6,
+                "telat": 1,
+                "tidak": 1,
+                "libur": 0
+            },
+            "presentase": {
+                "sesuai": 65.2,
+                "arahan": 26.1,
+                "telat": 4.3,
+                "tidak": 4.3
+            },
+            "total_penilaian": 23,
+            "tren": [
+                {
+                    "tanggal": "2026-09-24",
+                    "total": "23",
+                    "sesuai": "15"
+                }
+            ]
+        }
+    }
+}

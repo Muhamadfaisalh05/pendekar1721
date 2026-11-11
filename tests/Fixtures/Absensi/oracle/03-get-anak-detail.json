@@ -1,0 +1,26 @@
+{
+    "name": "get-anak-detail",
+    "request": {
+        "method": "GET",
+        "uri": "/api.php?action=anak_detail&id=AN-001",
+        "payload": null
+    },
+    "response": {
+        "status": 200,
+        "headers": {
+            "content-type": "application/json; charset=utf-8",
+            "x-powered-by": null
+        },
+        "body": "{\"id\":\"AN-001\",\"nama\":\"Endang Sri Ayu\",\"jenis_kelamin\":\"Perempuan\",\"asal_daerah\":\"Bandung\",\"agama\":\"Islam\",\"umur\":16,\"angkatan\":\"Angkatan II\",\"status\":\"Aktif\"}",
+        "json": {
+            "id": "AN-001",
+            "nama": "Endang Sri Ayu",
+            "jenis_kelamin": "Perempuan",
+            "asal_daerah": "Bandung",
+            "agama": "Islam",
+            "umur": 16,
+            "angkatan": "Angkatan II",
+            "status": "Aktif"
+        }
+    }
+}

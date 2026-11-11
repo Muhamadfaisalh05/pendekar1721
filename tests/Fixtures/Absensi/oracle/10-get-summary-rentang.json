@@ -1,0 +1,258 @@
+{
+    "name": "get-summary-rentang",
+    "request": {
+        "method": "GET",
+        "uri": "/api.php?action=summary&id=AN-001&mulai=2026-09-01&sampai=2026-09-30",
+        "payload": null
+    },
+    "response": {
+        "status": 200,
+        "headers": {
+            "content-type": "application/json; charset=utf-8",
+            "x-powered-by": null
+        },
+        "body": "{\"anak\":{\"id\":\"AN-001\",\"nama\":\"Endang Sri Ayu\",\"jenis_kelamin\":\"Perempuan\",\"asal_daerah\":\"Bandung\",\"agama\":\"Islam\",\"umur\":16,\"angkatan\":\"Angkatan II\",\"status\":\"Aktif\"},\"status\":{\"sesuai\":6,\"arahan\":1,\"telat\":1,\"tidak\":0,\"libur\":0},\"skor_total\":75,\"detail\":[{\"no\":1,\"kegiatan\":\"Aku Bangun Pagi Sendiri Jam 04.30\",\"sesuai\":1,\"arahan\":0,\"telat\":0,\"tidak\":0,\"libur\":0,\"skor\":100},{\"no\":2,\"kegiatan\":\"Aku Shalat Shubuh Jam 04.30 di Masjid\",\"sesuai\":1,\"arahan\":0,\"telat\":0,\"tidak\":0,\"libur\":0,\"skor\":100},{\"no\":3,\"kegiatan\":\"Aku Mengikuti Kegiatan Olahraga Jam 05.30 s.d. 06.15\",\"sesuai\":0,\"arahan\":1,\"telat\":0,\"tidak\":0,\"libur\":0,\"skor\":0},{\"no\":4,\"kegiatan\":\"Aku Mengikuti Kegiatan Mandi Pagi Jam 06.15 s.d. 06.45\",\"sesuai\":1,\"arahan\":0,\"telat\":0,\"tidak\":0,\"libur\":0,\"skor\":100},{\"no\":5,\"kegiatan\":\"Aku Mengikuti Kegiatan Makan Pagi Jam 06.45 s.d. 07.15\",\"sesuai\":1,\"arahan\":0,\"telat\":0,\"tidak\":0,\"libur\":0,\"skor\":100},{\"no\":6,\"kegiatan\":\"Aku Membersihkan Tempat Tidur, Menyapu dan Mengepel Asrama Jam 07.15 s.d. 08.00\",\"sesuai\":0,\"arahan\":0,\"telat\":1,\"tidak\":0,\"libur\":0,\"skor\":0},{\"no\":7,\"kegiatan\":\"Aku Mengikuti Kegiatan Bimbingan Keterampilan Jam 08.00 s.d. 11.00\",\"sesuai\":1,\"arahan\":0,\"telat\":0,\"tidak\":0,\"libur\":0,\"skor\":100},{\"no\":8,\"kegiatan\":\"Aku Mengikuti Kegiatan Bimbingan Kedisiplinan Jam 08.00 s.d. 11.00\",\"sesuai\":1,\"arahan\":0,\"telat\":0,\"tidak\":0,\"libur\":0,\"skor\":100},{\"no\":9,\"kegiatan\":\"Aku Mengikuti Kegiatan Bimbingan Batik Ecoprint Jam 08.00 s.d. 12.00\",\"sesuai\":0,\"arahan\":0,\"telat\":0,\"tidak\":0,\"libur\":0,\"skor\":0},{\"no\":10,\"kegiatan\":\"Aku Mengikuti Kegiatan Bimbingan Sosial I Jam 11.00 s.d. 12.00\",\"sesuai\":0,\"arahan\":0,\"telat\":0,\"tidak\":0,\"libur\":0,\"skor\":0},{\"no\":11,\"kegiatan\":\"Aku Shalat Dzuhur Jam 12.00 di Masjid\",\"sesuai\":0,\"arahan\":0,\"telat\":0,\"tidak\":0,\"libur\":0,\"skor\":0},{\"no\":12,\"kegiatan\":\"Aku Mengikuti Kegiatan Makan Siang Jam 12.30 s.d. 13.00\",\"sesuai\":0,\"arahan\":0,\"telat\":0,\"tidak\":0,\"libur\":0,\"skor\":0},{\"no\":13,\"kegiatan\":\"Aku Mengikuti Kegiatan Bimbingan Sosial II Jam 13.00 s.d. 15.00\",\"sesuai\":0,\"arahan\":0,\"telat\":0,\"tidak\":0,\"libur\":0,\"skor\":0},{\"no\":14,\"kegiatan\":\"Aku Mengikuti Kegiatan Bimbingan Farming Jam 13.00 s.d. 15.00\",\"sesuai\":0,\"arahan\":0,\"telat\":0,\"tidak\":0,\"libur\":0,\"skor\":0},{\"no\":15,\"kegiatan\":\"Aku Shalat Ashar Jam 15.00 di Masjid\",\"sesuai\":0,\"arahan\":0,\"telat\":0,\"tidak\":0,\"libur\":0,\"skor\":0},{\"no\":16,\"kegiatan\":\"Aku Mandi Sore Jam 15.30 s.d. 16.00\",\"sesuai\":0,\"arahan\":0,\"telat\":0,\"tidak\":0,\"libur\":0,\"skor\":0},{\"no\":17,\"kegiatan\":\"Aku Mencuci Pakaian Kotor dan Menyetrika Pakaian Jam 16.00 s.d. 17.30\",\"sesuai\":0,\"arahan\":0,\"telat\":0,\"tidak\":0,\"libur\":0,\"skor\":0},{\"no\":18,\"kegiatan\":\"Aku Shalat Maghrib Jam 17.45 di Masjid\",\"sesuai\":0,\"arahan\":0,\"telat\":0,\"tidak\":0,\"libur\":0,\"skor\":0},{\"no\":19,\"kegiatan\":\"Aku Mengikuti Kegiatan Makan Malam Jam 18.00 s.d. 18.30\",\"sesuai\":0,\"arahan\":0,\"telat\":0,\"tidak\":0,\"libur\":0,\"skor\":0},{\"no\":20,\"kegiatan\":\"Aku Shalat Isya' Jam 19.00 di Masjid\",\"sesuai\":0,\"arahan\":0,\"telat\":0,\"tidak\":0,\"libur\":0,\"skor\":0},{\"no\":21,\"kegiatan\":\"Aku Mengikuti Kegiatan Pengajian Jam 19.15 s.d. 20.00\",\"sesuai\":0,\"arahan\":0,\"telat\":0,\"tidak\":0,\"libur\":0,\"skor\":0},{\"no\":22,\"kegiatan\":\"Aku Tidur Tepat Waktu di Kamar Tempat Tidurku Jam 21.00\",\"sesuai\":0,\"arahan\":0,\"telat\":0,\"tidak\":0,\"libur\":0,\"skor\":0}]}",
+        "json": {
+            "anak": {
+                "id": "AN-001",
+                "nama": "Endang Sri Ayu",
+                "jenis_kelamin": "Perempuan",
+                "asal_daerah": "Bandung",
+                "agama": "Islam",
+                "umur": 16,
+                "angkatan": "Angkatan II",
+                "status": "Aktif"
+            },
+            "status": {
+                "sesuai": 6,
+                "arahan": 1,
+                "telat": 1,
+                "tidak": 0,
+                "libur": 0
+            },
+            "skor_total": 75,
+            "detail": [
+                {
+                    "no": 1,
+                    "kegiatan": "Aku Bangun Pagi Sendiri Jam 04.30",
+                    "sesuai": 1,
+                    "arahan": 0,
+                    "telat": 0,
+                    "tidak": 0,
+                    "libur": 0,
+                    "skor": 100
+                },
+                {
+                    "no": 2,
+                    "kegiatan": "Aku Shalat Shubuh Jam 04.30 di Masjid",
+                    "sesuai": 1,
+                    "arahan": 0,
+                    "telat": 0,
+                    "tidak": 0,
+                    "libur": 0,
+                    "skor": 100
+                },
+                {
+                    "no": 3,
+                    "kegiatan": "Aku Mengikuti Kegiatan Olahraga Jam 05.30 s.d. 06.15",
+                    "sesuai": 0,
+                    "arahan": 1,
+                    "telat": 0,
+                    "tidak": 0,
+                    "libur": 0,
+                    "skor": 0
+                },
+                {
+                    "no": 4,
+                    "kegiatan": "Aku Mengikuti Kegiatan Mandi Pagi Jam 06.15 s.d. 06.45",
+                    "sesuai": 1,
+                    "arahan": 0,
+                    "telat": 0,
+                    "tidak": 0,
+                    "libur": 0,
+                    "skor": 100
+                },
+                {
+                    "no": 5,
+                    "kegiatan": "Aku Mengikuti Kegiatan Makan Pagi Jam 06.45 s.d. 07.15",
+                    "sesuai": 1,
+                    "arahan": 0,
+                    "telat": 0,
+                    "tidak": 0,
+                    "libur": 0,
+                    "skor": 100
+                },
+                {
+                    "no": 6,
+                    "kegiatan": "Aku Membersihkan Tempat Tidur, Menyapu dan Mengepel Asrama Jam 07.15 s.d. 08.00",
+                    "sesuai": 0,
+                    "arahan": 0,
+                    "telat": 1,
+                    "tidak": 0,
+                    "libur": 0,
+                    "skor": 0
+                },
+                {
+                    "no": 7,
+                    "kegiatan": "Aku Mengikuti Kegiatan Bimbingan Keterampilan Jam 08.00 s.d. 11.00",
+                    "sesuai": 1,
+                    "arahan": 0,
+                    "telat": 0,
+                    "tidak": 0,
+                    "libur": 0,
+                    "skor": 100
+                },
+                {
+                    "no": 8,
+                    "kegiatan": "Aku Mengikuti Kegiatan Bimbingan Kedisiplinan Jam 08.00 s.d. 11.00",
+                    "sesuai": 1,
+                    "arahan": 0,
+                    "telat": 0,
+                    "tidak": 0,
+                    "libur": 0,
+                    "skor": 100
+                },
+                {
+                    "no": 9,
+                    "kegiatan": "Aku Mengikuti Kegiatan Bimbingan Batik Ecoprint Jam 08.00 s.d. 12.00",
+                    "sesuai": 0,
+                    "arahan": 0,
+                    "telat": 0,
+                    "tidak": 0,
+                    "libur": 0,
+                    "skor": 0
+                },
+                {
+                    "no": 10,
+                    "kegiatan": "Aku Mengikuti Kegiatan Bimbingan Sosial I Jam 11.00 s.d. 12.00",
+                    "sesuai": 0,
+                    "arahan": 0,
+                    "telat": 0,
+                    "tidak": 0,
+                    "libur": 0,
+                    "skor": 0
+                },
+                {
+                    "no": 11,
+                    "kegiatan": "Aku Shalat Dzuhur Jam 12.00 di Masjid",
+                    "sesuai": 0,
+                    "arahan": 0,
+                    "telat": 0,
+                    "tidak": 0,
+                    "libur": 0,
+                    "skor": 0
+                },
+                {
+                    "no": 12,
+                    "kegiatan": "Aku Mengikuti Kegiatan Makan Siang Jam 12.30 s.d. 13.00",
+                    "sesuai": 0,
+                    "arahan": 0,
+                    "telat": 0,
+                    "tidak": 0,
+                    "libur": 0,
+                    "skor": 0
+                },
+                {
+                    "no": 13,
+                    "kegiatan": "Aku Mengikuti Kegiatan Bimbingan Sosial II Jam 13.00 s.d. 15.00",
+                    "sesuai": 0,
+                    "arahan": 0,
+                    "telat": 0,
+                    "tidak": 0,
+                    "libur": 0,
+                    "skor": 0
+                },
+                {
+                    "no": 14,
+                    "kegiatan": "Aku Mengikuti Kegiatan Bimbingan Farming Jam 13.00 s.d. 15.00",
+                    "sesuai": 0,
+                    "arahan": 0,
+                    "telat": 0,
+                    "tidak": 0,
+                    "libur": 0,
+                    "skor": 0
+                },
+                {
+                    "no": 15,
+                    "kegiatan": "Aku Shalat Ashar Jam 15.00 di Masjid",
+                    "sesuai": 0,
+                    "arahan": 0,
+                    "telat": 0,
+                    "tidak": 0,
+                    "libur": 0,
+                    "skor": 0
+                },
+                {
+                    "no": 16,
+                    "kegiatan": "Aku Mandi Sore Jam 15.30 s.d. 16.00",
+                    "sesuai": 0,
+                    "arahan": 0,
+                    "telat": 0,
+                    "tidak": 0,
+                    "libur": 0,
+                    "skor": 0
+                },
+                {
+                    "no": 17,
+                    "kegiatan": "Aku Mencuci Pakaian Kotor dan Menyetrika Pakaian Jam 16.00 s.d. 17.30",
+                    "sesuai": 0,
+                    "arahan": 0,
+                    "telat": 0,
+                    "tidak": 0,
+                    "libur": 0,
+                    "skor": 0
+                },
+                {
+                    "no": 18,
+                    "kegiatan": "Aku Shalat Maghrib Jam 17.45 di Masjid",
+                    "sesuai": 0,
+                    "arahan": 0,
+                    "telat": 0,
+                    "tidak": 0,
+                    "libur": 0,
+                    "skor": 0
+                },
+                {
+                    "no": 19,
+                    "kegiatan": "Aku Mengikuti Kegiatan Makan Malam Jam 18.00 s.d. 18.30",
+                    "sesuai": 0,
+                    "arahan": 0,
+                    "telat": 0,
+                    "tidak": 0,
+                    "libur": 0,
+                    "skor": 0
+                },
+                {
+                    "no": 20,
+                    "kegiatan": "Aku Shalat Isya' Jam 19.00 di Masjid",
+                    "sesuai": 0,
+                    "arahan": 0,
+                    "telat": 0,
+                    "tidak": 0,
+                    "libur": 0,
+                    "skor": 0
+                },
+                {
+                    "no": 21,
+                    "kegiatan": "Aku Mengikuti Kegiatan Pengajian Jam 19.15 s.d. 20.00",
+                    "sesuai": 0,
+                    "arahan": 0,
+                    "telat": 0,
+                    "tidak": 0,
+                    "libur": 0,
+                    "skor": 0
+                },
+                {
+                    "no": 22,
+                    "kegiatan": "Aku Tidur Tepat Waktu di Kamar Tempat Tidurku Jam 21.00",
+                    "sesuai": 0,
+                    "arahan": 0,
+                    "telat": 0,
+                    "tidak": 0,
+                    "libur": 0,
+                    "skor": 0
+                }
+            ]
+        }
+    }
+}

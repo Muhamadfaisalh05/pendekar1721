@@ -1,0 +1,25 @@
+{
+    "name": "post-save-evaluasi-kegiatan-tidak-ada",
+    "request": {
+        "method": "POST",
+        "uri": "/api.php?action=save_evaluasi",
+        "payload": {
+            "anak_id": "AN-001",
+            "kegiatan_id": 999,
+            "tanggal": "2026-09-24",
+            "nilai": "sesuai"
+        }
+    },
+    "response": {
+        "status": 400,
+        "headers": {
+            "content-type": "application/json; charset=utf-8",
+            "x-powered-by": null
+        },
+        "body": "{\"success\":false,\"message\":\"Kegiatan tidak ditemukan.\"}",
+        "json": {
+            "success": false,
+            "message": "Kegiatan tidak ditemukan."
+        }
+    }
+}

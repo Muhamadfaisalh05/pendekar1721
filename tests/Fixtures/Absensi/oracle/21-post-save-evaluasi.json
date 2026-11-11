@@ -1,0 +1,31 @@
+{
+    "name": "post-save-evaluasi",
+    "request": {
+        "method": "POST",
+        "uri": "/api.php?action=save_evaluasi",
+        "payload": {
+            "anak_id": "AN-001",
+            "kegiatan_id": 1,
+            "tanggal": "2026-09-24",
+            "nilai": "sesuai"
+        }
+    },
+    "response": {
+        "status": 200,
+        "headers": {
+            "content-type": "application/json; charset=utf-8",
+            "x-powered-by": null
+        },
+        "body": "{\"success\":true,\"message\":\"Evaluasi berhasil disimpan\",\"payload\":{\"anak_id\":\"AN-001\",\"kegiatan_id\":1,\"tanggal\":\"2026-09-24\",\"nilai\":\"sesuai\"}}",
+        "json": {
+            "success": true,
+            "message": "Evaluasi berhasil disimpan",
+            "payload": {
+                "anak_id": "AN-001",
+                "kegiatan_id": 1,
+                "tanggal": "2026-09-24",
+                "nilai": "sesuai"
+            }
+        }
+    }
+}

@@ -1,0 +1,27 @@
+{
+    "name": "post-anak-store-nama-kosong",
+    "request": {
+        "method": "POST",
+        "uri": "/api.php?action=anak_store",
+        "payload": {
+            "nama": "   ",
+            "jenis_kelamin": "Laki-laki",
+            "asal_daerah": "Bogor",
+            "agama": "Islam",
+            "umur": 17,
+            "angkatan": "Angkatan III"
+        }
+    },
+    "response": {
+        "status": 400,
+        "headers": {
+            "content-type": "application/json; charset=utf-8",
+            "x-powered-by": null
+        },
+        "body": "{\"success\":false,\"message\":\"Nama anak wajib diisi.\"}",
+        "json": {
+            "success": false,
+            "message": "Nama anak wajib diisi."
+        }
+    }
+}

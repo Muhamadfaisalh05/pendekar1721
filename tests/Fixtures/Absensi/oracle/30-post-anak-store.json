@@ -1,0 +1,38 @@
+{
+    "name": "post-anak-store",
+    "request": {
+        "method": "POST",
+        "uri": "/api.php?action=anak_store",
+        "payload": {
+            "id": "AN-007",
+            "nama": "Uji Karakterisasi",
+            "jenis_kelamin": "Perempuan",
+            "asal_daerah": "Bandung",
+            "agama": "Islam",
+            "umur": 16,
+            "angkatan": "Angkatan III"
+        }
+    },
+    "response": {
+        "status": 200,
+        "headers": {
+            "content-type": "application/json; charset=utf-8",
+            "x-powered-by": null
+        },
+        "body": "{\"success\":true,\"message\":\"Data anak berhasil ditambahkan.\",\"data\":{\"id\":\"AN-007\",\"nama\":\"Uji Karakterisasi\",\"jenis_kelamin\":\"Perempuan\",\"asal_daerah\":\"Bandung\",\"agama\":\"Islam\",\"umur\":16,\"angkatan\":\"Angkatan III\",\"status\":\"Aktif\"}}",
+        "json": {
+            "success": true,
+            "message": "Data anak berhasil ditambahkan.",
+            "data": {
+                "id": "AN-007",
+                "nama": "Uji Karakterisasi",
+                "jenis_kelamin": "Perempuan",
+                "asal_daerah": "Bandung",
+                "agama": "Islam",
+                "umur": 16,
+                "angkatan": "Angkatan III",
+                "status": "Aktif"
+            }
+        }
+    }
+}

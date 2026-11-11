@@ -1,0 +1,21 @@
+{
+    "name": "post-anak-delete",
+    "request": {
+        "method": "POST",
+        "uri": "/api.php?action=anak_delete&id=AN-007",
+        "payload": null
+    },
+    "response": {
+        "status": 200,
+        "headers": {
+            "content-type": "application/json; charset=utf-8",
+            "x-powered-by": null
+        },
+        "body": "{\"success\":true,\"message\":\"Data anak berhasil dihapus.\",\"id\":\"AN-007\"}",
+        "json": {
+            "success": true,
+            "message": "Data anak berhasil dihapus.",
+            "id": "AN-007"
+        }
+    }
+}

@@ -1,0 +1,20 @@
+{
+    "name": "get-evaluasi-tanggal-invalid",
+    "request": {
+        "method": "GET",
+        "uri": "/api.php?action=evaluasi&tanggal=2026-13-01",
+        "payload": null
+    },
+    "response": {
+        "status": 400,
+        "headers": {
+            "content-type": "application/json; charset=utf-8",
+            "x-powered-by": null
+        },
+        "body": "{\"success\":false,\"message\":\"Format tanggal tidak valid.\"}",
+        "json": {
+            "success": false,
+            "message": "Format tanggal tidak valid."
+        }
+    }
+}

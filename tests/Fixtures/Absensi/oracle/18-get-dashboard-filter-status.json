@@ -1,0 +1,46 @@
+{
+    "name": "get-dashboard-filter-status",
+    "request": {
+        "method": "GET",
+        "uri": "/api.php?action=dashboard&status_anak=Aktif",
+        "payload": null
+    },
+    "response": {
+        "status": 200,
+        "headers": {
+            "content-type": "application/json; charset=utf-8",
+            "x-powered-by": null
+        },
+        "body": "{\"total_anak\":6,\"total_kegiatan\":22,\"status\":{\"sesuai\":20,\"arahan\":6,\"telat\":1,\"tidak\":1,\"libur\":22},\"presentase\":{\"sesuai\":71.4,\"arahan\":21.4,\"telat\":3.6,\"tidak\":3.6},\"total_penilaian\":50,\"tren\":[{\"tanggal\":\"2026-09-24\",\"total\":\"23\",\"sesuai\":\"15\"},{\"tanggal\":\"2026-11-10\",\"total\":\"5\",\"sesuai\":\"5\"}]}",
+        "json": {
+            "total_anak": 6,
+            "total_kegiatan": 22,
+            "status": {
+                "sesuai": 20,
+                "arahan": 6,
+                "telat": 1,
+                "tidak": 1,
+                "libur": 22
+            },
+            "presentase": {
+                "sesuai": 71.4,
+                "arahan": 21.4,
+                "telat": 3.6,
+                "tidak": 3.6
+            },
+            "total_penilaian": 50,
+            "tren": [
+                {
+                    "tanggal": "2026-09-24",
+                    "total": "23",
+                    "sesuai": "15"
+                },
+                {
+                    "tanggal": "2026-11-10",
+                    "total": "5",
+                    "sesuai": "5"
+                }
+            ]
+        }
+    }
+}

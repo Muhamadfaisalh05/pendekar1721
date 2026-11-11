@@ -1,0 +1,78 @@
+{
+    "name": "get-anak",
+    "request": {
+        "method": "GET",
+        "uri": "/api.php?action=anak",
+        "payload": null
+    },
+    "response": {
+        "status": 200,
+        "headers": {
+            "content-type": "application/json; charset=utf-8",
+            "x-powered-by": null
+        },
+        "body": "[{\"id\":\"AN-005\",\"nama\":\"Cece\",\"jenis_kelamin\":\"Laki-laki\",\"asal_daerah\":\"Sukabumi\",\"agama\":\"Islam\",\"umur\":15,\"angkatan\":\"Angkatan II\",\"status\":\"Aktif\"},{\"id\":\"AN-002\",\"nama\":\"Doddy\",\"jenis_kelamin\":\"Laki-laki\",\"asal_daerah\":\"Bogor\",\"agama\":\"Islam\",\"umur\":15,\"angkatan\":\"Angkatan II\",\"status\":\"Aktif\"},{\"id\":\"AN-001\",\"nama\":\"Endang Sri Ayu\",\"jenis_kelamin\":\"Perempuan\",\"asal_daerah\":\"Bandung\",\"agama\":\"Islam\",\"umur\":16,\"angkatan\":\"Angkatan II\",\"status\":\"Aktif\"},{\"id\":\"AN-004\",\"nama\":\"Isti Komah Insani\",\"jenis_kelamin\":\"Perempuan\",\"asal_daerah\":\"Cianjur\",\"agama\":\"Islam\",\"umur\":16,\"angkatan\":\"Angkatan II\",\"status\":\"Aktif\"},{\"id\":\"AN-006\",\"nama\":\"Qatrunada Mahardika\",\"jenis_kelamin\":\"Perempuan\",\"asal_daerah\":\"Karawang\",\"agama\":\"Islam\",\"umur\":20,\"angkatan\":\"23\",\"status\":\"Aktif\"},{\"id\":\"AN-003\",\"nama\":\"Rohmah Hidayah\",\"jenis_kelamin\":\"Perempuan\",\"asal_daerah\":\"Garut\",\"agama\":\"Islam\",\"umur\":17,\"angkatan\":\"Angkatan II\",\"status\":\"Aktif\"}]",
+        "json": [
+            {
+                "id": "AN-005",
+                "nama": "Cece",
+                "jenis_kelamin": "Laki-laki",
+                "asal_daerah": "Sukabumi",
+                "agama": "Islam",
+                "umur": 15,
+                "angkatan": "Angkatan II",
+                "status": "Aktif"
+            },
+            {
+                "id": "AN-002",
+                "nama": "Doddy",
+                "jenis_kelamin": "Laki-laki",
+                "asal_daerah": "Bogor",
+                "agama": "Islam",
+                "umur": 15,
+                "angkatan": "Angkatan II",
+                "status": "Aktif"
+            },
+            {
+                "id": "AN-001",
+                "nama": "Endang Sri Ayu",
+                "jenis_kelamin": "Perempuan",
+                "asal_daerah": "Bandung",
+                "agama": "Islam",
+                "umur": 16,
+                "angkatan": "Angkatan II",
+                "status": "Aktif"
+            },
+            {
+                "id": "AN-004",
+                "nama": "Isti Komah Insani",
+                "jenis_kelamin": "Perempuan",
+                "asal_daerah": "Cianjur",
+                "agama": "Islam",
+                "umur": 16,
+                "angkatan": "Angkatan II",
+                "status": "Aktif"
+            },
+            {
+                "id": "AN-006",
+                "nama": "Qatrunada Mahardika",
+                "jenis_kelamin": "Perempuan",
+                "asal_daerah": "Karawang",
+                "agama": "Islam",
+                "umur": 20,
+                "angkatan": "23",
+                "status": "Aktif"
+            },
+            {
+                "id": "AN-003",
+                "nama": "Rohmah Hidayah",
+                "jenis_kelamin": "Perempuan",
+                "asal_daerah": "Garut",
+                "agama": "Islam",
+                "umur": 17,
+                "angkatan": "Angkatan II",
+                "status": "Aktif"
+            }
+        ]
+    }
+}

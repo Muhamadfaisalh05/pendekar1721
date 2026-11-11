@@ -1,0 +1,20 @@
+{
+    "name": "get-action-tidak-dikenal",
+    "request": {
+        "method": "GET",
+        "uri": "/api.php?action=tidak_ada",
+        "payload": null
+    },
+    "response": {
+        "status": 404,
+        "headers": {
+            "content-type": "application/json; charset=utf-8",
+            "x-powered-by": null
+        },
+        "body": "{\"success\":false,\"message\":\"Endpoint tidak ditemukan\"}",
+        "json": {
+            "success": false,
+            "message": "Endpoint tidak ditemukan"
+        }
+    }
+}

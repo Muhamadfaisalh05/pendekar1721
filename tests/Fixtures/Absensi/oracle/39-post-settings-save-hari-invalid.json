@@ -1,0 +1,30 @@
+{
+    "name": "post-settings-save-hari-invalid",
+    "request": {
+        "method": "POST",
+        "uri": "/api.php?action=settings_save",
+        "payload": {
+            "jadwal": {
+                "1": {
+                    "aturan": "hari_tertentu",
+                    "hari": [
+                        "8"
+                    ],
+                    "rentang": []
+                }
+            }
+        }
+    },
+    "response": {
+        "status": 400,
+        "headers": {
+            "content-type": "application/json; charset=utf-8",
+            "x-powered-by": null
+        },
+        "body": "{\"success\":false,\"message\":\"Hari jadwal tidak valid.\"}",
+        "json": {
+            "success": false,
+            "message": "Hari jadwal tidak valid."
+        }
+    }
+}

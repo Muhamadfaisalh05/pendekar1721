@@ -1,0 +1,20 @@
+{
+    "name": "get-anak-detail-tidak-ada",
+    "request": {
+        "method": "GET",
+        "uri": "/api.php?action=anak_detail&id=AN-999",
+        "payload": null
+    },
+    "response": {
+        "status": 200,
+        "headers": {
+            "content-type": "application/json; charset=utf-8",
+            "x-powered-by": null
+        },
+        "body": "{\"success\":false,\"message\":\"Data anak tidak ditemukan.\"}",
+        "json": {
+            "success": false,
+            "message": "Data anak tidak ditemukan."
+        }
+    }
+}

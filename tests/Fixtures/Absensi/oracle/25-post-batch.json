@@ -1,0 +1,36 @@
+{
+    "name": "post-batch",
+    "request": {
+        "method": "POST",
+        "uri": "/api.php?action=save_evaluasi_batch",
+        "payload": {
+            "items": [
+                {
+                    "anak_id": "AN-001",
+                    "kegiatan_id": 2,
+                    "tanggal": "2026-09-24",
+                    "nilai": "arahan"
+                },
+                {
+                    "anak_id": "AN-001",
+                    "kegiatan_id": 3,
+                    "tanggal": "2026-09-24",
+                    "nilai": "telat"
+                }
+            ]
+        }
+    },
+    "response": {
+        "status": 200,
+        "headers": {
+            "content-type": "application/json; charset=utf-8",
+            "x-powered-by": null
+        },
+        "body": "{\"success\":true,\"message\":\"Penilaian berhasil disimpan.\",\"saved\":2}",
+        "json": {
+            "success": true,
+            "message": "Penilaian berhasil disimpan.",
+            "saved": 2
+        }
+    }
+}

@@ -1,0 +1,43 @@
+{
+    "name": "get-report-anak-tidak-ada",
+    "request": {
+        "method": "GET",
+        "uri": "/api.php?action=report&id=AN-999",
+        "payload": null
+    },
+    "response": {
+        "status": 200,
+        "headers": {
+            "content-type": "application/json; charset=utf-8",
+            "x-powered-by": null
+        },
+        "body": "{\"anak\":false,\"ringkasan\":{\"anak\":null,\"status\":{\"sesuai\":0,\"arahan\":0,\"telat\":0,\"tidak\":0,\"libur\":0},\"skor_total\":0,\"detail\":[]},\"tanggal_catat\":\"2026-11-11\",\"periode_mulai\":\"2026-11-11\",\"periode_selesai\":\"2026-11-11\",\"catatan\":\"\",\"rekomendasi\":\"\",\"standar_evaluasi\":[\"Berehan\",\"Motekar\",\"Calakan\",\"Berseka\",\"Waringkas\"]}",
+        "json": {
+            "anak": false,
+            "ringkasan": {
+                "anak": null,
+                "status": {
+                    "sesuai": 0,
+                    "arahan": 0,
+                    "telat": 0,
+                    "tidak": 0,
+                    "libur": 0
+                },
+                "skor_total": 0,
+                "detail": []
+            },
+            "tanggal_catat": "2026-11-11",
+            "periode_mulai": "2026-11-11",
+            "periode_selesai": "2026-11-11",
+            "catatan": "",
+            "rekomendasi": "",
+            "standar_evaluasi": [
+                "Berehan",
+                "Motekar",
+                "Calakan",
+                "Berseka",
+                "Waringkas"
+            ]
+        }
+    }
+}

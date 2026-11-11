@@ -1,0 +1,39 @@
+{
+    "name": "post-anak-update",
+    "request": {
+        "method": "POST",
+        "uri": "/api.php?action=anak_update",
+        "payload": {
+            "id": "AN-007",
+            "nama": "Uji Karakterisasi Diubah",
+            "jenis_kelamin": "Perempuan",
+            "asal_daerah": "Sumedang",
+            "agama": "Islam",
+            "umur": 17,
+            "angkatan": "Angkatan III",
+            "status": "Aktif"
+        }
+    },
+    "response": {
+        "status": 200,
+        "headers": {
+            "content-type": "application/json; charset=utf-8",
+            "x-powered-by": null
+        },
+        "body": "{\"success\":true,\"message\":\"Data anak berhasil diperbarui.\",\"data\":{\"id\":\"AN-007\",\"nama\":\"Uji Karakterisasi Diubah\",\"jenis_kelamin\":\"Perempuan\",\"asal_daerah\":\"Sumedang\",\"agama\":\"Islam\",\"umur\":17,\"angkatan\":\"Angkatan III\",\"status\":\"Aktif\"}}",
+        "json": {
+            "success": true,
+            "message": "Data anak berhasil diperbarui.",
+            "data": {
+                "id": "AN-007",
+                "nama": "Uji Karakterisasi Diubah",
+                "jenis_kelamin": "Perempuan",
+                "asal_daerah": "Sumedang",
+                "agama": "Islam",
+                "umur": 17,
+                "angkatan": "Angkatan III",
+                "status": "Aktif"
+            }
+        }
+    }
+}

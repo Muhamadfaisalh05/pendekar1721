@@ -1,0 +1,20 @@
+{
+    "name": "post-anak-delete-tidak-ada",
+    "request": {
+        "method": "POST",
+        "uri": "/api.php?action=anak_delete&id=AN-999",
+        "payload": null
+    },
+    "response": {
+        "status": 400,
+        "headers": {
+            "content-type": "application/json; charset=utf-8",
+            "x-powered-by": null
+        },
+        "body": "{\"success\":false,\"message\":\"Data anak tidak ditemukan.\"}",
+        "json": {
+            "success": false,
+            "message": "Data anak tidak ditemukan."
+        }
+    }
+}

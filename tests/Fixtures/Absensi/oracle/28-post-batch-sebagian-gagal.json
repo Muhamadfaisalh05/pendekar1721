@@ -1,0 +1,35 @@
+{
+    "name": "post-batch-sebagian-gagal",
+    "request": {
+        "method": "POST",
+        "uri": "/api.php?action=save_evaluasi_batch",
+        "payload": {
+            "items": [
+                {
+                    "anak_id": "AN-001",
+                    "kegiatan_id": 4,
+                    "tanggal": "2026-09-24",
+                    "nilai": "tidak"
+                },
+                {
+                    "anak_id": "AN-999",
+                    "kegiatan_id": 5,
+                    "tanggal": "2026-09-24",
+                    "nilai": "sesuai"
+                }
+            ]
+        }
+    },
+    "response": {
+        "status": 400,
+        "headers": {
+            "content-type": "application/json; charset=utf-8",
+            "x-powered-by": null
+        },
+        "body": "{\"success\":false,\"message\":\"Anak tidak ditemukan.\"}",
+        "json": {
+            "success": false,
+            "message": "Anak tidak ditemukan."
+        }
+    }
+}

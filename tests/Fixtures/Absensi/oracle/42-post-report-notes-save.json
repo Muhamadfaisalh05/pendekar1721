@@ -1,0 +1,26 @@
+{
+    "name": "post-report-notes-save",
+    "request": {
+        "method": "POST",
+        "uri": "/api.php?action=report_notes_save",
+        "payload": {
+            "anak_id": "AN-001",
+            "periode_mulai": "2026-09-01",
+            "periode_selesai": "2026-09-30",
+            "catatan": "Catatan uji karakterisasi",
+            "rekomendasi": "Rekomendasi uji karakterisasi"
+        }
+    },
+    "response": {
+        "status": 200,
+        "headers": {
+            "content-type": "application/json; charset=utf-8",
+            "x-powered-by": null
+        },
+        "body": "{\"success\":true,\"message\":\"Catatan dan rekomendasi rapor berhasil disimpan.\"}",
+        "json": {
+            "success": true,
+            "message": "Catatan dan rekomendasi rapor berhasil disimpan."
+        }
+    }
+}

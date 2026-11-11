@@ -1,0 +1,31 @@
+{
+    "name": "get-settings",
+    "request": {
+        "method": "GET",
+        "uri": "/api.php?action=settings",
+        "payload": null
+    },
+    "response": {
+        "status": 200,
+        "headers": {
+            "content-type": "application/json; charset=utf-8",
+            "x-powered-by": null
+        },
+        "body": "{\"jadwal\":[],\"angkatan\":[{\"angkatan\":\"23\",\"total_anak\":1,\"tanggal_selesai\":null},{\"angkatan\":\"Angkatan II\",\"total_anak\":5,\"tanggal_selesai\":null}]}",
+        "json": {
+            "jadwal": [],
+            "angkatan": [
+                {
+                    "angkatan": "23",
+                    "total_anak": 1,
+                    "tanggal_selesai": null
+                },
+                {
+                    "angkatan": "Angkatan II",
+                    "total_anak": 5,
+                    "tanggal_selesai": null
+                }
+            ]
+        }
+    }
+}

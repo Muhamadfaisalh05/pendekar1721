@@ -1,0 +1,20 @@
+{
+    "name": "get-dashboard-rentang-terbalik",
+    "request": {
+        "method": "GET",
+        "uri": "/api.php?action=dashboard&mulai=2026-09-30&sampai=2026-09-01",
+        "payload": null
+    },
+    "response": {
+        "status": 400,
+        "headers": {
+            "content-type": "application/json; charset=utf-8",
+            "x-powered-by": null
+        },
+        "body": "{\"success\":false,\"message\":\"Tanggal mulai tidak boleh melewati tanggal selesai.\"}",
+        "json": {
+            "success": false,
+            "message": "Tanggal mulai tidak boleh melewati tanggal selesai."
+        }
+    }
+}
