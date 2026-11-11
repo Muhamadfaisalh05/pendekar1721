@@ -9,7 +9,8 @@ Oracle: 46 fixture di `tests/Fixtures/Absensi/oracle/` (dua kali capture, hash i
 |---|---|---|---|
 | A1 | Baris detail `summary`/`report` dipetakan berdasarkan **id kegiatan**, bukan `id - 1` | Native memakai indeks array sehingga nilai hilang bila id kegiatan berlubang (`backend.php:286-289`) | Identik untuk data sekarang (id 1..22); benar untuk data berlubang |
 | A2 | Zona waktu aplikasi **`Asia/Jakarta`** (native memakai zona server) | Menghilangkan bug beda hari (server UTC vs WIB) pada tanggal default evaluasi/rapor | Tanggal "hari ini" konsisten dengan jam dinding WIB |
-| A3 | Akses `/absensi` hanya untuk `user_type = admin` | Native tanpa autentikasi sama sekali | Tamu diarahkan ke `/admin/login`, klien mendapat 403 |
+| A3 | Akses `/absensi` hanya untuk role `admin` dan `admin_absensi` | Native tanpa autentikasi sama sekali | Tamu diarahkan ke `/login`, klien mendapat 403 |
+| A4 | Satu halaman login `/login` untuk semua role, redirect otomatis sesuai `user_type` | Sebelumnya admin harus lewat `/admin/login` | Admin → `/admin`, admin absensi → `/absensi`, klien → `/klien`; role `admin_absensi` adalah role baru |
 
 ## B. Perubahan karena keamanan (bukan karena kontrak)
 

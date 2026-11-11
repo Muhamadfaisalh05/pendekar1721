@@ -40,6 +40,19 @@
                     <span class="hidden sm:inline">Input Evaluasi</span>
                 </a>
                 <a href="{{ route('home') }}" class="absensi-header-link">PENDEKAR1721</a>
+
+                <div class="flex items-center gap-2 rounded-full bg-white/10 py-1 pl-3 pr-1">
+                    <span class="hidden text-xs text-blue-100 sm:inline">
+                        {{ auth()->user()?->name }} · {{ auth()->user()?->roleLabel() }}
+                    </span>
+                    <form method="POST" action="{{ route('logout') }}">
+                        @csrf
+                        <button type="submit"
+                            class="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-white transition hover:bg-white/25">
+                            Keluar
+                        </button>
+                    </form>
+                </div>
             </div>
         </div>
 

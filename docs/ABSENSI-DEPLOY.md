@@ -95,12 +95,25 @@ server {
 ## 6. Smoke test setelah deploy
 
 1. `GET /` → beranda pendekar1721 tampil (tidak berubah).
-2. `GET /admin/login` → login admin.
-3. `GET /absensi` → dasbor menampilkan angka (bukan 0 semua).
-4. `GET /absensi/input` → pilih tanggal, simpan satu nilai.
-5. `GET /absensi/rapor` → data rapor tampil, tombol Cetak bekerja.
-6. `GET /absensi/api?action=anak` → JSON array (harus login admin).
-7. Logout → `/absensi` harus redirect ke `/admin/login`.
+2. `GET /login` → halaman login terpadu tampil; login **admin** → diarahkan ke `/admin`.
+3. Login **admin absensi** (`admin_absensi`) → diarahkan ke `/absensi`; membuka `/admin` harus 403.
+4. Login **klien** → diarahkan ke `/klien`; membuka `/absensi` harus 403.
+5. `GET /absensi` (sebagai admin/admin absensi) → dasbor menampilkan angka (bukan 0 semua).
+6. `GET /absensi/input` → pilih tanggal, simpan satu nilai.
+7. `GET /absensi/rapor` → data rapor tampil, tombol Cetak bekerja.
+8. `GET /absensi/api?action=anak` → JSON array (harus login admin/admin absensi).
+9. `POST /logout` (tombol Keluar) → kembali ke `/login` dan sesi berakhir.
+
+Akun awal dapat dibuat dengan seeder (ganti password sesudahnya):
+
+```powershell
+php artisan db:seed --class=RoleAccountSeeder
+# admin@pendekar1721.test / Admin#1721        -> /admin
+# absensi@pendekar1721.test / Absensi#1721    -> /absensi
+# klien@pendekar1721.test / Klien#1721        -> /klien
+```
+
+Selebihnya kelola akun lewat panel admin: **Users → Create** → pilih *Jenis User*.`
 
 ## 7. Rollback
 

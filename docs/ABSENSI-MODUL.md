@@ -8,7 +8,8 @@ ke dalam aplikasi Laravel 13 **pendekar1721** sehingga keduanya berjalan pada sa
 | Namespace | `App\Modules\Absensi` |
 | Prefix URL | `/absensi` (rute: `absensi.*`) |
 | Database | koneksi kedua **`semarak`** (env `SEMARAK_DB_*`), nama tabel dipertahankan |
-| Auth | session login Filament panel admin (`/admin/login`), middleware `auth` + `EnsureAbsensiAdmin` |
+| Auth | **satu halaman login `/login`** untuk semua role; middleware `auth` + `EnsureAbsensiAdmin` (role `admin` & `admin_absensi`) |
+| Role | `admin` → `/admin`, `admin_absensi` → `/absensi`, `client` → `/klien` (kolom `users.user_type`) |
 | CSRF | aktif (grup `web`), frontend mengirim `X-CSRF-TOKEN` dari meta tag |
 | Rate limit | `absensi-api` 120/menit, `absensi-writes` 30/menit |
 | Aset | Vite + Tailwind build lokal, **tanpa CDN** |
@@ -35,10 +36,41 @@ tests/Feature/Absensi/                     # schema, parity, pages, filament
 tests/Fixtures/Absensi/                    # oracle + seed state (lihat README di dalamnya)
 ```
 
+## Login & Role
+
+Satu halaman login: **`/login`** (`App\Http\Controllers\Auth\LoginController`).
+Setelah autentikasi, pengguna diarahkan otomatis berdasarkan `users.user_type`
+(`App\Models\User::dashboardUrl()`):
+
+| Role (`user_type`) | Dashboard | Boleh `/admin` | Boleh `/klien` | Boleh `/absensi` |
+|---|---|---|---|---|
+| `admin` | `/admin` | ✅ | ❌ | ✅ |
+| `admin_absensi` | `/absensi` | ❌ (403) | ❌ (403) | ✅ |
+| `client` | `/klien` | ❌ (403) | ✅ | ❌ (403) |
+| tamu | `/login` | – | – | – |
+
+Logout: `POST /logout` (tersedia di header modul absensi dan di panel Filament).
+
+Akun demo dibuat oleh `database/seeders/RoleAccountSeeder.php`
+(**ganti password sebelum produksi**):
+
+```powershell
+php artisan db:seed --class=RoleAccountSeeder
+```
+
+| Role | Email | Password |
+|---|---|---|
+| Administrator Pendekar | `admin@pendekar1721.test` | `Admin#1721` |
+| Admin Absensi (SEMARAK) | `absensi@pendekar1721.test` | `Absensi#1721` |
+| Klien | `klien@pendekar1721.test` | `Klien#1721` |
+
+Seeder memakai `updateOrCreate` berdasarkan email, jadi aman dijalankan berulang.
+
 ## Halaman
 
 | URL | Rute | Halaman native |
 |---|---|---|
+| `/login` | `login` | – (halaman baru, satu pintu untuk semua role) |
 | `/absensi` | `absensi.dashboard` | `index.php` |
 | `/absensi/input` | `absensi.input` | `absensi.php` |
 | `/absensi/anak` | `absensi.anak` | `anak.php` |

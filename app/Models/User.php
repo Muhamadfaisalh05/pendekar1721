@@ -32,6 +32,13 @@ class User extends Authenticatable implements FilamentUser
 {
     use HasFactory, Notifiable;
 
+    /** Role pada kolom `user_type`. */
+    public const ROLE_ADMIN = 'admin';
+
+    public const ROLE_ADMIN_ABSENSI = 'admin_absensi';
+
+    public const ROLE_CLIENT = 'client';
+
     /**
      * The attributes that are mass assignable.
      *
@@ -81,15 +88,60 @@ class User extends Authenticatable implements FilamentUser
      */
     public function canAccessPanel(Panel $panel): bool
     {
-        if ($panel->getId() === 'admin' && $this->user_type === 'admin') {
-            return true;
-        }
+        return match ($panel->getId()) {
+            'admin' => $this->isAdmin(),
+            'client' => $this->isClient(),
+            default => false,
+        };
+    }
 
-        if ($panel->getId() === 'client' && $this->user_type === 'client') {
-            return true;
-        }
+    public function isAdmin(): bool
+    {
+        return $this->user_type === self::ROLE_ADMIN;
+    }
 
-        return false;
+    public function isAdminAbsensi(): bool
+    {
+        return $this->user_type === self::ROLE_ADMIN_ABSENSI;
+    }
+
+    public function isClient(): bool
+    {
+        return $this->user_type === self::ROLE_CLIENT;
+    }
+
+    /**
+     * Admin pendekar (superuser) dan admin absensi boleh membuka modul absensi.
+     */
+    public function canAccessAbsensi(): bool
+    {
+        return $this->isAdmin() || $this->isAdminAbsensi();
+    }
+
+    /**
+     * Dashboard tujuan setelah login, ditentukan oleh role.
+     */
+    public function dashboardUrl(): string
+    {
+        return match ($this->user_type) {
+            self::ROLE_ADMIN => '/admin',
+            self::ROLE_ADMIN_ABSENSI => '/absensi',
+            self::ROLE_CLIENT => '/klien',
+            default => '/',
+        };
+    }
+
+    /**
+     * Label role untuk ditampilkan di UI.
+     */
+    public function roleLabel(): string
+    {
+        return match ($this->user_type) {
+            self::ROLE_ADMIN => 'Administrator Pendekar',
+            self::ROLE_ADMIN_ABSENSI => 'Admin Absensi (SEMARAK)',
+            self::ROLE_CLIENT => 'Klien',
+            default => 'Tanpa Role',
+        };
     }
 
     /**

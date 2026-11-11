@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Front;
 use Illuminate\Support\Facades\Route;
 
@@ -15,6 +16,24 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::get('/', Front\HomeController::class)->name('home');
+
+/*
+|--------------------------------------------------------------------------
+| Login terpadu (satu halaman untuk semua role)
+|--------------------------------------------------------------------------
+| Redirect setelah login ditentukan oleh App\Models\User::dashboardUrl().
+| Rate limit 10 percobaan/menit/IP untuk menahan brute force.
+*/
+Route::get('login', [LoginController::class, 'show'])->name('login');
+
+Route::post('login', [LoginController::class, 'store'])
+    ->middleware('throttle:10,1')
+    ->name('login.store');
+
+Route::post('logout', [LoginController::class, 'destroy'])
+    ->middleware('auth')
+    ->name('logout');
+
 Route::get('/profile/{slug}', Front\UserProfileController::class)->name('front.user.detail');
 Route::get('/program/menjahit', Front\SewingProgramController::class)->name('front.program.sewing');
 Route::get('/program/bimbingan-sosial', Front\SocialGuidanceProgramController::class)->name('front.program.social-guidance');

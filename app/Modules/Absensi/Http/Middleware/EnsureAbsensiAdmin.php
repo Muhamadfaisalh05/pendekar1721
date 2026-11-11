@@ -7,8 +7,8 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Modul absensi hanya untuk pengguna ber-role admin (memakai kolom `user_type`
- * yang sudah dipakai panel Filament pada aplikasi ini).
+ * Modul absensi hanya untuk admin pendekar (superuser) dan admin absensi.
+ * Role lain (klien) ditolak 403, tamu diarahkan ke /login oleh middleware `auth`.
  */
 class EnsureAbsensiAdmin
 {
@@ -16,7 +16,7 @@ class EnsureAbsensiAdmin
     {
         $user = $request->user();
 
-        if ($user === null || ($user->user_type ?? null) !== 'admin') {
+        if ($user === null || ! $user->canAccessAbsensi()) {
             if ($request->expectsJson()) {
                 return response()->json([
                     'success' => false,

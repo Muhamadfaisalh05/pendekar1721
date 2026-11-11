@@ -65,8 +65,9 @@ class UserResource extends Resource
                                                 Forms\Components\Select::make('user_type')
                                                     ->label('Jenis User')
                                                     ->options([
-                                                        'admin' => 'Administrator',
-                                                        'client' => 'Klien',
+                                                        User::ROLE_ADMIN => 'Administrator Pendekar',
+                                                        User::ROLE_ADMIN_ABSENSI => 'Admin Absensi (SEMARAK)',
+                                                        User::ROLE_CLIENT => 'Klien',
                                                     ])
                                                     ->required()
                                                     ->live(),

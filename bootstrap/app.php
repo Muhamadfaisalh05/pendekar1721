@@ -25,8 +25,8 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->append(SecurityHeaders::class);
 
-        // Modul absensi memakai login panel admin (satu pintu masuk untuk semua).
-        $middleware->redirectGuestsTo(fn () => route('filament.admin.auth.login'));
+        // Semua tamu (termasuk modul absensi) diarahkan ke satu halaman login.
+        $middleware->redirectGuestsTo(fn () => route('login'));
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //
