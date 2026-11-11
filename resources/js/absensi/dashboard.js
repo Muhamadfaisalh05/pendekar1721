@@ -58,7 +58,11 @@ export function initDashboard() {
             document.getElementById('statArahan').textContent = `${toFixedNumber(data.presentase.arahan)}%`;
             document.getElementById('statTelat').textContent = `${toFixedNumber(data.presentase.telat)}%`;
             document.getElementById('statTidak').textContent = `${toFixedNumber(data.presentase.tidak)}%`;
-            document.getElementById('statSkor').textContent = `${toFixedNumber(data.presentase.sesuai)}%`;
+            const skor = document.getElementById('statSkor');
+
+            if (skor) {
+                skor.textContent = `${toFixedNumber(data.presentase.sesuai)}%`;
+            }
             document.getElementById('totalAnak').textContent = data.total_anak;
             document.getElementById('totalKegiatan').textContent = data.total_kegiatan;
             document.getElementById('totalPenilaian').textContent = data.total_penilaian;
@@ -75,7 +79,7 @@ export function initDashboard() {
                     <div class="grid grid-cols-[90px_1fr_120px] items-center gap-3 text-xs">
                         <span class="text-slate-500">${escapeHtml(item.tanggal)}</span>
                         <div class="h-5 overflow-hidden rounded bg-slate-100">
-                            <div class="h-full bg-emerald-500" style="width:${Math.max(3, (total / max) * 100)}%"
+                            <div class="h-full bg-indigo-500" style="width:${Math.max(3, (total / max) * 100)}%"
                                 title="${total} penilaian; ${percent.toFixed(1)}% sesuai"></div>
                         </div>
                         <span class="text-right text-slate-600">${total} nilai · ${percent.toFixed(0)}% sesuai</span>

@@ -15,7 +15,7 @@ class Dashboard extends BaseDashboard
     
     public static function canAccess(): bool
     {
-        return auth()->user()->user_type === 'client';
+        return auth()->user()?->user_type === 'client';
     }
     
     public function getPesertaTerbaru()

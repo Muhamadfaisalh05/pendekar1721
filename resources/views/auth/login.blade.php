@@ -49,71 +49,41 @@
         <main
             class="mx-auto grid w-full max-w-6xl flex-1 items-center gap-10 px-4 pb-12 sm:px-8 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16">
 
-            {{-- Kiri: narasi + peta role --}}
+            {{-- Kiri: identitas PENDEKAR1721 --}}
             <section class="hidden text-white lg:block">
-                <span
-                    class="inline-flex items-center rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-blue-100 backdrop-blur">
-                    Portal Internal
+                <span class="text-[11px] font-bold uppercase tracking-[0.24em] text-blue-200">
+                    UPTD PPSGBR
                 </span>
 
-                <h1 class="mt-5 text-4xl font-black leading-[1.05] tracking-tight xl:text-5xl">
-                    Satu login,
-                    <br>
-                    tiga dashboard.
+                <h1 class="mt-4 text-4xl font-black leading-[1.05] tracking-tight xl:text-5xl">
+                    PENDEKAR1721
                 </h1>
 
-                <p class="mt-4 max-w-md text-sm leading-relaxed text-blue-100">
-                    Masuk sekali untuk mengakses layanan sesuai peran Anda. Sistem otomatis mengarahkan
-                    ke dashboard yang tepat setelah autentikasi berhasil.
+                <p class="mt-3 text-base font-semibold text-blue-100">
+                    UPTD Pusat Pelayanan Sosial Griya Bina Remaja
                 </p>
 
-                <ul class="mt-8 space-y-3">
-                    <li class="flex items-start gap-3 rounded-2xl border border-white/15 bg-white/10 p-3 backdrop-blur-sm">
-                        <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/20 text-sm font-bold">A</span>
-                        <span>
-                            <span class="block text-sm font-semibold">Administrator</span>
-                            <span class="block text-xs text-blue-100">Seluruh menu pendekar1721 &amp; modul absensi
-                                <span class="font-mono text-[11px] text-blue-200">/admin</span></span>
-                        </span>
-                    </li>
-                    <li class="flex items-start gap-3 rounded-2xl border border-white/15 bg-white/10 p-3 backdrop-blur-sm">
-                        <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/20 text-sm font-bold">S</span>
-                        <span>
-                            <span class="block text-sm font-semibold">Admin Absensi</span>
-                            <span class="block text-xs text-blue-100">Modul SEMARAK (evaluasi &amp; rapor anak)
-                                <span class="font-mono text-[11px] text-blue-200">/absensi</span></span>
-                        </span>
-                    </li>
-                    <li class="flex items-start gap-3 rounded-2xl border border-white/15 bg-white/10 p-3 backdrop-blur-sm">
-                        <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/20 text-sm font-bold">K</span>
-                        <span>
-                            <span class="block text-sm font-semibold">Klien</span>
-                            <span class="block text-xs text-blue-100">Data peserta &amp; profil tenaga kerja
-                                <span class="font-mono text-[11px] text-blue-200">/klien</span></span>
-                        </span>
-                    </li>
-                </ul>
+                <p class="mt-5 max-w-xl text-sm leading-relaxed text-blue-100/90">
+                    Direktori profil tenaga kerja terampil yang telah mendapatkan pelatihan keterampilan dari
+                    UPTD PPSGBR Dinas Sosial Pemerintah Provinsi Jawa Barat, dengan fokus pada peningkatan
+                    kualitas sumber daya manusia, penempatan kerja, dan penguatan kapasitas komunitas.
+                </p>
             </section>
 
             {{-- Kanan: kartu formulir --}}
             <section class="w-full rounded-3xl border border-white/25 bg-white/95 p-6 shadow-2xl backdrop-blur sm:p-8">
 
-                {{-- Identitas ringkas untuk layar kecil --}}
-                <div class="mb-6 flex items-center gap-3 lg:hidden">
+                {{-- Identitas ringkas (tanpa judul "Masuk ke akun Anda") --}}
+                <div class="mb-6 flex items-center gap-3">
                     <img src="{{ asset('images/dinsos-logo-01.png') }}" alt="Logo PENDEKAR1721"
                         class="h-10 w-auto rounded-lg">
                     <div class="leading-tight">
                         <div class="text-base font-black tracking-tight text-primary-900">PENDEKAR1721</div>
                         <div class="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                            Portal Internal
+                            UPTD PPSGBR
                         </div>
                     </div>
                 </div>
-
-                <h2 class="text-2xl font-black tracking-tight text-primary-900">Masuk ke akun Anda</h2>
-                <p class="mt-1 text-sm leading-relaxed text-slate-500">
-                    Gunakan alamat email dan kata sandi resmi yang diberikan administrator.
-                </p>
 
                 @if (session('status'))
                     <div class="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800"
@@ -210,31 +180,6 @@
                         </svg>
                     </button>
                 </form>
-
-                @if (app()->environment('local'))
-                    <div class="mt-6 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4">
-                        <p class="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
-                            Akun demo (khusus lokal)
-                        </p>
-                        <ul class="mt-2 space-y-1 text-xs leading-relaxed text-slate-600">
-                            <li>
-                                <span class="font-semibold text-slate-800">Admin:</span>
-                                admin@pendekar1721.test / Admin#1721
-                                <span class="text-slate-400">&rarr; /admin</span>
-                            </li>
-                            <li>
-                                <span class="font-semibold text-slate-800">Admin Absensi:</span>
-                                absensi@pendekar1721.test / Absensi#1721
-                                <span class="text-slate-400">&rarr; /absensi</span>
-                            </li>
-                            <li>
-                                <span class="font-semibold text-slate-800">Klien:</span>
-                                klien@pendekar1721.test / Klien#1721
-                                <span class="text-slate-400">&rarr; /klien</span>
-                            </li>
-                        </ul>
-                    </div>
-                @endif
 
                 <p class="mt-6 border-t border-slate-200 pt-5 text-xs leading-relaxed text-slate-500">
                     Belum memiliki akses? Silakan hubungi administrator UPTD PPSGBR untuk pendaftaran akun.

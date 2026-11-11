@@ -49,10 +49,13 @@ Setelah autentikasi, pengguna diarahkan otomatis berdasarkan `users.user_type`
 | `client` | `/klien` | ❌ (403) | ✅ | ❌ (403) |
 | tamu | `/login` | – | – | – |
 
-Logout: `POST /logout` (tersedia di header modul absensi dan di panel Filament).
+Logout: `POST /logout` untuk web/modul absensi dan `POST /admin/logout` / `POST /klien/logout`
+untuk panel Filament. Semua jalur memakai `App\Http\Responses\LogoutResponse` sehingga berakhir di
+`/login` beserta pesan "Anda telah keluar dari aplikasi." (tanpa error 500).
 
 Halaman login memakai latar foto hero beranda (`public/images/hero-ppsgbr.png`) dengan overlay biru
-dan kartu formulir kaca; blok akun demo hanya tampil saat `APP_ENV=local`.
+dan kartu formulir kaca. Kolom kiri berisi brand **PENDEKAR1721** + deskripsi UPTD PPSGBR; kartu
+formulir tidak memuat judul "Masuk ke akun Anda" maupun blok akun demo.
 
 URL login panel lama sudah **dihapus**: `/admin/login` dan `/klien/login` sekarang 404.
 Tamu yang membuka `/admin`, `/klien`, atau `/absensi` diarahkan ke `/login`
@@ -87,6 +90,14 @@ Seeder memakai `updateOrCreate` berdasarkan email, jadi aman dijalankan berulang
 | `/absensi/api?action=...` | `absensi.api` / `absensi.api.write` | `api.php` |
 
 CRUD anak & kegiatan juga tersedia di panel admin Filament: `/admin/anak` dan `/admin/kegiatan`.
+
+### Tampilan
+
+Tema modul absensi disamakan dengan aplikasi SEMARAK asli (`resources/sass/_absensi.scss`):
+gradien ungu–biru `linear-gradient(125deg, #5b4ce2, #3977ee)` pada header & hero, latar halaman
+`#f5f6ff`, kartu putih membulat (`semarak-card`, `portal-card`, `dashboard-stat`) dengan ikon
+berwarna lembut. Aset di-build lewat `npm run build`; setelah mengubah SCSS/Blade jalankan
+`npm run build` lalu `php artisan view:clear`.
 
 ## Endpoint API (parity native)
 

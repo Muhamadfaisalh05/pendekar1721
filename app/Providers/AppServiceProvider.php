@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Http\Responses\LogoutResponse;
+use Filament\Http\Responses\Auth\Contracts\LogoutResponse as LogoutResponseContract;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
@@ -16,7 +18,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        /*
+         * Tombol Keluar di panel Filament memakai LogoutResponse bawaan yang
+         * me-redirect ke URL panel (memicu error 500 karena navigasi panel
+         * dibangun setelah sesi berakhir). Semua logout diarahkan ke /login.
+         */
+        $this->app->bind(LogoutResponseContract::class, LogoutResponse::class);
     }
 
     /**

@@ -38,7 +38,7 @@ class ImportData extends Page implements HasForms
 
     public static function canAccess(): bool
     {
-        return auth()->user()->user_type === 'admin';
+        return auth()->user()?->user_type === 'admin';
     }
 
     protected function getFormSchema(): array

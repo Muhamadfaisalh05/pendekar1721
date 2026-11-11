@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#083668">
+    <meta name="theme-color" content="#5b4ce2">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="absensi-api" content="{{ route('absensi.api') }}">
 
@@ -13,26 +13,25 @@
     @vite(['resources/sass/app.scss', 'resources/js/app.js', 'resources/js/absensi.js'])
 </head>
 
-<body class="flex min-h-screen flex-col bg-slate-50 text-slate-800 antialiased"
-    data-absensi-page="@yield('page')">
+<body class="app-body flex min-h-screen flex-col text-slate-800 antialiased" data-absensi-page="@yield('page')">
 
     <header class="absensi-header sticky top-0 z-50 print:hidden">
         <div class="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3">
-            <a href="{{ route('absensi.dashboard') }}" class="flex min-w-0 items-center gap-3">
-                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15 text-lg font-black text-white">
-                    S
-                </span>
+            <a href="{{ route('absensi.dashboard') }}" class="absensi-brand flex min-w-0 items-center">
                 <span class="min-w-0">
-                    <span class="flex items-center gap-2 text-lg font-bold leading-tight text-white">
+                    <span class="flex items-center gap-2 text-xl font-bold leading-tight">
                         SEMARAK
-                        <span class="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-normal uppercase tracking-wide">UPTD PPSGBR</span>
+                        <span class="absensi-brand-badge">UPTD PPSGBR</span>
                     </span>
-                    <span class="block truncate text-xs text-blue-100">Sistem Monitoring &amp; Raport Karakter Anak</span>
+                    <span class="absensi-brand-subtitle block truncate text-xs">
+                        Sistem Monitoring &amp; Raport Karakter Anak
+                    </span>
                 </span>
             </a>
 
-            <div class="flex items-center gap-2">
-                <a href="{{ route('absensi.input') }}" class="absensi-header-action">
+            <div class="flex items-center gap-2 md:gap-3">
+                <a href="{{ route('absensi.input') }}" class="absensi-header-action" aria-label="Input evaluasi"
+                    title="Input evaluasi">
                     <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                         aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14m-7-7h14" />
@@ -41,14 +40,13 @@
                 </a>
                 <a href="{{ route('home') }}" class="absensi-header-link">PENDEKAR1721</a>
 
-                <div class="flex items-center gap-2 rounded-full bg-white/10 py-1 pl-3 pr-1">
-                    <span class="hidden text-xs text-blue-100 sm:inline">
+                <div class="absensi-user-chip">
+                    <span class="hidden sm:inline">
                         {{ auth()->user()?->name }} · {{ auth()->user()?->roleLabel() }}
                     </span>
                     <form method="POST" action="{{ route('logout') }}">
                         @csrf
-                        <button type="submit"
-                            class="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-white transition hover:bg-white/25">
+                        <button type="submit" class="absensi-logout">
                             Keluar
                         </button>
                     </form>
@@ -56,8 +54,8 @@
             </div>
         </div>
 
-        <nav class="border-t border-white/10 bg-[#062d57]/60" aria-label="Navigasi modul absensi">
-            <div class="mx-auto flex w-full max-w-7xl gap-1 overflow-x-auto px-2 text-sm">
+        <nav class="absensi-nav" aria-label="Navigasi modul absensi">
+            <div class="mx-auto flex w-full max-w-7xl gap-1 overflow-x-auto px-2">
                 @foreach ([
         'absensi.dashboard' => 'Dasbor',
         'absensi.input' => 'Input Evaluasi',
@@ -84,3 +82,4 @@
 </body>
 
 </html>
+

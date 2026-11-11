@@ -37,7 +37,7 @@ class ImportPeserta extends Page implements HasForms
 
     public static function canAccess(): bool
     {
-        return auth()->user()->user_type === 'client';
+        return auth()->user()?->user_type === 'client';
     }
 
     protected function getFormSchema(): array

@@ -29,8 +29,13 @@ class UnifiedLoginTest extends AbsensiTestCase
     {
         $this->get('/login')
             ->assertOk()
-            ->assertSee('Masuk ke akun Anda')
+            ->assertSee('PENDEKAR1721')
+            ->assertSee('UPTD Pusat Pelayanan Sosial Griya Bina Remaja')
+            ->assertSee('Direktori profil tenaga kerja terampil')
             ->assertSee('images/hero-ppsgbr.png')
+            ->assertDontSee('Masuk ke akun Anda')
+            ->assertDontSee('Satu login,')
+            ->assertDontSee('Akun demo')
             ->assertSee('name="email"', false)
             ->assertSee('name="password"', false);
     }
@@ -148,6 +153,29 @@ class UnifiedLoginTest extends AbsensiTestCase
 
         $this->actingAs($user)
             ->post('/logout')
+            ->assertRedirect('/login');
+
+        $this->assertGuest();
+    }
+
+    /**
+     * Regresi: tombol Keluar di panel Filament pernah menghasilkan 500 karena
+     * redirect bawaan Filament membangun navigasi panel setelah sesi berakhir
+     * (canAccess() dievaluasi tanpa user).
+     */
+    public function test_logout_panel_filament_kembali_ke_login_tanpa_error(): void
+    {
+        $admin = $this->makeUser(User::ROLE_ADMIN, 'admin.panel.logout@example.test');
+        $klien = $this->makeUser(User::ROLE_CLIENT, 'klien.panel.logout@example.test');
+
+        $this->actingAs($admin)
+            ->post('/admin/logout')
+            ->assertRedirect('/login');
+
+        $this->assertGuest();
+
+        $this->actingAs($klien)
+            ->post('/klien/logout')
             ->assertRedirect('/login');
 
         $this->assertGuest();
