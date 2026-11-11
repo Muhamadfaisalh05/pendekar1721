@@ -25,6 +25,12 @@ Route::middleware(['auth', EnsureAbsensiAdmin::class])->group(function (): void 
 
     // Kontrak native: satu endpoint `?action=` dengan method GET/POST saja
     // (bukan Route::any) agar method lain otomatis 405 oleh router.
-    Route::match(['get', 'post'], 'api', ApiController::class)->name('api');
+    Route::get('api', ApiController::class)
+        ->middleware('throttle:absensi-api')
+        ->name('api');
+
+    Route::post('api', ApiController::class)
+        ->middleware('throttle:absensi-writes')
+        ->name('api.write');
 });
 

@@ -1,0 +1,114 @@
+# Deploy Modul Absensi pada Domain Tunggal
+
+Satu vhost/domain: `/` → pendekar1721, `/absensi/*` → modul absensi (codebase yang sama).
+
+## 1. Persiapan
+
+```powershell
+git fetch origin
+git checkout feat/modul-absensi        # atau main setelah PR digabung
+composer install --no-dev --optimize-autoloader
+npm ci
+```
+
+Pastikan `.env` produksi memuat:
+
+```env
+APP_ENV=production
+APP_DEBUG=false
+APP_TIMEZONE=Asia/Jakarta
+APP_URL=https://<domain-kominfo>
+APP_FORCE_SCHEME=https
+
+DB_CONNECTION=mysql
+DB_DATABASE=pendekar1721
+DB_USERNAME=...
+DB_PASSWORD=...
+
+SEMARAK_DB_CONNECTION=mysql
+SEMARAK_DB_HOST=127.0.0.1
+SEMARAK_DB_PORT=3306
+SEMARAK_DB_DATABASE=semarak_db
+SEMARAK_DB_USERNAME=...
+SEMARAK_DB_PASSWORD=...
+```
+
+> Jangan commit `.env`. File ini sudah di-`.gitignore` dan tidak lagi di-track git.
+
+## 2. Backup (wajib sebelum migrate)
+
+```powershell
+mysqldump -u root -p --single-transaction --routines --triggers semarak_db  > backup-semarak-$(Get-Date -Format yyyyMMdd-HHmm).sql
+mysqldump -u root -p --single-transaction --routines --triggers pendekar1721 > backup-pendekar-$(Get-Date -Format yyyyMMdd-HHmm).sql
+```
+
+## 3. Migrasi
+
+```powershell
+# review dulu
+php artisan migrate --pretend --database=semarak --path=database/migrations/semarak
+
+# jalankan (guard hasTable: aman untuk DB yang sudah berisi data)
+php artisan migrate --database=semarak --path=database/migrations/semarak
+
+# migrasi aplikasi utama (bila ada)
+php artisan migrate --force
+```
+
+Catatan: **jangan** memakai `migrate:fresh` pada database produksi.
+
+## 4. Build & cache
+
+```powershell
+npm run build
+php artisan optimize           # config + route + view cache
+php artisan filament:optimize  # opsional, komponen Filament
+```
+
+## 5. Web server
+
+Document root **wajib** ke folder `public/` pendekar1721 (bukan ke root proyek,
+bukan ke folder `semarak/`).
+
+Contoh Nginx:
+
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name <domain-kominfo>;
+    root /var/www/pendekar1721/public;
+
+    index index.php;
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        include fastcgi_params;
+        fastcgi_pass unix:/run/php/php8.4-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+    }
+}
+```
+
+## 6. Smoke test setelah deploy
+
+1. `GET /` → beranda pendekar1721 tampil (tidak berubah).
+2. `GET /admin/login` → login admin.
+3. `GET /absensi` → dasbor menampilkan angka (bukan 0 semua).
+4. `GET /absensi/input` → pilih tanggal, simpan satu nilai.
+5. `GET /absensi/rapor` → data rapor tampil, tombol Cetak bekerja.
+6. `GET /absensi/api?action=anak` → JSON array (harus login admin).
+7. Logout → `/absensi` harus redirect ke `/admin/login`.
+
+## 7. Rollback
+
+1. **Kode:** `git checkout main` (atau commit sebelumnya) lalu `npm run build` +
+   `php artisan optimize`. Modul bersifat aditif; rute `/absensi` hilang tanpa
+   mengganggu rute pendekar1721.
+2. **Database:** modul tidak mengubah tabel pendekar1721. Jika perlu, pulihkan
+   `semarak_db` dari dump:
+   `mysql -u root -p semarak_db < backup-semarak-YYYYMMDD-HHmm.sql`.
+3. **Aplikasi native** tetap dapat dijalankan seperti semula (database terpisah),
+   karena modul tidak mengubah skema maupun kode aplikasi native.

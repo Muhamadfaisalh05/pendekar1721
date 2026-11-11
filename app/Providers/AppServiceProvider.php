@@ -2,7 +2,10 @@
 
 namespace App\Providers;
 
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
@@ -53,5 +56,19 @@ class AppServiceProvider extends ServiceProvider
          */
         Paginator::defaultView('pagination::bootstrap-3');
         Paginator::defaultSimpleView('pagination::simple-bootstrap-3');
+
+        /*
+         * Rate limit modul absensi: pembacaan cukup longgar, penulisan dibatasi
+         * lebih ketat karena mengubah data evaluasi/anak.
+         */
+        RateLimiter::for('absensi-api', function (Request $request): Limit {
+            return Limit::perMinute(120)->by($request->user()?->getAuthIdentifier() ?? $request->ip());
+        });
+
+        RateLimiter::for('absensi-writes', function (Request $request): Limit {
+            $key = ($request->user()?->getAuthIdentifier() ?? $request->ip()).'|absensi-write';
+
+            return Limit::perMinute(30)->by($key);
+        });
     }
 }
