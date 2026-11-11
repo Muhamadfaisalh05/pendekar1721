@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\MasterTraining;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -29,6 +30,10 @@ class ExampleTest extends TestCase
 
     public function test_home_shows_social_guidance_program()
     {
+        foreach (['Menjahit', 'Bimbingan Sosial', 'Montir Motor', 'Tata Boga'] as $title) {
+            MasterTraining::create(['title' => $title]);
+        }
+
         $this->get(route('home'))
             ->assertSuccessful()
             ->assertDontSee('Admin')
