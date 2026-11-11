@@ -25,6 +25,12 @@ class SecurityHeaders
             'Referrer-Policy' => 'strict-origin-when-cross-origin',
             'Permissions-Policy' => 'camera=(), microphone=(), geolocation=()',
             'X-Permitted-Cross-Domain-Policies' => 'none',
+            /*
+             * CSP subset yang aman untuk Filament/Livewire: hanya membatasi
+             * pembingkaian, plugin, <base>, dan target form — tidak menyentuh
+             * script/style inline sehingga panel tidak rusak.
+             */
+            'Content-Security-Policy' => "frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'",
         ];
 
         // HSTS hanya dikirim lewat HTTPS agar tidak mengunci akses HTTP lokal.

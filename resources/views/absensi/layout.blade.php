@@ -40,35 +40,14 @@
                 </a>
                 <a href="{{ route('home') }}" class="absensi-header-link">PENDEKAR1721</a>
 
-                <div class="absensi-user-chip">
-                    <span class="hidden sm:inline">
-                        {{ auth()->user()?->name }} · {{ auth()->user()?->roleLabel() }}
-                    </span>
-                    <form method="POST" action="{{ route('logout') }}">
-                        @csrf
-                        <button type="submit" class="absensi-logout">
-                            Keluar
-                        </button>
-                    </form>
-                </div>
+                <form method="POST" action="{{ route('logout') }}">
+                    @csrf
+                    <button type="submit" class="absensi-logout">
+                        Keluar
+                    </button>
+                </form>
             </div>
         </div>
-
-        <nav class="absensi-nav" aria-label="Navigasi modul absensi">
-            <div class="mx-auto flex w-full max-w-7xl gap-1 overflow-x-auto px-2">
-                @foreach ([
-        'absensi.dashboard' => 'Dasbor',
-        'absensi.input' => 'Input Evaluasi',
-        'absensi.anak' => 'Data Anak',
-        'absensi.summary' => 'Summary',
-        'absensi.rapor' => 'Rapor',
-        'absensi.pengaturan' => 'Pengaturan',
-    ] as $routeName => $label)
-                    <a href="{{ route($routeName) }}"
-                        class="absensi-nav-link {{ request()->routeIs($routeName) ? 'is-active' : '' }}">{{ $label }}</a>
-                @endforeach
-            </div>
-        </nav>
     </header>
 
     <main class="mx-auto w-full max-w-7xl flex-1 px-4 py-6">

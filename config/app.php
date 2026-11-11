@@ -60,6 +60,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Trusted Reverse Proxies
+    |--------------------------------------------------------------------------
+    |
+    | Daftar IP/CIDR reverse proxy yang boleh mengirim header X-Forwarded-*,
+    | dipisah koma (contoh: "10.0.0.1,10.0.0.2"). Kosong = tidak ada proxy
+    | yang dipercaya, sehingga IP klien tidak bisa dipalsukan untuk melewati
+    | rate limit. Diisi hanya jika aplikasi berada di balik load balancer.
+    |
+    */
+
+    'trusted_proxies' => env('TRUSTED_PROXIES'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |

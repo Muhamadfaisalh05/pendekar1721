@@ -29,7 +29,11 @@ class SecurityHeadersTest extends TestCase
             ->assertOk()
             ->assertHeader('X-Content-Type-Options', 'nosniff')
             ->assertHeader('X-Frame-Options', 'SAMEORIGIN')
-            ->assertHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+            ->assertHeader('Referrer-Policy', 'strict-origin-when-cross-origin')
+            ->assertHeader(
+                'Content-Security-Policy',
+                "frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"
+            );
     }
 
     public function test_tidak_membocorkan_header_versi_php(): void

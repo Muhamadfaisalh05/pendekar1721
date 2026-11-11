@@ -50,6 +50,18 @@ class AbsensiPagesTest extends AbsensiTestCase
             ->assertSee(route('absensi.pengaturan'), false);
     }
 
+    public function test_header_tidak_lagi_menampilkan_menu_navigasi_dan_label_role(): void
+    {
+        $this->actingAs($this->adminUser())
+            ->get(route('absensi.dashboard'))
+            ->assertOk()
+            ->assertDontSee('absensi-nav', false)
+            ->assertDontSee('absensi-user-chip', false)
+            ->assertDontSee('Administrator Pendekar')
+            ->assertDontSee('Admin Absensi (SEMARAK)')
+            ->assertSee('Keluar');
+    }
+
     public function test_tamu_tidak_bisa_membuka_halaman(): void
     {
         $this->get(route('absensi.anak'))->assertRedirect();

@@ -19,11 +19,17 @@ return Application::configure(basePath: dirname(__DIR__))
         },
     )
     ->withMiddleware(function (Middleware $middleware) {
-        // Ganti '*' dengan IP/CIDR reverse proxy yang sebenarnya di produksi
-        // (lihat docs/SECURITY-AUDIT-L13.md) agar X-Forwarded-For tidak bisa dipalsukan.
-        $middleware->trustProxies(at: '*');
+        /*
+         * SECURITY: trusted proxy TIDAK diaktifkan di sini karena config belum
+         * tersedia pada tahap bootstrap ini. Pengaturan dipindah ke
+         * AppServiceProvider::register() dan hanya aktif bila env
+         * TRUSTED_PROXIES diisi (lihat config/app.php).
+         */
 
         $middleware->append(SecurityHeaders::class);
+
+        // Putus sesi otomatis bila kata sandi akun berubah (anti session hijack).
+        $middleware->authenticateSessions();
 
         // Semua tamu (termasuk modul absensi) diarahkan ke satu halaman login.
         $middleware->redirectGuestsTo(fn () => route('login'));

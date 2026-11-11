@@ -61,6 +61,26 @@ URL login panel lama sudah **dihapus**: `/admin/login` dan `/klien/login` sekara
 Tamu yang membuka `/admin`, `/klien`, atau `/absensi` diarahkan ke `/login`
 (panel Filament lewat `App\Http\Middleware\AuthenticatePanel`, web lewat `bootstrap/app.php`).
 
+### Keamanan login
+
+| Lapis | Implementasi |
+|---|---|
+| Rate limit berlapis | `throttle:login` (`AppServiceProvider`): 5 percobaan/menit per email+IP, 10/menit per email (tetap berlaku walau IP berubah), 20/menit per IP → HTTP 429 |
+| Anti user enumeration | Pesan galat selalu sama; email tak dikenal tetap melewati `Hash::check` dengan hash dummy (waktu respons seragam) |
+| Session fixation | `session()->regenerate()` setelah kredensial & role lolos; logout memakai `invalidate()` + `regenerateToken()` |
+| Session hijack | `AuthenticateSession` aktif di grup `web`: sesi otomatis diputus bila hash kata sandi berubah |
+| Normalisasi input | Email di-`trim` + lowercase sebelum dicari; `max:255` untuk email & kata sandi |
+| Rehash otomatis | Hash lama (cost/parameter usang) diperbarui saat login berhasil |
+| Anti-cache | `GET /login` mengirim `Cache-Control: no-store, no-cache, must-revalidate, private` + `Pragma: no-cache` |
+| Header keamanan | `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `Content-Security-Policy` (subset `frame-ancestors`, `object-src`, `base-uri`, `form-action`) — lihat `App\Http\Middleware\SecurityHeaders` |
+| Proxy tepercaya | `X-Forwarded-For` hanya dibaca bila `TRUSTED_PROXIES` diisi (cegah spoofing IP untuk melewati rate limit) |
+| Audit | Percobaan login gagal dicatat `Log::warning('Percobaan login gagal', ...)` tanpa kata sandi |
+| Anti indexing | Halaman login memakai `<meta name="robots" content="noindex, nofollow">` |
+
+> Rate limit **butuh cache store persisten** (`.env`: `CACHE_STORE=database` atau `redis`).
+> Jika masih `array`, hitungan percobaan login tidak tersimpan antar-request.
+> Setelah mengubah `.env` jalankan `php artisan config:clear` (atau `php artisan optimize`).
+
 Akun demo dibuat oleh `database/seeders/RoleAccountSeeder.php`
 (**ganti password sebelum produksi**):
 
@@ -98,6 +118,12 @@ gradien ungu–biru `linear-gradient(125deg, #5b4ce2, #3977ee)` pada header & he
 `#f5f6ff`, kartu putih membulat (`semarak-card`, `portal-card`, `dashboard-stat`) dengan ikon
 berwarna lembut. Aset di-build lewat `npm run build`; setelah mengubah SCSS/Blade jalankan
 `npm run build` lalu `php artisan view:clear`.
+
+Header modul absensi hanya memuat brand SEMARAK, tombol **Input Evaluasi**, tautan
+**PENDEKAR1721**, dan tombol **Keluar** — baris menu (`Dasbor`, `Input Evaluasi`, `Data Anak`,
+`Summary`, `Rapor`, `Pengaturan`) serta label nama/role pengguna di kanan header sudah
+dihapus. Navigasi antar halaman memakai kartu **Menu utama** di dasbor; logo SEMARAK selalu
+kembali ke `/absensi`.
 
 ## Endpoint API (parity native)
 

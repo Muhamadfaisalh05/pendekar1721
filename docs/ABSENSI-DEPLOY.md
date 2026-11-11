@@ -31,6 +31,18 @@ SEMARAK_DB_PORT=3306
 SEMARAK_DB_DATABASE=semarak_db
 SEMARAK_DB_USERNAME=...
 SEMARAK_DB_PASSWORD=...
+
+# Sesi & rate limit (login)
+SESSION_DRIVER=database
+SESSION_LIFETIME=120
+SESSION_SECURE_COOKIE=true
+SESSION_HTTP_ONLY=true
+SESSION_SAME_SITE=lax
+CACHE_STORE=database            # WAJIB: rate limit login butuh cache persisten
+
+# Isi hanya bila aplikasi di balik reverse proxy/load balancer (IP/CIDR, pisah koma).
+# Kosong = header X-Forwarded-For tidak dipercaya (anti spoofing IP).
+TRUSTED_PROXIES=
 ```
 
 > Jangan commit `.env`. File ini sudah di-`.gitignore` dan tidak lagi di-track git.
@@ -64,6 +76,10 @@ npm run build
 php artisan optimize           # config + route + view cache
 php artisan filament:optimize  # opsional, komponen Filament
 ```
+
+> Tabel `cache` & `cache_locks` (migrasi `0001_01_01_000001_create_cache_table.php`) harus ada
+> karena `CACHE_STORE=database` dipakai untuk rate limit login. Jika belum, jalankan
+> `php artisan migrate --force` sebelum mengaktifkan `CACHE_STORE=database`.
 
 ## 5. Web server
 

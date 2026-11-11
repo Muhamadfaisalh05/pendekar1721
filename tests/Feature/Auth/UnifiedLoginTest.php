@@ -188,7 +188,15 @@ class UnifiedLoginTest extends AbsensiTestCase
         $klien = $this->makeUser(User::ROLE_CLIENT, 'klien.ulang@example.test');
 
         $this->actingAs($admin)->get('/login')->assertRedirect('/admin');
+
+        // Middleware AuthenticateSession memutus sesi bila hash kata sandi
+        // berbeda (simulasi: masing-masing pengguna memakai browser sendiri).
+        $this->flushSession();
+
         $this->actingAs($absensi)->get('/login')->assertRedirect('/absensi');
+
+        $this->flushSession();
+
         $this->actingAs($klien)->get('/login')->assertRedirect('/klien');
     }
 

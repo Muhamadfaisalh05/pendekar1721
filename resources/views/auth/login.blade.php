@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#083668">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="robots" content="noindex, nofollow">
 
     <title>Masuk — PENDEKAR1721</title>
 
@@ -124,7 +125,8 @@
                                 </svg>
                             </span>
                             <input id="email" name="email" type="email" value="{{ old('email') }}" required
-                                autocomplete="username" autofocus placeholder="nama@pendekar1721.test"
+                                autocomplete="username" autofocus placeholder="nama@pendekar1721.test" maxlength="255"
+                                spellcheck="false" autocapitalize="none"
                                 class="w-full rounded-xl border border-slate-300 bg-white py-3 pl-11 pr-4 text-sm text-slate-800 shadow-sm transition placeholder:text-slate-400 focus:border-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500/30 @error('email') border-rose-400 @enderror">
                         </div>
                     </div>
@@ -142,7 +144,7 @@
                                 </svg>
                             </span>
                             <input id="password" name="password" type="password" required autocomplete="current-password"
-                                placeholder="Masukkan kata sandi"
+                                placeholder="Masukkan kata sandi" maxlength="255" spellcheck="false"
                                 class="w-full rounded-xl border border-slate-300 bg-white py-3 pl-11 pr-12 text-sm text-slate-800 shadow-sm transition placeholder:text-slate-400 focus:border-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500/30 @error('password') border-rose-400 @enderror">
                             <button type="button" data-password-toggle="password"
                                 class="absolute inset-y-0 right-0 flex items-center px-3.5 text-slate-400 transition hover:text-slate-600"

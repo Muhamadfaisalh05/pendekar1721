@@ -22,12 +22,13 @@ Route::get('/', Front\HomeController::class)->name('home');
 | Login terpadu (satu halaman untuk semua role)
 |--------------------------------------------------------------------------
 | Redirect setelah login ditentukan oleh App\Models\User::dashboardUrl().
-| Rate limit 10 percobaan/menit/IP untuk menahan brute force.
+| Rate limit `throttle:login` (lihat AppServiceProvider): 5 percobaan/menit
+| per email+IP, 10/menit per email, 20/menit per IP.
 */
 Route::get('login', [LoginController::class, 'show'])->name('login');
 
 Route::post('login', [LoginController::class, 'store'])
-    ->middleware('throttle:10,1')
+    ->middleware('throttle:login')
     ->name('login.store');
 
 Route::post('logout', [LoginController::class, 'destroy'])

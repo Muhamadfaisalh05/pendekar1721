@@ -5,11 +5,13 @@ namespace App\Providers;
 use App\Http\Responses\LogoutResponse;
 use Filament\Http\Responses\Auth\Contracts\LogoutResponse as LogoutResponseContract;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Str;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -24,6 +26,24 @@ class AppServiceProvider extends ServiceProvider
          * dibangun setelah sesi berakhir). Semua logout diarahkan ke /login.
          */
         $this->app->bind(LogoutResponseContract::class, LogoutResponse::class);
+
+        /*
+         * SECURITY: reverse proxy hanya dipercaya bila TRUSTED_PROXIES diisi
+         * (dipisah koma, mis. "10.0.0.1,10.0.0.2").
+         *
+         * Sebelumnya bootstrap/app.php memakai trustProxies(at: '*') sehingga
+         * header X-Forwarded-For bisa dipalsukan siapa pun: IP palsu membuat
+         * rate limit login/API bisa dilewati dan deteksi HTTPS ikut keliru.
+         * Default sekarang: tidak ada proxy yang dipercaya.
+         *
+         * Nilai config dibaca di sini karena pada bootstrap/app.php config
+         * belum dimuat (dan env() tidak terbaca saat config di-cache).
+         */
+        $trustedProxies = config('app.trusted_proxies');
+
+        if (is_string($trustedProxies) && trim($trustedProxies) !== '') {
+            TrustProxies::at(array_values(array_filter(array_map('trim', explode(',', $trustedProxies)))));
+        }
     }
 
     /**
@@ -63,6 +83,26 @@ class AppServiceProvider extends ServiceProvider
          */
         Paginator::defaultView('pagination::bootstrap-3');
         Paginator::defaultSimpleView('pagination::simple-bootstrap-3');
+
+        /*
+         * SECURITY: rate limit login (mitigasi brute force & credential
+         * stuffing). Tiga lapis:
+         *   1. per email + IP  -> 5 percobaan/menit
+         *   2. per email       -> 10 percobaan/menit (tetap berlaku walau IP
+         *                         penyerang berubah, mis. lewat proxy/VPN)
+         *   3. per IP          -> 20 percobaan/menit (proteksi sumber daya)
+         * Setelah batas terlampaui Laravel membalas HTTP 429 + Retry-After.
+         */
+        RateLimiter::for('login', function (Request $request): array {
+            $email = Str::lower(trim((string) $request->input('email')));
+            $emailKey = $email === '' ? 'kosong' : Str::limit(Str::transliterate($email), 120, '');
+
+            return [
+                Limit::perMinute(5)->by('login:email-ip:'.$emailKey.'|'.$request->ip()),
+                Limit::perMinute(10)->by('login:email:'.$emailKey),
+                Limit::perMinute(20)->by('login:ip:'.$request->ip()),
+            ];
+        });
 
         /*
          * Rate limit modul absensi: pembacaan cukup longgar, penulisan dibatasi
