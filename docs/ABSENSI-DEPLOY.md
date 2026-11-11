@@ -96,6 +96,7 @@ server {
 
 1. `GET /` → beranda pendekar1721 tampil (tidak berubah).
 2. `GET /login` → halaman login terpadu tampil; login **admin** → diarahkan ke `/admin`.
+   `/admin/login` dan `/klien/login` harus **404** (satu pintu: `/login`).
 3. Login **admin absensi** (`admin_absensi`) → diarahkan ke `/absensi`; membuka `/admin` harus 403.
 4. Login **klien** → diarahkan ke `/klien`; membuka `/absensi` harus 403.
 5. `GET /absensi` (sebagai admin/admin absensi) → dasbor menampilkan angka (bukan 0 semua).

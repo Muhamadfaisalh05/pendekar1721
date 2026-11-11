@@ -2,10 +2,10 @@
 
 namespace App\Providers\Filament;
 
-use Filament\Http\Middleware\Authenticate;
+use App\Filament\Client\Pages\Dashboard;
+use App\Http\Middleware\AuthenticatePanel;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
-use Filament\Pages;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
@@ -26,7 +26,6 @@ class ClientPanelProvider extends PanelProvider
             ->id('client')
             ->path('klien')
             ->brandName('PENDEKAR1721')
-            ->login()
             ->colors([
                 'primary' => Color::Green,
             ])
@@ -35,7 +34,7 @@ class ClientPanelProvider extends PanelProvider
             ->discoverResources(in: app_path('Filament/Client/Resources'), for: 'App\\Filament\\Client\\Resources')
             ->discoverPages(in: app_path('Filament/Client/Pages'), for: 'App\\Filament\\Client\\Pages')
             ->pages([
-                \App\Filament\Client\Pages\Dashboard::class,
+                Dashboard::class,
             ])
             ->discoverWidgets(in: app_path('Filament/Client/Widgets'), for: 'App\\Filament\\Client\\Widgets')
             ->widgets([
@@ -54,7 +53,7 @@ class ClientPanelProvider extends PanelProvider
                 DispatchServingFilamentEvent::class,
             ])
             ->authMiddleware([
-                Authenticate::class,
+                AuthenticatePanel::class,
             ]);
     }
 }

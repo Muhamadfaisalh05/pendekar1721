@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Enums\UserStatus;
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -34,30 +35,43 @@ class LoginController extends Controller
         $credentials = $request->validate([
             'email' => ['required', 'string', 'email', 'max:255'],
             'password' => ['required', 'string'],
+        ], [
+            'email.required' => 'Alamat email wajib diisi.',
+            'email.email' => 'Format alamat email tidak valid.',
+            'email.max' => 'Alamat email terlalu panjang.',
+            'password.required' => 'Kata sandi wajib diisi.',
         ]);
 
         $remember = $request->boolean('remember');
 
         if (! Auth::attempt($credentials, $remember)) {
             throw ValidationException::withMessages([
-                'email' => 'Email atau password salah.',
+                'email' => 'Email atau kata sandi tidak sesuai. Mohon periksa kembali lalu coba lagi.',
             ]);
         }
 
         $request->session()->regenerate();
 
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
 
-        // Akun yang diarsipkan tidak boleh dipakai walau password benar.
-        if ($user->status === UserStatus::Archived) {
+        // Tolak akun yang tidak berhak masuk ke dashboard mana pun.
+        $penolakan = match (true) {
+            $user->status === UserStatus::Archived => 'Akun Anda sudah diarsipkan dan tidak dapat digunakan. Silakan hubungi administrator.',
+            ! in_array($user->user_type, [
+                User::ROLE_ADMIN,
+                User::ROLE_ADMIN_ABSENSI,
+                User::ROLE_CLIENT,
+            ], true) => 'Akun Anda belum memiliki hak akses ke dashboard. Silakan hubungi administrator.',
+            default => null,
+        };
+
+        if ($penolakan !== null) {
             Auth::guard('web')->logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();
 
-            throw ValidationException::withMessages([
-                'email' => 'Akun ini telah diarsipkan. Hubungi administrator.',
-            ]);
+            throw ValidationException::withMessages(['email' => $penolakan]);
         }
 
         return redirect()->to($user->dashboardUrl());

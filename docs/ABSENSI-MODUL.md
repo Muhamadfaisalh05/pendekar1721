@@ -51,6 +51,13 @@ Setelah autentikasi, pengguna diarahkan otomatis berdasarkan `users.user_type`
 
 Logout: `POST /logout` (tersedia di header modul absensi dan di panel Filament).
 
+Halaman login memakai latar foto hero beranda (`public/images/hero-ppsgbr.png`) dengan overlay biru
+dan kartu formulir kaca; blok akun demo hanya tampil saat `APP_ENV=local`.
+
+URL login panel lama sudah **dihapus**: `/admin/login` dan `/klien/login` sekarang 404.
+Tamu yang membuka `/admin`, `/klien`, atau `/absensi` diarahkan ke `/login`
+(panel Filament lewat `App\Http\Middleware\AuthenticatePanel`, web lewat `bootstrap/app.php`).
+
 Akun demo dibuat oleh `database/seeders/RoleAccountSeeder.php`
 (**ganti password sebelum produksi**):
 

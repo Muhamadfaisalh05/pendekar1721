@@ -18,8 +18,8 @@ class PanelAuthorizationTest extends TestCase
     private function makeUser(string $type): User
     {
         return User::create([
-            'name' => ucfirst($type) . ' User',
-            'email' => $type . '.panel@example.test',
+            'name' => ucfirst($type).' User',
+            'email' => $type.'.panel@example.test',
             'password' => bcrypt('Secret#12345'),
             'user_type' => $type,
             'status' => UserStatus::Published->value,
@@ -28,8 +28,8 @@ class PanelAuthorizationTest extends TestCase
 
     public function test_tamu_diarahkan_ke_login_bukan_ke_dashboard(): void
     {
-        $this->get('/admin')->assertRedirect('/admin/login');
-        $this->get('/klien')->assertRedirect('/klien/login');
+        $this->get('/admin')->assertRedirect('/login');
+        $this->get('/klien')->assertRedirect('/login');
     }
 
     public function test_klien_tidak_bisa_membuka_panel_admin(): void

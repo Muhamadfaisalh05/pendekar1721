@@ -753,7 +753,7 @@ $middleware->trustProxies(
 
 ```powershell
 # 1) Flag cookie: harus ada "secure; httponly; samesite=lax"
-curl.exe -s -D - -o NUL https://pendekar.dinsos.go.id/admin/login | Select-String 'set-cookie'
+curl.exe -s -D - -o NUL https://pendekar.dinsos.go.id/login | Select-String 'set-cookie'
 
 # 2) Security headers
 curl.exe -s -D - -o NUL https://pendekar.dinsos.go.id/ | Select-String 'x-frame|x-content-type|referrer-policy|strict-transport|permissions-policy'
@@ -786,7 +786,7 @@ php artisan test --filter=Security        # hanya test keamanan
 |---|---|
 | `tests/Feature/Security/PublicProfileVisibilityTest.php` | Published=200, Draft=404, Archived=404, admin=404, slug tanpa ID=404 |
 | `tests/Feature/Security/PanelAuthorizationTest.php` | tamu→login, klien≠/admin (403), admin≠/klien (403), klien=200 di /klien |
-| `tests/Feature/Security/SecurityHeadersTest.php` | header wajib ada di `/`, `/admin/login`, `/klien/login`; `X-Powered-By` tidak bocor |
+| `tests/Feature/Security/SecurityHeadersTest.php` | header wajib ada di `/`, `/login`; `X-Powered-By` tidak bocor |
 
 Hasil audit terakhir:
 
@@ -807,8 +807,8 @@ Sebelumnya test berjalan di database dev (berisiko terhapus bila memakai `Refres
 [ ] / (beranda) ................................ 200, daftar peserta Published tetap tampil
 [ ] /profile/{slug} user Published ............. 200
 [ ] /profile/{slug} user Draft ................. 404
-[ ] /admin (tamu) .............................. redirect /admin/login
-[ ] /klien (tamu) .............................. redirect /klien/login
+[ ] /admin (tamu) .............................. redirect /login
+[ ] /klien (tamu) .............................. redirect /login
 [ ] login admin -> /admin/users ................ 200, CRUD user normal
 [ ] login klien -> /klien/pesertas ............ 200 (dan hanya data miliknya, jika Opsi A)
 [ ] import 1 baris -> data muncul ............. tanpa error, status sesuai kebijakan
@@ -860,7 +860,7 @@ php artisan tinker --execute="echo Illuminate\Support\Facades\Hash::check('admin
 curl.exe -s -o NUL -w "%{http_code}`n" http://127.0.0.1:8099/profile/apa-saja-<id>
 
 # Header & cookie
-curl.exe -s -D - -o NUL http://127.0.0.1:8099/admin/login
+curl.exe -s -D - -o NUL http://127.0.0.1:8099/login
 
 # Dependensi rentan
 composer audit --locked --no-interaction

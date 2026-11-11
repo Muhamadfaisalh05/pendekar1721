@@ -29,9 +29,23 @@ class UnifiedLoginTest extends AbsensiTestCase
     {
         $this->get('/login')
             ->assertOk()
-            ->assertSee('Satu login, tiga dashboard')
+            ->assertSee('Masuk ke akun Anda')
+            ->assertSee('images/hero-ppsgbr.png')
             ->assertSee('name="email"', false)
             ->assertSee('name="password"', false);
+    }
+
+    public function test_url_login_panel_lama_sudah_tidak_tersedia(): void
+    {
+        // Guest harus selalu memakai satu pintu: /login.
+        $this->get('/admin/login')->assertNotFound();
+        $this->get('/klien/login')->assertNotFound();
+    }
+
+    public function test_tamu_panel_diarahkan_ke_login_terpadu(): void
+    {
+        $this->get('/admin')->assertRedirect('/login');
+        $this->get('/klien')->assertRedirect('/login');
     }
 
     public function test_admin_diarahkan_ke_panel_admin(): void
@@ -104,7 +118,9 @@ class UnifiedLoginTest extends AbsensiTestCase
                 'password' => 'password-salah',
             ])
             ->assertRedirect('/login')
-            ->assertSessionHasErrors('email');
+            ->assertSessionHasErrors([
+                'email' => 'Email atau kata sandi tidak sesuai. Mohon periksa kembali lalu coba lagi.',
+            ]);
 
         $this->assertGuest();
     }
@@ -119,7 +135,9 @@ class UnifiedLoginTest extends AbsensiTestCase
                 'password' => 'Rahasia#12345',
             ])
             ->assertRedirect('/login')
-            ->assertSessionHasErrors('email');
+            ->assertSessionHasErrors([
+                'email' => 'Akun Anda sudah diarsipkan dan tidak dapat digunakan. Silakan hubungi administrator.',
+            ]);
 
         $this->assertGuest();
     }

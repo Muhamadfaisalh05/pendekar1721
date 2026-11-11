@@ -20,9 +20,9 @@ class ExampleTest extends TestCase
         $this->get(route('home'))->assertSuccessful();
     }
 
-    public function test_client_login_shows_only_application_brand_name()
+    public function test_halaman_login_menampilkan_nama_aplikasi(): void
     {
-        $this->get(route('filament.client.auth.login'))
+        $this->get(route('login'))
             ->assertSuccessful()
             ->assertSee('PENDEKAR1721')
             ->assertDontSee('PENDEKAR1721 - Klien');

@@ -39,7 +39,7 @@ docker run --rm -p 8071:8000 --env-file production.env \
   -v "$PWD/database/database.sqlite:/var/www/html/database/database.sqlite" \
   -v "$PWD/storage_app:/var/www/html/storage/app" \
   192.168.200.110:8080/pendekar:1.5
-# lalu buka http://localhost:8071/ dan /admin/login (harus 200)
+# lalu buka http://localhost:8071/ dan /login (harus 200; /admin/login & /klien/login sudah 404)
 ```
 
 ## 3. Push ke registry
@@ -69,7 +69,7 @@ docker compose exec pendekar_php php artisan octane:reload      # bila memakai O
 docker compose logs --tail=50 pendekar_php
 ```
 
-Cek manual: halaman publik `/`, `/admin/login`, `/klien/login` harus 200 dan user lama **tetap login**
+Cek manual: halaman publik `/` dan `/login` harus 200, `/admin/login` & `/klien/login` harus 404, dan user lama **tetap login**
 (config sesi tidak diubah, cookie tetap `laravel_session`).
 
 ## 7. Konsekuensi `.env` tidak lagi di-track

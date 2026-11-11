@@ -24,7 +24,7 @@
                 </nav>
 
                 <div class="hidden md:flex items-center gap-3">
-                    <a href="{{ route('filament.client.auth.login') }}" class="btn btn-ghost">Login</a>
+                    <a href="{{ route('login') }}" class="btn btn-ghost">Login</a>
                 </div>
 
                 <div class="lg:hidden" x-data="{ open: false }">
@@ -47,7 +47,7 @@
                         <a href="#statistik" class="mobile-link">Statistik</a>
                         <a href="#informasi" class="mobile-link">Informasi</a>
                         <div class="mt-4 space-y-2 border-t border-slate-200 pt-4">
-                            <a href="{{ route('filament.client.auth.login') }}" class="mobile-login">Login</a>
+                            <a href="{{ route('login') }}" class="mobile-login">Login</a>
                         </div>
                     </div>
                 </div>

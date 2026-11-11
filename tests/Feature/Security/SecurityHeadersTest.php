@@ -23,16 +23,13 @@ class SecurityHeadersTest extends TestCase
             ->assertHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
     }
 
-    public function test_halaman_login_panel_juga_mengirim_security_headers(): void
+    public function test_halaman_login_juga_mengirim_security_headers(): void
     {
-        $this->get('/admin/login')
+        $this->get('/login')
             ->assertOk()
             ->assertHeader('X-Content-Type-Options', 'nosniff')
-            ->assertHeader('X-Frame-Options', 'SAMEORIGIN');
-
-        $this->get('/klien/login')
-            ->assertOk()
-            ->assertHeader('X-Frame-Options', 'SAMEORIGIN');
+            ->assertHeader('X-Frame-Options', 'SAMEORIGIN')
+            ->assertHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
     }
 
     public function test_tidak_membocorkan_header_versi_php(): void
