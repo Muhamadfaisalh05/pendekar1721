@@ -70,6 +70,19 @@ oracle/
 ├── 01-get-anak.json
 ├── ...
 └── 46-get-ke-action-post.json
+
+seed/
+└── state.json             # state awal (anak/kegiatan/evaluasi) hasil ekspor dump
 ```
 
-Setiap file: `request` (method, uri, payload) + `response` (status, headers, body mentah, json ter-parse).
+Setiap file oracle: `request` (method, uri, payload) + `response` (status, headers, body mentah, json ter-parse).
+
+`seed/state.json` dibuat ulang dengan:
+
+```powershell
+php tests/Support/Absensi/export-seed.php
+```
+
+File itu dipakai oleh `Tests\Support\Absensi\PreparesAbsensiDatabase` untuk menyiapkan
+database uji SQLite in-memory dengan isi yang identik dengan dump native.
+

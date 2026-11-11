@@ -20,40 +20,11 @@ $baseUrl = rtrim($argv[1] ?? 'http://127.0.0.1:8123', '/');
 $projectRoot = dirname(__DIR__, 3);
 $fixtureDir = $projectRoot.'/tests/Fixtures/Absensi/oracle';
 
-const ORACLE_DB = 'semarak_oracle';
-const DUMP_PATH = 'C:/laragon/www/Dinsos/semarak/db/semarak.sql';
+require_once __DIR__.'/oracle-database.php';
 
 if (! is_dir($fixtureDir) && ! mkdir($fixtureDir, 0777, true) && ! is_dir($fixtureDir)) {
     fwrite(STDERR, "Tidak bisa membuat folder fixture: {$fixtureDir}\n");
     exit(1);
-}
-
-/**
- * Reset database oracle dari dump asli.
- */
-function resetOracle(): void
-{
-    $pdo = new PDO('mysql:host=127.0.0.1;port=3306', 'root', '', [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-    ]);
-
-    $pdo->exec('DROP DATABASE IF EXISTS `'.ORACLE_DB.'`');
-    $pdo->exec('CREATE DATABASE `'.ORACLE_DB.'` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci');
-    $pdo->exec('USE `'.ORACLE_DB.'`');
-
-    $sql = (string) file_get_contents(DUMP_PATH);
-    $sql = preg_replace('/^\s*--.*$/m', '', $sql) ?? $sql;
-    $sql = preg_replace('/\/\*!?\d*.*?\*\//s', '', $sql) ?? $sql;
-    // MySQL 8 menolak DEFAULT literal pada kolom TEXT (dump dibuat di MariaDB 10.4).
-    $sql = preg_replace('/text NOT NULL DEFAULT \'\'/i', 'text NOT NULL', $sql) ?? $sql;
-    $sql = preg_replace('/text DEFAULT \'\'/i', 'text NULL', $sql) ?? $sql;
-
-    foreach (array_filter(array_map('trim', explode(';', $sql))) as $statement) {
-        if ($statement === '' || str_starts_with($statement, 'SET ')) {
-            continue;
-        }
-        $pdo->exec($statement);
-    }
 }
 
 /**
@@ -215,7 +186,7 @@ $scenarios = [
 ];
 
 echo "=== Reset database oracle ===\n";
-resetOracle();
+resetOracleDatabase();
 echo "selesai\n\n";
 
 echo "=== Capture {$baseUrl} ===\n";

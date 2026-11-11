@@ -1,0 +1,513 @@
+{
+    "source": "semarak/db/semarak.sql",
+    "generated_at": "2026-11-11T02:31:07+00:00",
+    "counts": {
+        "anak": 6,
+        "kegiatan": 22,
+        "evaluasi": 50
+    },
+    "anak": [
+        {
+            "id": "AN-001",
+            "nama": "Endang Sri Ayu",
+            "jenis_kelamin": "Perempuan",
+            "asal_daerah": "Bandung",
+            "agama": "Islam",
+            "umur": 16,
+            "angkatan": "Angkatan II",
+            "status": "Aktif"
+        },
+        {
+            "id": "AN-002",
+            "nama": "Doddy",
+            "jenis_kelamin": "Laki-laki",
+            "asal_daerah": "Bogor",
+            "agama": "Islam",
+            "umur": 15,
+            "angkatan": "Angkatan II",
+            "status": "Aktif"
+        },
+        {
+            "id": "AN-003",
+            "nama": "Rohmah Hidayah",
+            "jenis_kelamin": "Perempuan",
+            "asal_daerah": "Garut",
+            "agama": "Islam",
+            "umur": 17,
+            "angkatan": "Angkatan II",
+            "status": "Aktif"
+        },
+        {
+            "id": "AN-004",
+            "nama": "Isti Komah Insani",
+            "jenis_kelamin": "Perempuan",
+            "asal_daerah": "Cianjur",
+            "agama": "Islam",
+            "umur": 16,
+            "angkatan": "Angkatan II",
+            "status": "Aktif"
+        },
+        {
+            "id": "AN-005",
+            "nama": "Cece",
+            "jenis_kelamin": "Laki-laki",
+            "asal_daerah": "Sukabumi",
+            "agama": "Islam",
+            "umur": 15,
+            "angkatan": "Angkatan II",
+            "status": "Aktif"
+        },
+        {
+            "id": "AN-006",
+            "nama": "Qatrunada Mahardika",
+            "jenis_kelamin": "Perempuan",
+            "asal_daerah": "Karawang",
+            "agama": "Islam",
+            "umur": 20,
+            "angkatan": "23",
+            "status": "Aktif"
+        }
+    ],
+    "kegiatan": [
+        {
+            "id": 1,
+            "nama": "Aku Bangun Pagi Sendiri Jam 04.30"
+        },
+        {
+            "id": 2,
+            "nama": "Aku Shalat Shubuh Jam 04.30 di Masjid"
+        },
+        {
+            "id": 3,
+            "nama": "Aku Mengikuti Kegiatan Olahraga Jam 05.30 s.d. 06.15"
+        },
+        {
+            "id": 4,
+            "nama": "Aku Mengikuti Kegiatan Mandi Pagi Jam 06.15 s.d. 06.45"
+        },
+        {
+            "id": 5,
+            "nama": "Aku Mengikuti Kegiatan Makan Pagi Jam 06.45 s.d. 07.15"
+        },
+        {
+            "id": 6,
+            "nama": "Aku Membersihkan Tempat Tidur, Menyapu dan Mengepel Asrama Jam 07.15 s.d. 08.00"
+        },
+        {
+            "id": 7,
+            "nama": "Aku Mengikuti Kegiatan Bimbingan Keterampilan Jam 08.00 s.d. 11.00"
+        },
+        {
+            "id": 8,
+            "nama": "Aku Mengikuti Kegiatan Bimbingan Kedisiplinan Jam 08.00 s.d. 11.00"
+        },
+        {
+            "id": 9,
+            "nama": "Aku Mengikuti Kegiatan Bimbingan Batik Ecoprint Jam 08.00 s.d. 12.00"
+        },
+        {
+            "id": 10,
+            "nama": "Aku Mengikuti Kegiatan Bimbingan Sosial I Jam 11.00 s.d. 12.00"
+        },
+        {
+            "id": 11,
+            "nama": "Aku Shalat Dzuhur Jam 12.00 di Masjid"
+        },
+        {
+            "id": 12,
+            "nama": "Aku Mengikuti Kegiatan Makan Siang Jam 12.30 s.d. 13.00"
+        },
+        {
+            "id": 13,
+            "nama": "Aku Mengikuti Kegiatan Bimbingan Sosial II Jam 13.00 s.d. 15.00"
+        },
+        {
+            "id": 14,
+            "nama": "Aku Mengikuti Kegiatan Bimbingan Farming Jam 13.00 s.d. 15.00"
+        },
+        {
+            "id": 15,
+            "nama": "Aku Shalat Ashar Jam 15.00 di Masjid"
+        },
+        {
+            "id": 16,
+            "nama": "Aku Mandi Sore Jam 15.30 s.d. 16.00"
+        },
+        {
+            "id": 17,
+            "nama": "Aku Mencuci Pakaian Kotor dan Menyetrika Pakaian Jam 16.00 s.d. 17.30"
+        },
+        {
+            "id": 18,
+            "nama": "Aku Shalat Maghrib Jam 17.45 di Masjid"
+        },
+        {
+            "id": 19,
+            "nama": "Aku Mengikuti Kegiatan Makan Malam Jam 18.00 s.d. 18.30"
+        },
+        {
+            "id": 20,
+            "nama": "Aku Shalat Isya' Jam 19.00 di Masjid"
+        },
+        {
+            "id": 21,
+            "nama": "Aku Mengikuti Kegiatan Pengajian Jam 19.15 s.d. 20.00"
+        },
+        {
+            "id": 22,
+            "nama": "Aku Tidur Tepat Waktu di Kamar Tempat Tidurku Jam 21.00"
+        }
+    ],
+    "evaluasi": [
+        {
+            "id": 1,
+            "anak_id": "AN-001",
+            "kegiatan_id": 1,
+            "tanggal": "2026-09-24",
+            "nilai": "sesuai"
+        },
+        {
+            "id": 2,
+            "anak_id": "AN-001",
+            "kegiatan_id": 2,
+            "tanggal": "2026-09-24",
+            "nilai": "sesuai"
+        },
+        {
+            "id": 3,
+            "anak_id": "AN-001",
+            "kegiatan_id": 3,
+            "tanggal": "2026-09-24",
+            "nilai": "arahan"
+        },
+        {
+            "id": 4,
+            "anak_id": "AN-001",
+            "kegiatan_id": 4,
+            "tanggal": "2026-09-24",
+            "nilai": "sesuai"
+        },
+        {
+            "id": 5,
+            "anak_id": "AN-001",
+            "kegiatan_id": 5,
+            "tanggal": "2026-09-24",
+            "nilai": "sesuai"
+        },
+        {
+            "id": 6,
+            "anak_id": "AN-001",
+            "kegiatan_id": 6,
+            "tanggal": "2026-09-24",
+            "nilai": "telat"
+        },
+        {
+            "id": 7,
+            "anak_id": "AN-001",
+            "kegiatan_id": 7,
+            "tanggal": "2026-09-24",
+            "nilai": "sesuai"
+        },
+        {
+            "id": 8,
+            "anak_id": "AN-001",
+            "kegiatan_id": 8,
+            "tanggal": "2026-09-24",
+            "nilai": "sesuai"
+        },
+        {
+            "id": 9,
+            "anak_id": "AN-002",
+            "kegiatan_id": 1,
+            "tanggal": "2026-09-24",
+            "nilai": "arahan"
+        },
+        {
+            "id": 10,
+            "anak_id": "AN-002",
+            "kegiatan_id": 2,
+            "tanggal": "2026-09-24",
+            "nilai": "sesuai"
+        },
+        {
+            "id": 11,
+            "anak_id": "AN-002",
+            "kegiatan_id": 3,
+            "tanggal": "2026-09-24",
+            "nilai": "sesuai"
+        },
+        {
+            "id": 12,
+            "anak_id": "AN-002",
+            "kegiatan_id": 4,
+            "tanggal": "2026-09-24",
+            "nilai": "arahan"
+        },
+        {
+            "id": 13,
+            "anak_id": "AN-002",
+            "kegiatan_id": 5,
+            "tanggal": "2026-09-24",
+            "nilai": "sesuai"
+        },
+        {
+            "id": 14,
+            "anak_id": "AN-003",
+            "kegiatan_id": 1,
+            "tanggal": "2026-09-24",
+            "nilai": "sesuai"
+        },
+        {
+            "id": 15,
+            "anak_id": "AN-003",
+            "kegiatan_id": 2,
+            "tanggal": "2026-09-24",
+            "nilai": "sesuai"
+        },
+        {
+            "id": 16,
+            "anak_id": "AN-003",
+            "kegiatan_id": 3,
+            "tanggal": "2026-09-24",
+            "nilai": "sesuai"
+        },
+        {
+            "id": 17,
+            "anak_id": "AN-003",
+            "kegiatan_id": 4,
+            "tanggal": "2026-09-24",
+            "nilai": "arahan"
+        },
+        {
+            "id": 18,
+            "anak_id": "AN-004",
+            "kegiatan_id": 1,
+            "tanggal": "2026-09-24",
+            "nilai": "sesuai"
+        },
+        {
+            "id": 19,
+            "anak_id": "AN-004",
+            "kegiatan_id": 2,
+            "tanggal": "2026-09-24",
+            "nilai": "arahan"
+        },
+        {
+            "id": 20,
+            "anak_id": "AN-004",
+            "kegiatan_id": 3,
+            "tanggal": "2026-09-24",
+            "nilai": "sesuai"
+        },
+        {
+            "id": 21,
+            "anak_id": "AN-005",
+            "kegiatan_id": 1,
+            "tanggal": "2026-09-24",
+            "nilai": "tidak"
+        },
+        {
+            "id": 22,
+            "anak_id": "AN-005",
+            "kegiatan_id": 2,
+            "tanggal": "2026-09-24",
+            "nilai": "arahan"
+        },
+        {
+            "id": 23,
+            "anak_id": "AN-005",
+            "kegiatan_id": 3,
+            "tanggal": "2026-09-24",
+            "nilai": "sesuai"
+        },
+        {
+            "id": 25,
+            "anak_id": "AN-005",
+            "kegiatan_id": 1,
+            "tanggal": "2026-11-10",
+            "nilai": "sesuai"
+        },
+        {
+            "id": 26,
+            "anak_id": "AN-002",
+            "kegiatan_id": 1,
+            "tanggal": "2026-11-10",
+            "nilai": "sesuai"
+        },
+        {
+            "id": 27,
+            "anak_id": "AN-001",
+            "kegiatan_id": 1,
+            "tanggal": "2026-11-10",
+            "nilai": "sesuai"
+        },
+        {
+            "id": 28,
+            "anak_id": "AN-004",
+            "kegiatan_id": 1,
+            "tanggal": "2026-11-10",
+            "nilai": "libur"
+        },
+        {
+            "id": 29,
+            "anak_id": "AN-006",
+            "kegiatan_id": 1,
+            "tanggal": "2026-11-10",
+            "nilai": "sesuai"
+        },
+        {
+            "id": 30,
+            "anak_id": "AN-003",
+            "kegiatan_id": 1,
+            "tanggal": "2026-11-10",
+            "nilai": "sesuai"
+        },
+        {
+            "id": 56,
+            "anak_id": "AN-004",
+            "kegiatan_id": 2,
+            "tanggal": "2026-11-10",
+            "nilai": "libur"
+        },
+        {
+            "id": 57,
+            "anak_id": "AN-004",
+            "kegiatan_id": 3,
+            "tanggal": "2026-11-10",
+            "nilai": "libur"
+        },
+        {
+            "id": 58,
+            "anak_id": "AN-004",
+            "kegiatan_id": 4,
+            "tanggal": "2026-11-10",
+            "nilai": "libur"
+        },
+        {
+            "id": 59,
+            "anak_id": "AN-004",
+            "kegiatan_id": 5,
+            "tanggal": "2026-11-10",
+            "nilai": "libur"
+        },
+        {
+            "id": 60,
+            "anak_id": "AN-004",
+            "kegiatan_id": 6,
+            "tanggal": "2026-11-10",
+            "nilai": "libur"
+        },
+        {
+            "id": 61,
+            "anak_id": "AN-004",
+            "kegiatan_id": 7,
+            "tanggal": "2026-11-10",
+            "nilai": "libur"
+        },
+        {
+            "id": 62,
+            "anak_id": "AN-004",
+            "kegiatan_id": 8,
+            "tanggal": "2026-11-10",
+            "nilai": "libur"
+        },
+        {
+            "id": 63,
+            "anak_id": "AN-004",
+            "kegiatan_id": 9,
+            "tanggal": "2026-11-10",
+            "nilai": "libur"
+        },
+        {
+            "id": 64,
+            "anak_id": "AN-004",
+            "kegiatan_id": 10,
+            "tanggal": "2026-11-10",
+            "nilai": "libur"
+        },
+        {
+            "id": 65,
+            "anak_id": "AN-004",
+            "kegiatan_id": 11,
+            "tanggal": "2026-11-10",
+            "nilai": "libur"
+        },
+        {
+            "id": 66,
+            "anak_id": "AN-004",
+            "kegiatan_id": 12,
+            "tanggal": "2026-11-10",
+            "nilai": "libur"
+        },
+        {
+            "id": 67,
+            "anak_id": "AN-004",
+            "kegiatan_id": 13,
+            "tanggal": "2026-11-10",
+            "nilai": "libur"
+        },
+        {
+            "id": 68,
+            "anak_id": "AN-004",
+            "kegiatan_id": 14,
+            "tanggal": "2026-11-10",
+            "nilai": "libur"
+        },
+        {
+            "id": 69,
+            "anak_id": "AN-004",
+            "kegiatan_id": 15,
+            "tanggal": "2026-11-10",
+            "nilai": "libur"
+        },
+        {
+            "id": 70,
+            "anak_id": "AN-004",
+            "kegiatan_id": 16,
+            "tanggal": "2026-11-10",
+            "nilai": "libur"
+        },
+        {
+            "id": 71,
+            "anak_id": "AN-004",
+            "kegiatan_id": 17,
+            "tanggal": "2026-11-10",
+            "nilai": "libur"
+        },
+        {
+            "id": 72,
+            "anak_id": "AN-004",
+            "kegiatan_id": 18,
+            "tanggal": "2026-11-10",
+            "nilai": "libur"
+        },
+        {
+            "id": 73,
+            "anak_id": "AN-004",
+            "kegiatan_id": 19,
+            "tanggal": "2026-11-10",
+            "nilai": "libur"
+        },
+        {
+            "id": 74,
+            "anak_id": "AN-004",
+            "kegiatan_id": 20,
+            "tanggal": "2026-11-10",
+            "nilai": "libur"
+        },
+        {
+            "id": 75,
+            "anak_id": "AN-004",
+            "kegiatan_id": 21,
+            "tanggal": "2026-11-10",
+            "nilai": "libur"
+        },
+        {
+            "id": 76,
+            "anak_id": "AN-004",
+            "kegiatan_id": 22,
+            "tanggal": "2026-11-10",
+            "nilai": "libur"
+        }
+    ]
+}

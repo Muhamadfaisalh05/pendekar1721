@@ -82,6 +82,33 @@ return [
             ]) : [],
         ],
 
+        /*
+        |----------------------------------------------------------------------
+        | Koneksi Modul Absensi (SEMARAK)
+        |----------------------------------------------------------------------
+        |
+        | Modul absensi memakai database terpisah (`semarak_db`) agar data
+        | aplikasi native tetap utuh dan bisa dijalankan paralel selama masa
+        | transisi. Nama tabel dipertahankan persis seperti aplikasi native.
+        |
+        */
+
+        'semarak' => [
+            'driver' => env('SEMARAK_DB_CONNECTION', 'mysql'),
+            'host' => env('SEMARAK_DB_HOST', '127.0.0.1'),
+            'port' => env('SEMARAK_DB_PORT', '3306'),
+            'database' => env('SEMARAK_DB_DATABASE', 'semarak_db'),
+            'username' => env('SEMARAK_DB_USERNAME', 'root'),
+            'password' => env('SEMARAK_DB_PASSWORD', ''),
+            'unix_socket' => env('SEMARAK_DB_SOCKET', ''),
+            'charset' => env('SEMARAK_DB_CHARSET', 'utf8mb4'),
+            'collation' => env('SEMARAK_DB_COLLATION', 'utf8mb4_general_ci'),
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => true,
+            'engine' => null,
+        ],
+
         'pgsql' => [
             'driver' => 'pgsql',
             'url' => env('DB_URL'),
