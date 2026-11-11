@@ -54,7 +54,7 @@ class HomeController extends Controller
             })
             ->when($gender, function (Builder $query) use ($gender) {
                 return $query->whereHas('userProfile', function (Builder $query) use ($gender) {
-                    $query->where('gender', $gender22);
+                    $query->where('gender', $gender);
                 });
             })
             ->when($educationDegreeId, function (Builder $query) use ($educationDegreeId) {
