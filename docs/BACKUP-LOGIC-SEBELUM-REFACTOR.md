@@ -706,10 +706,9 @@ dibuat 2026-11-11 10:21:48 (akun demo `RoleAccountSeeder`).
    `user_type = 'client'` AND `status = 'published'` AND `graduated_at IS NOT NULL`.
    Klausa `created_by IS NULL` **DITOLAK** sebagai penanda alumni (klien #6 juga `created_by` NULL
    padahal baru dibuat). Implementasi: `App\Models\User::scopeAlumni()`.
-3. Angka kartu "Jumlah Alumni" di dashboard **masih definisi sementara** (`user_type = 'client'`) dan
-   diberi label "Angka sementara (belum final)" di UI, karena `graduated_at` belum diisi.
-   Setelah backfill selesai: ganti ke `User::query()->alumni()->count()` dan hapus penanda
-   `total_alumni_belum_final`.
+3. Angka kartu "Jumlah Alumni" di dashboard **sejak Fase 4** memakai definisi final begitu ada satu
+   `graduated_at`; selama belum ada, kartu memakai fallback definisi lama (`client` + `published`) dengan
+   label "Angka sementara (belum final)" dan beralih otomatis setelah backfill (lihat §16.2).
 4. Untuk memverifikasi klaim 500+ di produksi, jalankan `docs/audit/audit-users.php` pada server
    produksi (read-only); petunjuk lengkap: `docs/AUDIT-PRODUKSI-USERS.md`.
 
@@ -834,7 +833,8 @@ tanpa tautan tidak saling bentrok.
    di `UserResource` (Fase 3).
 3. **Parameter `mode` pada `ImportService`** (`binaan` → Draft) + dedup nama/asal/angkatan untuk `ImportData`
    admin (Fase 3).
-4. Kartu "Jumlah Alumni" tetap angka sementara sampai butir 1 selesai.
+4. Kartu "Jumlah Alumni" beralih ke definisi final otomatis begitu backfill mengisi `graduated_at` pertama
+   (fallback berlabel "Angka sementara (belum final)" tetap ada sampai saat itu — lihat §16.2).
 
 ### 14.6 Commit terpisah
 
@@ -919,9 +919,12 @@ Hasil: `php artisan test` → **127 passed (549 assertions)**; `pint --test` pad
 ### 15.4 Belum dikerjakan
 
 1. **Backfill `graduated_at`** — masih menunggu hasil audit produksi (`docs/AUDIT-PRODUKSI-USERS.md`).
-   Setelah itu: migrasi data terbatas daftar `id`, lalu `Dashboard::getStatistik()` → `User::query()->alumni()->count()`
-   dan hapus penanda `total_alumni_belum_final`.
-2. **Fase 4**: rapikan penuh `docs/SECURITY-AUDIT-L13.md`.
+   Status 12 Nov 2026 (keputusan Fase 4): migrasi backfill **ditunda**, sedangkan `Dashboard::statistikAlumni()`
+   sudah memakai `User::query()->alumni()->count()` begitu ada minimal satu alumni. Selama belum ada,
+   penanda `total_alumni_belum_final` + label "Angka sementara (belum final)" **tetap dipertahankan**
+   sebagai fallback dan hilang otomatis setelah `graduated_at` pertama terisi (§16.2).
+   Migrasi nanti tetap dibatasi daftar `id` yang disetujui, bukan `UPDATE` massal.
+2. **Fase 4**: rapikan penuh `docs/SECURITY-AUDIT-L13.md` — **selesai** (§16).
 3. Pekerjaan yang masih terbuka setelah Fase 3 (opsional, bukan bagian syarat): dedup **email** tetap satu-satunya
    penolakan otomatis; laporan duplikat nama/asal/angkatan hanya peringatan. Bila nanti ingin penolakan otomatis,
    itu keputusan produk baru.
@@ -935,4 +938,50 @@ Hasil: `php artisan test` → **127 passed (549 assertions)**; `pint --test` pad
 4. Dedup **nama + asal daerah + angkatan** pada import binaan dikerjakan dan dilaporkan di Preview sebagai
    "kemungkinan duplikat" (bukan penolakan diam-diam).
 5. `DeleteBulkAction` pada `UserResource` tetap dihapus, tidak dikembalikan.
+
+---
+
+## 16. Catatan hasil eksekusi Fase 4 (12 Nov 2026)
+
+Lingkup Fase 4: **definisi alumni di dashboard (dengan fallback sementara) + perapian dokumen audit**.
+Tidak ada perubahan skema dan tidak ada migrasi data pada fase ini.
+
+### 16.1 Yang dikerjakan
+
+| Berkas | Perubahan |
+|---|---|
+| `app/Filament/Client/Pages/Dashboard.php` | `total_alumni` → `statistikAlumni()`: memakai `User::query()->alumni()->count()` begitu ada minimal satu alumni; bila **belum ada** klien `published` ber-`graduated_at`, hitungan jatuh ke definisi lama (`client` + `published`) dan `total_alumni_belum_final = true`. Docblock menjelaskan definisi final, fallback, dan asal backfill |
+| `resources/views/filament/client/pages/dashboard.blade.php` | label "Angka sementara (belum final)" ditampilkan **hanya** saat `total_alumni_belum_final` bernilai `true` (di bawah angka, warna `warning`) |
+| `tests/Feature/Graduation/AlumniStatistikDashboardTest.php` | **baru (4 tes)**: (1) fallback = `client` + `published` + label tampil saat `graduated_at` kosong; (2) angka + label **otomatis beralih** ke definisi resmi setelah satu `graduated_at` diisi; (3) definisi resmi tanpa label (`Draft`, `Archived`, admin, dan klien tanpa `graduated_at` tidak dihitung); (4) angka 0 dan masih bertanda sementara bila belum ada klien `published` |
+| `docs/SECURITY-AUDIT-L13.md` | **ditulis ulang penuh** (1.139 → 269 baris): status per temuan (SELESAI/TIDAK BERLAKU/SEBAGIAN/TERBUKA), peta kontrol → implementasi → tes, checklist `.env` + verifikasi pasca-deploy, risiko residual, dan catatan apa yang dihapus dari versi lama. Versi 10 Nov tetap dapat dibaca dari git (`git show HEAD:docs/SECURITY-AUDIT-L13.md` sebelum perapian ini di-commit) |
+| `docs/AUDIT-PRODUKSI-USERS.md` | §6 diperbarui: dashboard sudah memakai definisi resmi + fallback sementara berlabel; backfill tetap menunggu daftar `id` |
+| `docs/BACKUP-LOGIC-SEBELUM-REFACTOR.md` | §15.4 diperbarui + §16 ini |
+
+### 16.2 Keputusan pemilik produk (12 Nov 2026)
+
+1. **Migrasi backfill `graduated_at` ditunda.** Daftar `id` hasil audit produksi belum diterima; migrasi tetap
+   akan dibuat berbasis daftar `id` yang disetujui (bukan `UPDATE` massal) setelah daftar itu ada.
+2. **Switch definisi dashboard dijalankan sekarang, dengan fallback sementara.** Perilaku kartu "Jumlah Alumni":
+   - Ada minimal satu `client` + `published` + `graduated_at` terisi → angka = `alumni()->count()`,
+     label "Angka sementara (belum final)" **tidak** tampil.
+   - Belum ada satu pun (backfill belum jalan) → angka = definisi lama (`client` + `published`),
+     label "Angka sementara (belum final)" **tampil** sebagai pengingat bahwa angka belum final.
+   - Peralihan terjadi otomatis pada request berikutnya setelah `graduated_at` pertama terisi
+     (tidak perlu deploy/ubah kode).
+3. **Fase 4 hanya menyentuh dokumen + dua berkas dashboard + satu tes** (tanpa skema/migrasi), sehingga tidak
+   mengubah perilaku import maupun kelulusan.
+4. **Sumber kebenaran tetap `User::scopeAlumni()`.** Fallback hanya jembatan data, bukan definisi bisnis baru:
+   begitu backfill selesai, cabang fallback tidak pernah dieksekusi lagi (tetap dipertahankan sebagai jaring
+   pengaman bila data `graduated_at` hilang di masa depan).
+
+### 16.3 Verifikasi
+
+- `php artisan test` → **131 passed (570 assertions)**.
+- `vendor/bin/pint --test` pada berkas yang berubah → **PASS**.
+- `php artisan view:cache` → sukses.
+
+### 16.4 Commit
+
+Fase 4 (dokumen + dashboard + fallback + tes) di-commit **terpisah** dari WIP absensi & self-host font.
+File WIP tersebut tetap berada di working tree dan tidak ikut di-stage.
 

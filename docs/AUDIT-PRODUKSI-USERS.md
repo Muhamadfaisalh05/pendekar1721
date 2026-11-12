@@ -119,9 +119,18 @@ paling menentukan untuk keputusan backfill:
 | Email duplikat ditemukan | Bereskan duplikat lebih dulu (email `unique` bisa menggagalkan migrasi) |
 | `created_by` NULL mendominasi | Kepemilikan tidak dipakai sebagai penanda alumni (keputusan final: `graduated_at` saja) |
 
-Sampai backfill dijalankan, kartu **Jumlah Alumni** di dashboard klien tetap
-memakai definisi sementara dan diberi label "Angka sementara (belum final)".
-Definisi resmi ada di `App\Models\User::scopeAlumni()`.
+> **Status 12 November 2026 (Fase 4).** Kartu **Jumlah Alumni** di dashboard klien memakai definisi resmi
+> `App\Models\User::scopeAlumni()` (`user_type = 'client'` AND `status = 'published'` AND
+> `graduated_at IS NOT NULL`) **segera setelah** ada minimal satu akun yang memenuhi definisi itu
+> (tes: `tests/Feature/Graduation/AlumniStatistikDashboardTest.php`).
+>
+> Selama backfill belum dijalankan (belum ada satu pun `graduated_at` terisi), kartu memakai **fallback
+> sementara**: angka dihitung dengan definisi lama `client` + `published` dan diberi label
+> "Angka sementara (belum final)". Peralihan ke definisi resmi terjadi otomatis pada request berikutnya
+> setelah `graduated_at` pertama terisi — tanpa deploy ulang.
+>
+> Migrasi backfill berbasis daftar `id` yang disetujui **belum dibuat**; hasil audit inilah yang
+> menentukan daftar `id` tersebut.
 
 ## 7. Troubleshooting
 

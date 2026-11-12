@@ -2,6 +2,7 @@
 
 namespace App\Filament\Client\Pages;
 
+use App\Enums\UserStatus;
 use App\Models\User;
 use Filament\Pages\Dashboard as BaseDashboard;
 
@@ -22,21 +23,53 @@ class Dashboard extends BaseDashboard
      * SECURITY (F-01): dashboard klien TIDAK menampilkan daftar nama/email
      * user lain. Semua angka di sini agregat atau milik user yang login.
      *
-     * CATATAN DEFINISI (BELUM FINAL):
-     * `total_alumni` masih memakai definisi sementara `user_type = client`
-     * karena `graduated_at` belum diisi (backfill menunggu audit produksi,
-     * lihat docs/AUDIT-PRODUKSI-USERS.md). Definisi resmi sudah tersedia di
-     * `User::scopeAlumni()`; setelah backfill selesai, ganti baris di bawah
-     * menjadi `User::query()->alumni()->count()` dan hapus penanda
-     * `total_alumni_belum_final`.
+     * DEFINISI FINAL: `total_alumni` memakai `User::scopeAlumni()` —
+     * `user_type = 'client'` AND `status = 'published'` AND `graduated_at` terisi.
+     * `graduated_at` klien lama diisi lewat migrasi backfill berbasis daftar `id`
+     * yang disetujui hasil audit produksi (bukan `UPDATE` massal).
+     *
+     * FALLBACK SEMENTARA: selama **belum satu pun** klien `published` punya
+     * `graduated_at` (backfill belum berjalan), kartu memakai definisi lama
+     * `client` + `published` dan menandai `total_alumni_belum_final = true`
+     * sehingga UI menampilkan label "Angka sementara (belum final)".
+     * Begitu satu `graduated_at` terisi, hitungan otomatis beralih ke definisi
+     * final (`alumni()->count()`) dan label tersebut hilang tanpa perlu deploy.
      */
     public function getStatistik(): array
     {
+        $alumni = $this->statistikAlumni();
+
         return [
-            'total_alumni' => User::query()->where('user_type', 'client')->count(),
-            'total_alumni_belum_final' => true,
+            'total_alumni' => $alumni['total'],
+            'total_alumni_belum_final' => $alumni['belum_final'],
             'pelatihan_saya' => (int) auth()->user()?->userTrainings()->count(),
             'kelengkapan_profil' => $this->persentaseKelengkapanProfil(),
+        ];
+    }
+
+    /**
+     * Angka kartu "Jumlah Alumni" beserta status finalitasnya.
+     *
+     * Sumber kebenaran angka tetap `User::scopeAlumni()`. Definisi lama
+     * (`client` + `published`, tanpa `graduated_at`) hanya dipakai sebagai
+     * jembatan selama backfill belum dijalankan — bukan definisi bisnis baru.
+     *
+     * @return array{total: int, belum_final: bool}
+     */
+    public function statistikAlumni(): array
+    {
+        $alumni = User::query()->alumni()->count();
+
+        if ($alumni > 0) {
+            return ['total' => $alumni, 'belum_final' => false];
+        }
+
+        return [
+            'total' => User::query()
+                ->where('user_type', User::ROLE_CLIENT)
+                ->where('status', UserStatus::Published->value)
+                ->count(),
+            'belum_final' => true,
         ];
     }
 

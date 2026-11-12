@@ -23,8 +23,8 @@
             <div class="ml-4">
                 <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Jumlah Alumni</p>
                 <p class="text-2xl font-semibold text-gray-900 dark:text-white">{{ $stats['total_alumni'] }}</p>
-                @if ($stats['total_alumni_belum_final'] ?? false)
-                    {{-- Angka sementara: definisi resmi menunggu backfill `users.graduated_at`. --}}
+                @if ($stats['total_alumni_belum_final'])
+                    {{-- Fallback: definisi lama (client + published) sampai `users.graduated_at` terisi lewat backfill. --}}
                     <p class="text-[11px] leading-tight text-warning-600 dark:text-warning-400">
                         Angka sementara (belum final)
                     </p>
