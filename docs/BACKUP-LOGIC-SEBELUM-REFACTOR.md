@@ -985,3 +985,104 @@ Tidak ada perubahan skema dan tidak ada migrasi data pada fase ini.
 Fase 4 (dokumen + dashboard + fallback + tes) di-commit **terpisah** dari WIP absensi & self-host font.
 File WIP tersebut tetap berada di working tree dan tidak ikut di-stage.
 
+
+---
+
+## 17. Insiden error 500 `/admin/anak` & migrasi skema dev (12 Nov 2026)
+
+Lingkup: **pengaman skema** (agar aplikasi tetap terbuka walau migrasi Fase 2 tertunda) dan **eksekusi
+migrasi Fase 2 di database DEV**. Tidak ada backfill `graduated_at` dan tidak ada perubahan data.
+
+### 17.1 Penyebab error 500
+
+- Di database dev, migrasi Fase 2 (`2026_11_12_090000_add_anak_link_to_users_table` dan
+  `2026_11_12_090100_make_users_email_and_password_nullable`) masih **Pending**.
+- Kode Fase 3 sudah memakai kolom `users.anak_id`: kolom tabel "Akun Klien", eager load `with('akunKlien')`,
+  dan aksi "Luluskan & Aktifkan Akun Klien". Akibatnya request `/admin/anak` gagal di level SQL
+  (`no such column: users.anak_id`) → HTTP 500, bukan halaman kosong atau pesan yang bisa dipahami operator.
+- Akar masalahnya bukan data, melainkan **urutan rilis**: kode lebih dulu naik daripada migrasi.
+
+### 17.2 Pengaman skema yang ditambahkan
+
+| Berkas | Pengaman |
+|---|---|
+| `app/Support/SchemaGuard.php` | **baru**. Satu-satunya tempat mengecek `Schema::hasColumn('users', 'anak_id')` / `graduated_at`. Hasil disimpan di properti static (cache **per request**, bukan cache lintas request) sehingga setelah migrasi dijalankan request berikutnya langsung melihat kolom baru. Ada `reset()` untuk tes dan `bolehKirimPeringatanMigrasi()` (sekali per request) |
+| `app/Support/Relations/RelasiHasOneKosong.php` | **baru**. `HasOne` yang selalu kosong (`whereRaw('1 = 0')`), dipakai saat kolom penghubung belum ada agar query tidak pernah menyebut kolom yang tidak ada |
+| `app/Modules/Absensi/Models/Anak.php` | `akunKlien()` mengembalikan relasi kosong bila `users.anak_id` belum ada — aman dipanggil/di-eager-load, hasil `null`, tanpa exception |
+| `app/Filament/Resources/AnakResource.php` | Kolom "Akun Klien" + `with('akunKlien')` hanya dipasang bila kolom ada. Aksi "Luluskan & Aktifkan Akun Klien" **dinonaktifkan** (tetap terlihat) dengan tooltip "Jalankan migrasi database terlebih dahulu" |
+| `app/Filament/Resources/UserResource.php` | Kolom `anak_id` dan `graduated_at` hanya dipasang bila kolomnya ada; daftar user tetap terbuka |
+| `app/Models/User.php` | `scopeAlumni()` mengembalikan hasil kosong (`1 = 0`) bila `graduated_at` belum ada — tidak error SQL |
+| `app/Filament/Client/Pages/Dashboard.php` | `statistikAlumni()` memakai fallback `client` + `published` + `belum_final = true` (label "Angka sementara (belum final)") bila `graduated_at` belum ada |
+| `app/Services/GraduationService.php` | `luluskan()` menolak lebih awal dengan `InvalidArgumentException` berbahasa Indonesia (`PESAN_MIGRASI_TERTUNDA`, menyebut `php artisan migrate`), bukan error SQL |
+| `app/Services/ImportBinaanService.php` | `pastikanAkunBinaan()` menolak dengan pesan migrasi; `adaNamaKembar()` tidak lagi menyebut `anak_id` bila kolomnya belum ada |
+| `app/Services/ImportService.php` | `petaTautanAnak()` melaporkan semua baris "tidak ditautkan" dengan alasan migrasi; `importData()` tidak mengirim `anak_id` ke `INSERT` (impor klien/binaan tetap jalan) |
+| `app/Filament/Support/PeringatanMigrasi.php` | **baru**. Notifikasi peringatan "Ada migrasi database yang belum dijalankan. Hubungi administrator sistem." — dipanggil dari `ManageAnak`, `ListUsers`, dan `ImportData`, sekali per request |
+| `tests/TestCase.php` | `SchemaGuard::reset()` di `setUp()` supaya cache static tidak bocor antar test |
+| `tests/Feature/Graduation/PengamanSkemaFase2Test.php` | **baru (8 tes, 50 assertions)**. Skenario kolom BELUM ada (kolom dilepas di dalam transaksi tes, pulih otomatis): `/admin/anak` 200 tanpa kolom "Akun Klien", aksi Luluskan nonaktif + peringatan, service menolak dengan pesan jelas, `/klien` 200 + label sementara, `/admin/users` 200, impor tetap jalan tanpa tautan, login + `canAccessPanel` tetap berjalan. Plus skenario kolom SUDAH ada: kolom tampil, aksi aktif, tanpa peringatan |
+
+Commit pengaman skema: **`fb65aa27`** (`fix(admin): pengaman skema bila migrasi Fase 2 belum dijalankan`),
+16 berkas, 572 insertions / 35 deletions — tanpa file WIP absensi & self-host font.
+
+### 17.3 Backup sebelum migrasi dev
+
+| Database | Berkas backup | Ukuran |
+|---|---|---|
+| Aplikasi (SQLite dev) | `database/backup-pra-migrasi-20261112-114107.sqlite` | 176.128 byte |
+| SEMARAK (MySQL `semarak_oracle`) | `database/backup-pra-migrasi-semarak-20261112-114125.sql` (mysqldump) | 15.023 byte |
+
+Kedua pola berkas backup sudah masuk `.gitignore` (`/database/backup-pra-migrasi-*.sqlite` dan `*.sql`),
+jadi tidak akan pernah ikut ter-commit.
+
+
+### 17.4 Hasil migrasi database dev
+
+`php artisan migrate:status` **sebelum** migrasi: hanya dua migrasi Fase 2 yang Pending
+(`2026_11_12_090000_add_anak_link_to_users_table`, `2026_11_12_090100_make_users_email_and_password_nullable`);
+seluruh migrasi lain `Ran`. **Tidak ada** migrasi Pending lain di luar rencana.
+
+`php artisan migrate` (hanya dev, tanpa `fresh`/`refresh`): kedua migrasi `DONE`.
+
+Verifikasi read-only setelah migrasi:
+
+| Butir | Hasil |
+|---|---|
+| `users.anak_id` | ada — `varchar(20)`, nullable |
+| `users.graduated_at` | ada — `datetime`, nullable |
+| `users.email` / `users.password` | nullable |
+| Index | `users_anak_id_unique` (unique), `users_email_unique` (unique), `users_graduated_at_index` (index) |
+| Jumlah user | **4 → 4** (tidak berubah) |
+| Jumlah baris `semarak.anak` | **7 → 7** (tidak berubah) |
+| `alumni()->count()` | 0 (backfill memang belum dijalankan) |
+| `php artisan optimize:clear` | sukses (config, cache, compiled, events, routes, views, blade-icons, filament) |
+
+Uji endpoint pada database dev (GET, read-only, lewat kernel Laravel dengan user nyata di dev):
+`/admin/anak` → **200**, `/admin/users` → **200**, `/admin/import-data` → **200**, `/klien` → **200**.
+
+Uji rollback dilakukan pada **salinan** SQLite sementara (`database/tmp-rollback.sqlite`, sudah dihapus),
+bukan pada database dev: `migrate:rollback` untuk kedua migrasi Fase 2 (`down` masing-masing sukses) lalu
+`migrate` kembali (`up` keduanya sukses); jumlah user tetap 4 dan kedua kolom kembali ada. Database dev
+tidak pernah di-rollback.
+
+### 17.5 Verifikasi akhir
+
+- `php artisan test` → **139 passed (620 assertions)** (sebelumnya 131; +8 tes pengaman skema).
+- `vendor/bin/pint --test` pada seluruh berkas yang berubah → **PASS** (16 berkas).
+- `php artisan migrate:status` → kedua migrasi Fase 2 `Ran`.
+
+### 17.6 Urutan rilis PRODUKSI (WAJIB, jangan diubah urutannya)
+
+1. **Audit produksi** — jalankan `docs/AUDIT-PRODUKSI-USERS.md` dan setujui daftar `id` klien yang benar-benar alumni.
+2. **Backup database** — dump penuh database aplikasi (dan SEMARAK bila ikut berubah) + simpan di luar server.
+3. **Migrasi skema** — `php artisan migrate` (kedua migrasi Fase 2). Belum ada backfill pada langkah ini.
+4. **Backfill `graduated_at`** — migrasi berbasis **whitelist `id`** hasil langkah 1 (bukan `UPDATE` massal).
+   Belum dijalankan sampai daftar `id` itu disetujui.
+5. **Deploy kode** — kode Fase 2–4 (termasuk pengaman skema commit `fb65aa27`) naik setelah skema siap.
+6. **Cocokkan angka kartu "Jumlah Alumni"** — bandingkan dashboard klien dengan hasil audit; label
+   "Angka sementara (belum final)" harus **hilang** setelah backfill terisi. Bila masih tampil, backfill belum terbaca.
+7. **Baru luluskan anak pertama** — jalankan aksi "Luluskan & Aktifkan Akun Klien" setelah keenam langkah di atas
+   selesai, lalu periksa email/kata sandi sementara dan status `published` + `graduated_at` akun tersebut.
+
+Alasan urutan ini: skema harus ada sebelum kode baru dipakai (agar tidak terulang error 500 di dev), dan data
+alumni harus diaudit sebelum angka publik ditampilkan. Pengaman skema tetap dipertahankan sebagai jaring
+pengaman permanen — bukan pengganti urutan rilis di atas.
+

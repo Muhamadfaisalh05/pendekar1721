@@ -9,3 +9,7 @@ vendor_old/
 
 # Karantina skrip/sampah hasil audit keamanan (FASE 0)
 /_backups/
+
+# Backup database dev sebelum migrasi (jangan pernah di-commit)
+/database/backup-pra-migrasi-*.sqlite
+/database/backup-pra-migrasi-*.sql
