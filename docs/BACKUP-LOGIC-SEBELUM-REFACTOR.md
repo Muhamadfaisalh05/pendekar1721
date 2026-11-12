@@ -840,9 +840,14 @@ tanpa tautan tidak saling bentrok.
 
 | Commit | Isi |
 |---|---|
-| 1 | `test(absensi)`: normalisasi tanggal fixture pada oracle parity |
-| 2 | Fase 0–1 (panel Klien read-only + hardening status akun) + dokumen backup + `pint.json` |
-| 3 | Fase 2 (migrasi, service, model, guard login, tes, dokumen audit) |
+| 1 | `test(absensi)`: normalisasi tanggal fixture pada oracle parity — `43626745` |
+| 2 | Fase 0–1–2: panel Klien read-only + hardening status akun + onboarding alumni + dokumen — `74d6888b` |
 
-File WIP absensi & self-host font **tidak** di-commit (lihat koreksi di §13.3).
+Catatan: Fase 0/1/2 berada dalam **satu commit** karena `app/Models/User.php` dan beberapa berkas tes memuat
+perubahan dari lebih dari satu fase sehingga tidak bisa dipisah per-fase tanpa memecah satu file.
+Permintaan "Pint pada 5 file WIP dijadikan commit tersendiri" **tidak dapat dijalankan**: kelima file itu
+tidak memuat perubahan gaya hasil Pint yang bisa dipisahkan (lihat koreksi §13.3), sehingga ditinggalkan
+sebagai WIP milik Anda.
+
+File WIP absensi & self-host font **tidak** di-commit.
 
