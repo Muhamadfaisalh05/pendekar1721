@@ -4,6 +4,7 @@ namespace App\Filament\Client\Pages;
 
 use App\Enums\UserStatus;
 use App\Models\User;
+use App\Support\SchemaGuard;
 use Filament\Pages\Dashboard as BaseDashboard;
 
 class Dashboard extends BaseDashboard
@@ -54,23 +55,36 @@ class Dashboard extends BaseDashboard
      * (`client` + `published`, tanpa `graduated_at`) hanya dipakai sebagai
      * jembatan selama backfill belum dijalankan — bukan definisi bisnis baru.
      *
+     * PENGAMAN SKEMA: bila kolom `graduated_at` belum ada (migrasi Fase 2
+     * tertunda), dashboard TETAP tampil dengan angka definisi lama dan label
+     * "Angka sementara (belum final)".
+     *
      * @return array{total: int, belum_final: bool}
      */
     public function statistikAlumni(): array
     {
+        if (! SchemaGuard::usersPunyaTanggalLulus()) {
+            return ['total' => $this->hitungKlienPublished(), 'belum_final' => true];
+        }
+
         $alumni = User::query()->alumni()->count();
 
         if ($alumni > 0) {
             return ['total' => $alumni, 'belum_final' => false];
         }
 
-        return [
-            'total' => User::query()
-                ->where('user_type', User::ROLE_CLIENT)
-                ->where('status', UserStatus::Published->value)
-                ->count(),
-            'belum_final' => true,
-        ];
+        return ['total' => $this->hitungKlienPublished(), 'belum_final' => true];
+    }
+
+    /**
+     * Definisi lama sebagai jembatan: `client` + `published`.
+     */
+    private function hitungKlienPublished(): int
+    {
+        return User::query()
+            ->where('user_type', User::ROLE_CLIENT)
+            ->where('status', UserStatus::Published->value)
+            ->count();
     }
 
     /**

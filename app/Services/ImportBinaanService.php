@@ -5,9 +5,11 @@ namespace App\Services;
 use App\Enums\UserStatus;
 use App\Models\User;
 use App\Modules\Absensi\Models\Anak;
+use App\Support\SchemaGuard;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use InvalidArgumentException;
 
 /**
  * FASE 2 — jembatan `semarak.anak` → `users`.
@@ -45,6 +47,15 @@ final class ImportBinaanService
      */
     public function pastikanAkunBinaan(Anak $anak, ?int $createdBy = null, bool $izinkanNamaGanda = false): array
     {
+        // PENGAMAN SKEMA: tanpa `users.anak_id` setiap query di bawah gagal
+        // dengan error SQL. Ditolak lebih awal dengan pesan yang jelas.
+        if (! SchemaGuard::usersPunyaTautanAnak()) {
+            throw new InvalidArgumentException(
+                'Migrasi database belum dijalankan: kolom tautan akun (users.anak_id) belum ada. '
+                .'Jalankan `php artisan migrate` terlebih dahulu.'
+            );
+        }
+
         $tertaut = User::query()->where('anak_id', $anak->getKey())->first();
 
         if ($tertaut !== null) {
@@ -189,7 +200,12 @@ final class ImportBinaanService
 
         return User::query()
             ->where('user_type', User::ROLE_CLIENT)
-            ->whereNull('anak_id')
+            // Bila kolom tautan belum ada, tidak ada akun yang bisa tertaut,
+            // sehingga semua akun bernama sama dianggap "belum tertaut".
+            ->when(
+                SchemaGuard::usersPunyaTautanAnak(),
+                fn ($query) => $query->whereNull('anak_id'),
+            )
             ->whereRaw('LOWER(name) = ?', [$nama])
             ->exists();
     }

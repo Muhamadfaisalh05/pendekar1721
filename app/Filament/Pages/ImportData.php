@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Filament\Support\PeringatanMigrasi;
 use App\Models\MasterCity;
 use App\Models\MasterEducationDegree;
 use App\Models\MasterTraining;
@@ -150,6 +151,11 @@ class ImportData extends Page implements HasForms
 
     public function mount()
     {
+        // Peringatan sekali per halaman bila migrasi Fase 2 belum dijalankan.
+        // Impor tetap bisa dipakai; hanya penautan ke data anak yang tidak
+        // tersedia sampai kolomnya ada.
+        PeringatanMigrasi::tampilkanSekali();
+
         // FASE 3: pilihan awal = "Remaja Binaan" (akun Draft) supaya akun hasil
         // impor tidak langsung aktif sebelum binaan dinyatakan lulus.
         // Opsi penautan ke data anak juga eksplisit MATI: tidak ada penautan

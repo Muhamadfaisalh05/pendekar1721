@@ -3,6 +3,8 @@
 namespace App\Modules\Absensi\Models;
 
 use App\Models\User;
+use App\Support\Relations\RelasiHasOneKosong;
+use App\Support\SchemaGuard;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -92,11 +94,25 @@ class Anak extends Model
      * tidak punya `$connection` eksplisit, sehingga query akan mencari tabel
      * `users` di database SEMARAK dan gagal.
      *
+     * PENGAMAN SKEMA: bila migrasi Fase 2 (`users.anak_id`) belum dijalankan,
+     * kolom penghubung belum ada sehingga relasi biasa akan gagal dengan
+     * "no such column". Dalam kondisi itu dikembalikan relasi kosong — aman
+     * dipanggil/di-eager-load dan hasilnya selalu null.
+     *
      * @return HasOne<User, $this>
      */
     public function akunKlien(): HasOne
     {
         $akun = new User;
+
+        if (! SchemaGuard::usersPunyaTautanAnak()) {
+            return new RelasiHasOneKosong(
+                $akun->newQuery(),
+                $this,
+                $akun->qualifyColumn('anak_id'),
+                $this->getKeyName(),
+            );
+        }
 
         return new HasOne(
             $akun->newQuery(),

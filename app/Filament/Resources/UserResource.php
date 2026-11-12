@@ -8,6 +8,7 @@ use App\Filament\Resources\UserResource\Pages;
 use App\Filament\Resources\UserResource\RelationManagers;
 use App\Models\User;
 use App\Services\UserAccountService;
+use App\Support\SchemaGuard;
 use Filament\Forms;
 use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\Grid;
@@ -302,16 +303,22 @@ class UserResource extends Resource
                     ->label('Tersedia Kerja')
                     ->sortable(),
                 // FASE 3: penautan ke `semarak.anak` dan penanda alumni.
-                // Disembunyikan default agar tabel tetap ringkas.
-                Tables\Columns\TextColumn::make('anak_id')
-                    ->label('ID Anak (SEMARAK)')
-                    ->placeholder('-')
-                    ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('graduated_at')
-                    ->label('Tanggal Lulus')
-                    ->dateTime('d M Y')
-                    ->placeholder('-')
-                    ->toggleable(isToggledHiddenByDefault: true),
+                // Disembunyikan default agar tabel tetap ringkas. Kedua kolom
+                // hanya dipasang bila migrasi Fase 2 sudah dijalankan, supaya
+                // daftar user tetap terbuka saat migrasi tertunda.
+                ...(SchemaGuard::usersPunyaTautanAnak() ? [
+                    Tables\Columns\TextColumn::make('anak_id')
+                        ->label('ID Anak (SEMARAK)')
+                        ->placeholder('-')
+                        ->toggleable(isToggledHiddenByDefault: true),
+                ] : []),
+                ...(SchemaGuard::usersPunyaTanggalLulus() ? [
+                    Tables\Columns\TextColumn::make('graduated_at')
+                        ->label('Tanggal Lulus')
+                        ->dateTime('d M Y')
+                        ->placeholder('-')
+                        ->toggleable(isToggledHiddenByDefault: true),
+                ] : []),
             ])
             ->filters([
                 //

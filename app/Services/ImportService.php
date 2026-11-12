@@ -8,6 +8,7 @@ use App\Models\MasterEducationDegree;
 use App\Models\MasterTraining;
 use App\Models\User;
 use App\Modules\Absensi\Models\Anak;
+use App\Support\SchemaGuard;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -420,7 +421,10 @@ class ImportService
         // Penautan ke data anak hanya bila diminta operator (checkbox).
         // Peta dihitung sekali di depan dengan fungsi yang sama yang dipakai
         // langkah Preview, sehingga yang ditautkan = yang dilihat operator.
-        $petaTautan = ($modeBinaan && $tautkanAnak)
+        // Penautan ke data anak hanya bila diminta operator (checkbox) DAN
+        // kolom `users.anak_id` sudah ada (migrasi Fase 2). Tanpa kolom itu
+        // seluruh rencana penautan dikosongkan agar impor klien tetap jalan.
+        $petaTautan = ($modeBinaan && $tautkanAnak && SchemaGuard::usersPunyaTautanAnak())
             ? $this->petaTautanAnak($validData)['peta']
             : [];
 
@@ -431,16 +435,23 @@ class ImportService
             foreach ($validData as $data) {
                 $anakId = $petaTautan[Str::lower(trim((string) ($data['email'] ?? '')))] ?? null;
 
-                // 1. Create User
-                $user = User::create([
+                $atributUser = [
                     'name' => $data['name'],
                     'email' => $data['email'],
                     'password' => $modeBinaan ? null : Hash::make($plainPassword),
                     'user_type' => 'client',
                     'status' => $modeBinaan ? UserStatus::Draft : UserStatus::Published,
                     'created_by' => $createdBy,
-                    'anak_id' => $anakId,
-                ]);
+                ];
+
+                // Kolom `anak_id` hanya dikirim bila kolomnya ada; menyertakan
+                // kolom yang belum dimigrasikan membuat INSERT gagal (500).
+                if (SchemaGuard::usersPunyaTautanAnak()) {
+                    $atributUser['anak_id'] = $anakId;
+                }
+
+                // 1. Create User
+                $user = User::create($atributUser);
 
                 if ($anakId !== null) {
                     $totalTertaut++;
@@ -540,6 +551,28 @@ class ImportService
     public function petaTautanAnak(array $validData): array
     {
         $hasil = ['akan' => [], 'tidak' => [], 'peta' => []];
+
+        // PENGAMAN SKEMA: tanpa `users.anak_id` (migrasi Fase 2 tertunda)
+        // belum ada tautan yang mungkin dibuat. Semua baris dilaporkan
+        // "tidak ditautkan" dengan alasan yang bisa dibaca operator.
+        if (! SchemaGuard::usersPunyaTautanAnak()) {
+            foreach ($validData as $baris) {
+                $nama = trim((string) ($baris['name'] ?? ''));
+
+                if ($nama === '') {
+                    continue;
+                }
+
+                $hasil['tidak'][] = [
+                    'row' => $baris['_row_number'] ?? null,
+                    'nama' => $nama,
+                    'email' => trim((string) ($baris['email'] ?? '')),
+                    'alasan' => 'Migrasi database belum dijalankan (kolom users.anak_id belum ada)',
+                ];
+            }
+
+            return $hasil;
+        }
 
         $namaBaris = [];
         foreach ($validData as $baris) {

@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Modules\Absensi\Models\Anak;
 use App\Modules\Absensi\Services\AnakService;
 use App\Services\GraduationService;
+use App\Support\SchemaGuard;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Notifications\Notification;
@@ -97,10 +98,27 @@ class AnakResource extends Resource
 
     public static function table(Table $table): Table
     {
+        // PENGAMAN SKEMA: kolom "Akun Klien" dan eager load-nya hanya dipasang
+        // bila migrasi Fase 2 (`users.anak_id`) sudah dijalankan. Tanpa kolom
+        // itu, relasi `akunKlien` selalu kosong dan query eager load akan gagal.
+        $punyaTautanAnak = SchemaGuard::usersPunyaTautanAnak();
+
+        $kolomAkunKlien = Tables\Columns\TextColumn::make('akun_klien')
+            ->label('Akun Klien')
+            ->badge()
+            ->state(fn (Anak $record): string => static::labelAkunKlien($record))
+            ->color(fn (Anak $record): string => static::warnaAkunKlien($record))
+            ->description(fn (Anak $record): ?string => $record->akunKlien?->email)
+            ->tooltip(fn (Anak $record): ?string => $record->akunKlien === null
+                ? 'Belum ada akun klien tertaut. Gunakan aksi "Luluskan & Aktifkan Akun Klien".'
+                : 'Akun #'.$record->akunKlien->getKey().' — '.static::labelAkunKlien($record));
+
         return $table
             // Eager load akun klien lintas koneksi: satu query tambahan untuk
             // seluruh halaman tabel, bukan satu query per baris (N+1).
-            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with('akunKlien'))
+            ->modifyQueryUsing(fn (Builder $query): Builder => $punyaTautanAnak
+                ? $query->with('akunKlien')
+                : $query)
             ->defaultSort('nama')
             ->columns([
                 Tables\Columns\TextColumn::make('id')
@@ -135,15 +153,9 @@ class AnakResource extends Resource
                         default => 'danger',
                     }),
 
-                Tables\Columns\TextColumn::make('akun_klien')
-                    ->label('Akun Klien')
-                    ->badge()
-                    ->state(fn (Anak $record): string => static::labelAkunKlien($record))
-                    ->color(fn (Anak $record): string => static::warnaAkunKlien($record))
-                    ->description(fn (Anak $record): ?string => $record->akunKlien?->email)
-                    ->tooltip(fn (Anak $record): ?string => $record->akunKlien === null
-                        ? 'Belum ada akun klien tertaut. Gunakan aksi "Luluskan & Aktifkan Akun Klien".'
-                        : 'Akun #'.$record->akunKlien->getKey().' — '.static::labelAkunKlien($record)),
+                // Kolom akun klien hanya ada bila kolom `users.anak_id` sudah
+                // dimigrasikan (lihat $punyaTautanAnak di atas).
+                ...($punyaTautanAnak ? [$kolomAkunKlien] : []),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('angkatan')
@@ -166,6 +178,13 @@ class AnakResource extends Resource
                     ->icon('heroicon-o-academic-cap')
                     ->color('success')
                     ->visible(fn (Anak $record): bool => static::bolehLuluskan($record))
+                    // PENGAMAN SKEMA: bila migrasi Fase 2 belum dijalankan,
+                    // aksi dinonaktifkan (tetap terlihat) dengan tooltip
+                    // penjelas agar operator tahu penyebabnya.
+                    ->disabled(fn (): bool => ! SchemaGuard::usersPunyaKolomAlumni())
+                    ->tooltip(fn (): ?string => SchemaGuard::usersPunyaKolomAlumni()
+                        ? null
+                        : 'Jalankan migrasi database terlebih dahulu')
                     ->modalHeading(fn (Anak $record): string => 'Luluskan '.$record->nama)
                     ->modalDescription(fn (Anak $record): string => static::deskripsiKelulusan($record))
                     ->modalSubmitActionLabel('Luluskan & Aktifkan')

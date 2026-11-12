@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\UserStatus;
 use App\Models\User;
 use App\Modules\Absensi\Models\Anak;
+use App\Support\SchemaGuard;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -38,6 +39,14 @@ final class GraduationService
     /** Panjang kata sandi acak yang diberikan ke alumni. */
     private const PANJANG_PASSWORD = 24;
 
+    /**
+     * Pesan penolakan bila migrasi Fase 2 (`users.anak_id`, `users.graduated_at`)
+     * belum dijalankan. Dipakai UI sebagai isi notifikasi dan oleh tes.
+     */
+    public const PESAN_MIGRASI_TERTUNDA = 'Migrasi database belum dijalankan: kolom tautan akun '
+        .'(users.anak_id) dan tanggal lulus (users.graduated_at) belum ada. '
+        .'Jalankan `php artisan migrate` terlebih dahulu, lalu ulangi proses kelulusan.';
+
     public function __construct(private readonly ImportBinaanService $binaan) {}
 
     /**
@@ -54,7 +63,8 @@ final class GraduationService
      *     graduated_at: Carbon
      * }
      *
-     * @throws InvalidArgumentException bila email tidak valid atau sudah dipakai akun lain
+     * @throws InvalidArgumentException bila email tidak valid, sudah dipakai akun lain,
+     *                                  atau migrasi skema Fase 2 belum dijalankan
      */
     public function luluskan(
         Anak $anak,
@@ -62,6 +72,14 @@ final class GraduationService
         CarbonInterface|string|null $tanggalLulus = null,
         ?int $actorId = null,
     ): array {
+        // PENGAMAN SKEMA: tanpa kolom `users.anak_id` / `users.graduated_at`
+        // (migrasi Fase 2 belum dijalankan) proses ini pasti gagal dengan
+        // error SQL. Ditolak lebih awal dengan pesan yang bisa ditindaklanjuti
+        // operator, bukan "no such column".
+        if (! SchemaGuard::usersPunyaKolomAlumni()) {
+            throw new InvalidArgumentException(self::PESAN_MIGRASI_TERTUNDA);
+        }
+
         $email = Str::lower(trim($email));
         $this->pastikanEmailValid($email);
 

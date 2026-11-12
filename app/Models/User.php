@@ -5,6 +5,7 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Enums\UserStatus;
 use App\Modules\Absensi\Models\Anak;
+use App\Support\SchemaGuard;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Builder;
@@ -143,11 +144,19 @@ class User extends Authenticatable implements FilamentUser
      * bernilai NULL. Backfill `graduated_at` dijalankan terpisah setelah
      * audit produksi selesai (lihat docs/AUDIT-PRODUKSI-USERS.md).
      *
+     * PENGAMAN SKEMA: bila kolom `graduated_at` belum ada (migrasi Fase 2
+     * tertunda), scope mengembalikan hasil kosong (`1 = 0`) alih-alih error
+     * SQL. Dashboard klien otomatis memakai fallback "Angka sementara".
+     *
      * @param  Builder<User>  $query
      * @return Builder<User>
      */
     public function scopeAlumni(Builder $query): Builder
     {
+        if (! SchemaGuard::usersPunyaTanggalLulus()) {
+            return $query->whereRaw('1 = 0');
+        }
+
         return $query
             ->where('user_type', self::ROLE_CLIENT)
             ->where('status', UserStatus::Published->value)
