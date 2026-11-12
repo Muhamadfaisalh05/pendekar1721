@@ -321,7 +321,20 @@ class UserResource extends Resource
                 ] : []),
             ])
             ->filters([
-                //
+                // Saringan status dipakai tautan langsung dari dashboard Admin
+                // ("Perlu Tindakan" → akun Draft):
+                // /admin/users?tableFilters[status][value]=draft
+                Tables\Filters\SelectFilter::make('status')
+                    ->label('Status')
+                    ->options(UserStatus::class),
+
+                Tables\Filters\SelectFilter::make('user_type')
+                    ->label('Jenis User')
+                    ->options([
+                        User::ROLE_ADMIN => 'Administrator Pendekar',
+                        User::ROLE_ADMIN_ABSENSI => 'Admin Absensi (SEMARAK)',
+                        User::ROLE_CLIENT => 'Klien',
+                    ]),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),

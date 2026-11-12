@@ -2,6 +2,12 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Widgets\AdminStatsOverview;
+use App\Filament\Widgets\AksesCepatWidget;
+use App\Filament\Widgets\BinaanPerAngkatanChart;
+use App\Filament\Widgets\KomposisiStatusAkunChart;
+use App\Filament\Widgets\PerluTindakanWidget;
+use App\Filament\Widgets\PertumbuhanAkunChart;
 use App\Http\Middleware\AuthenticatePanel;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
@@ -39,6 +45,15 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
             ->widgets([
+                // Urutan tampil diatur oleh `protected static ?int $sort` masing-masing.
+                // Semua widget dashboard bernilai >= 1 supaya kartu sambutan bawaan
+                // Filament (AccountWidget, sort -3) tetap berada di paling atas.
+                AdminStatsOverview::class,
+                BinaanPerAngkatanChart::class,
+                KomposisiStatusAkunChart::class,
+                PertumbuhanAkunChart::class,
+                PerluTindakanWidget::class,
+                AksesCepatWidget::class,
                 Widgets\AccountWidget::class,
                 // Widgets\FilamentInfoWidget::class,
             ])

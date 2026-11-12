@@ -1,99 +1,232 @@
 <x-filament-panels::page>
     @php
-        $stats = $this->getStatistik();
-        $pelatihanSaya = auth()->user()->userTrainings()->orderBy('title')->get();
+        $stats         = $this->getStatistik();
+        $user          = auth()->user();
+        $pelatihanSaya = $this->getPelatihanSaya();
+        $profil        = $stats['kelengkapan_profil'];
+        $kosong        = $stats['kolom_profil_kosong'];
+        $statusAkun    = $this->getStatusAkun();
+        $inisial       = collect(explode(' ', trim($user->name)))
+            ->filter()
+            ->take(2)
+            ->map(fn ($kata) => strtoupper(mb_substr($kata, 0, 1)))
+            ->implode('');
+
+        // Warna indikator kelengkapan profil (hijau >= 80, kuning >= 50, merah < 50).
+        $warnaProfil = $profil >= 80 ? '#34d399' : ($profil >= 50 ? '#fbbf24' : '#fb7185');
     @endphp
 
-    {{-- Greeting Header --}}
-    <div class="mb-6">
-        <h2 class="text-2xl font-bold tracking-tight text-gray-950 dark:text-white">
-            Selamat Datang, {{ auth()->user()->name }}
-        </h2>
-        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Ringkasan akun dan kegiatan Anda di PENDEKAR 1721.
-        </p>
+    {{-- ============ HERO: salam & status akun (hanya data milik sendiri) ============ --}}
+    <div class="rounded-xl mb-4 flex flex-col md:flex-row items-center gap-4 p-4"
+         style="background: linear-gradient(135deg, #064e3b 0%, #065f46 45%, #047857 100%);">
+
+        <div class="flex items-center justify-center rounded-full flex-none text-2xl font-bold"
+             style="width:3.5rem; height:3.5rem; background:rgba(255,255,255,.92); color:#064e3b;">
+            {{ $inisial }}
+        </div>
+
+        <div class="flex-1 min-w-0">
+            <p class="text-xs font-semibold" style="color:#a7f3d0; letter-spacing:.08em;">Selamat Datang</p>
+            <p class="text-2xl font-bold truncate" style="color:#ffffff;">{{ $user->name }}</p>
+            <p class="text-xs mt-1" style="color:#a7f3d0;">
+                Status akun:
+                <span class="font-semibold" style="color:#ecfdf5;">{{ $statusAkun }}</span>
+                &middot; Panel Klien Pendekar 1721
+            </p>
+        </div>
+
+        <div class="w-full" style="max-width:18rem;">
+            <div class="rounded-lg p-3" style="background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.16);">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-medium" style="color:#d1fae5;">Kelengkapan Profil</span>
+                    <span class="text-sm font-bold" style="color:{{ $warnaProfil }};">{{ $profil }}%</span>
+                </div>
+                <div class="w-full rounded-full overflow-hidden mt-1" style="height:.5rem; background:rgba(255,255,255,.22);">
+                    <div class="rounded-full" style="height:.5rem; width:{{ $profil }}%; background:{{ $warnaProfil }};"></div>
+                </div>
+                <p class="text-xs mt-1" style="color:#a7f3d0;">
+                    @if ($profil >= 100)
+                        Profil Anda sudah lengkap.
+                    @else
+                        {{ count($kosong) }} kolom lagi untuk profil lengkap.
+                    @endif
+                </p>
+            </div>
+        </div>
     </div>
 
-    {{-- Statistik: agregat & milik sendiri, tanpa data pribadi orang lain --}}
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <x-filament::card class="flex items-center">
-            <div class="p-3 bg-primary-100 text-primary-600 rounded-lg dark:bg-primary-500/20 dark:text-primary-400">
-                <x-heroicon-o-users class="w-6 h-6" />
+    {{-- ========================= KARTU RINGKASAN ========================= --}}
+    <div class="grid gap-4 mb-4 md:grid-cols-3">
+
+        {{-- 1. Jumlah Alumni: hanya ANGKA agregat, bukan data orang lain --}}
+        <div class="rounded-xl p-4 border shadow-sm" style="background:#ffffff; border-color:#e5e7eb;">
+            <div class="flex items-center gap-3">
+                <span class="flex items-center justify-center rounded-lg flex-none"
+                      style="width:2.5rem; height:2.5rem; background:#ecfdf5; color:#047857;">
+                    <x-filament::icon icon="heroicon-o-users" class="h-5 w-5" />
+                </span>
+                <div class="min-w-0">
+                    <p class="text-xs font-semibold" style="color:#6b7280;">Jumlah Alumni</p>
+                    <p class="text-2xl font-bold" style="color:#111827;">{{ $stats['total_alumni'] }}</p>
+                </div>
             </div>
-            <div class="ml-4">
-                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Jumlah Alumni</p>
-                <p class="text-2xl font-semibold text-gray-900 dark:text-white">{{ $stats['total_alumni'] }}</p>
+            <div class="mt-1">
                 @if ($stats['total_alumni_belum_final'])
-                    {{-- Fallback: definisi lama (client + published) sampai `users.graduated_at` terisi lewat backfill. --}}
-                    <p class="text-[11px] leading-tight text-warning-600 dark:text-warning-400">
+                    <span class="inline-flex items-center gap-1 rounded-full text-xs font-semibold"
+                          style="background:#fffbeb; color:#b45309; padding:.15rem .5rem;">
+                        <x-filament::icon icon="heroicon-m-clock" class="h-4 w-4" />
                         Angka sementara (belum final)
-                    </p>
+                    </span>
+                @else
+                    <span class="inline-flex items-center gap-1 rounded-full text-xs font-semibold"
+                          style="background:#ecfdf5; color:#047857; padding:.15rem .5rem;">
+                        <x-filament::icon icon="heroicon-m-check-circle" class="h-4 w-4" />
+                        Data final
+                    </span>
                 @endif
             </div>
-        </x-filament::card>
+        </div>
 
-        <x-filament::card class="flex items-center">
-            <div class="p-3 bg-info-100 text-info-600 rounded-lg dark:bg-info-500/20 dark:text-info-400">
-                <x-heroicon-o-academic-cap class="w-6 h-6" />
+        {{-- 2. Pelatihan Saya --}}
+        <div class="rounded-xl p-4 border shadow-sm" style="background:#ffffff; border-color:#e5e7eb;">
+            <div class="flex items-center gap-3">
+                <span class="flex items-center justify-center rounded-lg flex-none"
+                      style="width:2.5rem; height:2.5rem; background:#eff6ff; color:#1d4ed8;">
+                    <x-filament::icon icon="heroicon-o-academic-cap" class="h-5 w-5" />
+                </span>
+                <div class="min-w-0">
+                    <p class="text-xs font-semibold" style="color:#6b7280;">Pelatihan Saya</p>
+                    <p class="text-2xl font-bold" style="color:#111827;">{{ $stats['pelatihan_saya'] }}</p>
+                </div>
             </div>
-            <div class="ml-4">
-                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Pelatihan Saya</p>
-                <p class="text-2xl font-semibold text-gray-900 dark:text-white">{{ $stats['pelatihan_saya'] }}</p>
-            </div>
-        </x-filament::card>
+            <p class="text-xs mt-1" style="color:#6b7280;">Program pelatihan yang Anda ikuti</p>
+        </div>
 
-        <x-filament::card class="flex items-center">
-            <div class="p-3 bg-success-100 text-success-600 rounded-lg dark:bg-success-500/20 dark:text-success-400">
-                <x-heroicon-o-identification class="w-6 h-6" />
+        {{-- 3. Kelengkapan Profil --}}
+        <div class="rounded-xl p-4 border shadow-sm" style="background:#ffffff; border-color:#e5e7eb;">
+            <div class="flex items-center gap-3">
+                <span class="flex items-center justify-center rounded-lg flex-none"
+                      style="width:2.5rem; height:2.5rem; background:#f5f3ff; color:#6d28d9;">
+                    <x-filament::icon icon="heroicon-o-identification" class="h-5 w-5" />
+                </span>
+                <div class="min-w-0">
+                    <p class="text-xs font-semibold" style="color:#6b7280;">Kelengkapan Profil</p>
+                    <p class="text-2xl font-bold" style="color:#111827;">{{ $profil }}%</p>
+                </div>
             </div>
-            <div class="ml-4">
-                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Kelengkapan Profil</p>
-                <p class="text-2xl font-semibold text-gray-900 dark:text-white">{{ $stats['kelengkapan_profil'] }}%</p>
+            <div class="w-full rounded-full overflow-hidden mt-1" style="height:.5rem; background:#e5e7eb;">
+                <div class="rounded-full" style="height:.5rem; width:{{ $profil }}%; background:{{ $warnaProfil }};"></div>
             </div>
-        </x-filament::card>
+        </div>
     </div>
 
-    {{-- Konten milik sendiri --}}
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-        <x-filament::card>
-            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Pelatihan yang Anda Ikuti</h3>
+    {{-- =================== PELATIHAN SAYA + LENGKAPI PROFIL =================== --}}
+    <div class="grid gap-4 mb-4 md:grid-cols-2">
 
-            @if ($pelatihanSaya->isNotEmpty())
-                <ul class="space-y-2 text-sm text-gray-700 dark:text-gray-300">
-                    @foreach ($pelatihanSaya as $pelatihan)
-                        <li class="flex items-center gap-2">
-                            <x-heroicon-o-check-circle class="w-4 h-4 text-success-600" />
-                            {{ $pelatihan->title }}
-                        </li>
-                    @endforeach
-                </ul>
-            @else
-                <div class="flex flex-col items-center justify-center py-8 text-gray-500">
-                    <x-heroicon-o-inbox class="w-12 h-12 mb-3 text-gray-400" />
-                    <p>Belum ada pelatihan yang tercatat untuk akun Anda.</p>
+        {{-- Daftar pelatihan milik sendiri (read-only) --}}
+        <div class="rounded-xl border shadow-sm overflow-hidden" style="background:#ffffff; border-color:#e5e7eb;">
+            <div class="flex items-center justify-between p-4 border-b" style="border-color:#f3f4f6;">
+                <div class="flex items-center gap-2">
+                    <span class="flex items-center justify-center rounded-lg"
+                          style="width:2rem; height:2rem; background:#eff6ff; color:#1d4ed8;">
+                        <x-filament::icon icon="heroicon-o-academic-cap" class="h-4 w-4" />
+                    </span>
+                    <p class="text-sm font-semibold" style="color:#111827;">Pelatihan Saya</p>
                 </div>
-            @endif
-        </x-filament::card>
-
-        <x-filament::card class="bg-primary-50 border-primary-100 dark:bg-primary-900/10 dark:border-primary-800">
-            <div class="flex items-start gap-3">
-                <x-heroicon-o-information-circle class="w-5 h-5 text-primary-600 dark:text-primary-400 mt-0.5" />
-                <div>
-                    <h4 class="text-sm font-semibold text-primary-900 dark:text-primary-300 mb-1">Lengkapi Profil Anda</h4>
-                    <p class="text-xs text-primary-700 dark:text-primary-400 leading-relaxed mb-3">
-                        Data profil membantu admin menyalurkan Anda ke pelatihan dan penempatan kerja yang sesuai.
-                        Perbarui data diri, pendidikan, dan pengalaman kerja Anda secara berkala.
-                    </p>
-                    <x-filament::button
-                        tag="a"
-                        href="{{ \App\Filament\Client\Pages\UserProfileEditPage::getUrl() }}"
-                        icon="heroicon-o-pencil-square"
-                        size="sm"
-                    >
-                        Ubah Profil
-                    </x-filament::button>
-                </div>
+                <span class="rounded-full text-xs" style="background:#f3f4f6; color:#4b5563; padding:.15rem .5rem;">
+                    {{ $pelatihanSaya->count() }} program
+                </span>
             </div>
-        </x-filament::card>
+
+            <div class="p-4">
+                @if ($pelatihanSaya->isNotEmpty())
+                    <ul>
+                        @foreach ($pelatihanSaya as $pelatihan)
+                            <li class="flex items-center gap-2 rounded-lg p-3" style="background:#f9fafb; margin-bottom:.5rem;">
+                                <x-filament::icon icon="heroicon-m-check-circle" class="h-4 w-4 flex-none" style="color:#059669;" />
+                                <span class="text-sm truncate" style="color:#374151;">{{ $pelatihan->title }}</span>
+                            </li>
+                        @endforeach
+                    </ul>
+                @else
+                    <div class="flex flex-col items-center justify-center text-center" style="padding:1.75rem 0;">
+                        <span class="flex items-center justify-center rounded-full"
+                              style="width:3rem; height:3rem; background:#f3f4f6; color:#9ca3af;">
+                            <x-filament::icon icon="heroicon-o-inbox" class="h-5 w-5" />
+                        </span>
+                        <p class="text-sm font-semibold mt-1" style="color:#4b5563;">Belum ada data pelatihan</p>
+                        <p class="text-xs" style="color:#9ca3af;">Data pelatihan diisi oleh admin Pendekar 1721.</p>
+                    </div>
+                @endif
+            </div>
+        </div>
+
+        {{-- Lengkapi profil: daftar kolom kosong + tombol --}}
+        <div class="rounded-xl border shadow-sm overflow-hidden" style="background:#ffffff; border-color:#e5e7eb;">
+            <div class="flex items-center gap-2 p-4 border-b" style="border-color:#f3f4f6;">
+                <span class="flex items-center justify-center rounded-lg"
+                      style="width:2rem; height:2rem; background:#fffbeb; color:#b45309;">
+                    <x-filament::icon icon="heroicon-o-identification" class="h-4 w-4" />
+                </span>
+                <p class="text-sm font-semibold" style="color:#111827;">Lengkapi Profil</p>
+            </div>
+
+            <div class="p-4">
+                <p class="text-sm" style="color:#374151;">
+                    Profil Anda terisi <span class="font-bold" style="color:#047857;">{{ $profil }}%</span>.
+                    Profil lengkap memudahkan penyaluran kerja dan pelatihan yang sesuai.
+                </p>
+
+                @if ($kosong !== [])
+                    <p class="text-xs font-semibold mt-1" style="color:#6b7280;">Yang masih kosong:</p>
+                    <ul class="mt-1">
+                        @foreach ($kosong as $label)
+                            <li class="flex items-center gap-2 text-xs" style="color:#b45309; margin-bottom:.25rem;">
+                                <x-filament::icon icon="heroicon-m-exclamation-circle" class="h-4 w-4 flex-none" />
+                                {{ $label }}
+                            </li>
+                        @endforeach
+                    </ul>
+                @else
+                    <p class="text-xs mt-1" style="color:#047857;">Semua kolom wajib sudah terisi. Terima kasih!</p>
+                @endif
+
+                <a href="{{ \App\Filament\Client\Pages\UserProfileEditPage::getUrl() }}"
+                   class="inline-flex items-center gap-2 rounded-lg text-xs font-semibold mt-1"
+                   style="background:#047857; color:#ffffff; padding:.5rem .9rem;">
+                    <x-filament::icon icon="heroicon-m-pencil-square" class="h-4 w-4" />
+                    Lengkapi Profil
+                </a>
+            </div>
+        </div>
+    </div>
+
+
+    {{-- =========================== AKSES CEPAT =========================== --}}
+    <div class="rounded-xl border shadow-sm p-4" style="background:#ffffff; border-color:#e5e7eb;">
+        <div class="flex items-center gap-2 mb-4">
+            <span class="flex items-center justify-center rounded-lg"
+                  style="width:2rem; height:2rem; background:#ecfdf5; color:#047857;">
+                <x-filament::icon icon="heroicon-o-bolt" class="h-4 w-4" />
+            </span>
+            <p class="text-sm font-semibold" style="color:#111827;">Akses Cepat</p>
+        </div>
+
+        <div class="grid gap-4 md:grid-cols-3">
+            @foreach ($this->getTautanCepat() as $tautan)
+                <a href="{{ $tautan['url'] }}" class="flex items-start gap-3 rounded-xl border p-4"
+                   style="border-color:#e5e7eb; background:#ffffff;">
+                    <span class="flex items-center justify-center rounded-lg flex-none"
+                          style="width:2.5rem; height:2.5rem; background:#f0fdf4; color:#047857;">
+                        <x-filament::icon :icon="$tautan['ikon']" class="h-5 w-5" />
+                    </span>
+                    <span class="min-w-0">
+                        <span class="block text-sm font-semibold" style="color:#111827;">{{ $tautan['label'] }}</span>
+                        <span class="block text-xs mt-1" style="color:#6b7280;">{{ $tautan['keterangan'] }}</span>
+                    </span>
+                </a>
+            @endforeach
+        </div>
     </div>
 </x-filament-panels::page>
+

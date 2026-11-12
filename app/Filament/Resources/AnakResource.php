@@ -171,6 +171,19 @@ class AnakResource extends Resource
                         Anak::STATUS_NON_AKTIF => Anak::STATUS_NON_AKTIF,
                         Anak::STATUS_LULUS => Anak::STATUS_LULUS,
                     ]),
+
+                // Saringan ini dipakai tautan "Anak Tanpa Akun Klien" pada
+                // dashboard Admin. Hanya dipasang bila kolom tautan akun
+                // (users.anak_id) sudah dimigrasikan; tanpa kolom itu query
+                // akan gagal dengan "no such column".
+                ...($punyaTautanAnak ? [
+                    Tables\Filters\Filter::make('tanpa_akun')
+                        ->label('Belum punya akun Klien')
+                        ->query(fn (Builder $query): Builder => $query->whereNotIn(
+                            'id',
+                            User::query()->whereNotNull('anak_id')->pluck('anak_id')->all(),
+                        )),
+                ] : []),
             ])
             ->actions([
                 Tables\Actions\Action::make('luluskan')

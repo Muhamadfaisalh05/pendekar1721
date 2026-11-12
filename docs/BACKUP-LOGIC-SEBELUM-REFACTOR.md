@@ -1171,3 +1171,114 @@ mempertahankan keputusan §15.2 butir 2 (penautan **opt-in**, tidak pernah meneb
 | Pemeriksaan manual template | `.xlsx` dibuka ulang dengan PhpSpreadsheet (sheet, header, dropdown, freeze) dan `.docx` dengan PhpWord/`ZipArchive` (header1/footer1, `tblHeader`, tanpa `gridSpan`) — semua sesuai |
 
 
+
+## 19. Proteksi area isian template Excel & desain ulang dashboard Admin/Klien (12 Nov 2026)
+
+Lingkup: `app/Support/Import/TemplateExcel.php` + `tests/Feature/Graduation/TemplateImportTest.php` (Pekerjaan 1), lalu
+dashboard **Admin** (`/admin`) dan **Klien** (`/klien`) beserta tesnya (Pekerjaan 2). Tidak ada perubahan skema, tidak
+ada backfill `graduated_at`, dan **tidak ada** berkas modul absensi/font WIP yang disentuh.
+
+### 19.1 Bug: sel sheet DATA template Excel tidak bisa diedit
+
+| Temuan | Dampak |
+|---|---|
+| Sheet DATA diproteksi, tetapi **hanya baris 5-204** yang di-`UNPROTECTED`; baris CONTOH (baris 4) tetap mewarisi default → terkunci | Operator yang memilih/mengubah/menghapus baris CONTOH mendapat pesan Excel *"The cell or chart you're trying to change is on a protected sheet"*; file tidak pernah bisa diimpor karena baris CONTOH wajib dihapus |
+| Izin aksi pada sheet terproteksi tidak dibuka (`autoFilter`, `sort`, `formatColumns/Rows`, `insertRows`, `deleteRows`, `selectLockedCells`) | Autofilter, pengurutan, pengaturan lebar kolom, serta sisip/hapus baris ditolak Excel walau areanya sudah tidak terkunci |
+| Header kolom hanya "mewarisi" default (bukan dikunci eksplisit) | Perilaku terkunci bergantung pada default gaya sel; tidak eksplisit di berkas |
+
+Perbaikan (`TemplateExcel::tulisData()` & `TemplateExcel::pasangCetakDanProteksi()`):
+
+1. **Header (baris 3) dikunci eksplisit** (`Locked = PROTECTED`) supaya nama/urutan kolom yang dibaca parser tidak tertimpa.
+2. **Kolom No (A4:A204) tetap `PROTECTED`** karena berisi rumus `=ROW()-4`.
+3. **Area isian B4:S204 di-`UNPROTECTED`** — sekarang **termasuk baris CONTOH**, sehingga operator bisa mengedit,
+   menimpa, dan menghapus baris contoh.
+4. **Izin aksi dibuka** (`false` = diizinkan): `autoFilter`, `sort`, `formatColumns`, `formatRows`, `insertRows`,
+   `deleteRows`, `selectLockedCells`, `selectUnlockedCells`. Hasil di XML:
+   `<sheetProtection sheet="1" formatColumns="0" formatRows="0" insertRows="0" deleteRows="0" sort="0" autoFilter="0" selectLockedCells="0" selectUnlockedCells="0"/>`.
+5. Sheet **PETUNJUK** dan **DAFTAR** tetap terproteksi penuh (sumber dropdown tidak boleh diubah).
+6. **Dropdown/validasi tidak berubah** — 11 `dataValidation` tetap terpasang setelah perubahan proteksi.
+7. **Template Word** diperiksa: `.docx` tidak memuat `documentProtection` (tidak ada padanan "protected sheet" di Word,
+   dan proteksi akan memblokir pengisian tabel DATA). Dikunci oleh tes baru.
+8. **Mode Klien Umum memakai berkas template yang sama** (satu `TemplateExcel`; perbedaan mode hanya pada kolom wajib
+   yang ditandai `*`), jadi perbaikan ini otomatis berlaku untuk kedua mode.
+
+Tes regresi baru di `tests/Feature/Graduation/TemplateImportTest.php`:
+
+| Tes | Isi |
+|---|---|
+| `test_area_isian_sheet_data_terbuka_dan_izin_aksi_lengkap` | (a) `B4` dan `B5`/`C5`/`K204`/`S204` berstatus `UNPROTECTED`; (b) header baris 3 dan kolom No (`A5`, `A204`) `PROTECTED` saat sheet diproteksi; (c) PETUNJUK & DAFTAR terproteksi; (d) 8 izin aksi terbuka; (e) dropdown/validasi & autofilter masih ada |
+| `test_template_word_tidak_memakai_proteksi_dokumen` | `word/settings.xml` & `word/document.xml` tidak memuat `documentProtection` |
+
+Commit Pekerjaan 1: **`53f25bab` - `fix(import): area isian template Excel tidak boleh terkunci`**.
+
+
+### 19.2 Dashboard Admin (`/admin`)
+
+| Berkas | Peran |
+|---|---|
+| `app/Support/StatistikAlumni.php` | **Baru.** Satu-satunya tempat menghitung angka alumni (`alumni()->count()`, fallback `client + published` + `belum_final`) — dipakai dashboard Admin **dan** Klien supaya angkanya tidak pernah berbeda |
+| `app/Services/DasborAdminService.php` | **Baru.** Semua angka dashboard: `anak_aktif`, `siap_diluluskan`, `akun_draft`, `alumni`, `total_klien`, `admin`, grafik (binaan per angkatan, komposisi status, pertumbuhan 12 bulan), dan `perlu_tindakan`. Satu cache **5 menit** (`dashboard:admin:ringkasan:v1`), hanya COUNT/GROUP BY lintas database, tanpa N+1 |
+| `app/Filament/Widgets/AdminStatsOverview.php` | 6 kartu: Anak Binaan Aktif, Siap Diluluskan, Akun Draft (dengan tautan terfilter), Alumni (dengan label "Angka sementara (belum final)"), Total Akun Klien, Admin |
+| `app/Filament/Widgets/BinaanPerAngkatanChart.php` | Grafik **batang** 10 angkatan terbesar |
+| `app/Filament/Widgets/KomposisiStatusAkunChart.php` | Grafik **donat** Draft/Aktif/Diarsipkan |
+| `app/Filament/Widgets/PertumbuhanAkunChart.php` | Grafik **garis** 12 bulan akun Klien baru (satu query `GROUP BY`, ekspresi bulan menyesuaikan driver) |
+| `app/Filament/Widgets/PerluTindakanWidget.php` + `resources/views/filament/widgets/perlu-tindakan.blade.php` | Panel "Perlu Tindakan": akun Draft, status migrasi Fase 2, anak aktif tanpa akun Klien — hanya jumlah + tautan terfilter |
+| `app/Filament/Widgets/AksesCepatWidget.php` + `resources/views/filament/widgets/akses-cepat.blade.php` | Import Data, Anak Binaan, User, Kegiatan |
+| `app/Filament/Resources/UserResource.php` | Filter baru `status` & `user_type` (dipakai tautan `?tableFilters[status][value]=draft`) |
+| `app/Filament/Resources/AnakResource.php` | Filter baru "Belum punya akun Klien" (hanya dipasang bila `users.anak_id` sudah ada) |
+| `app/Providers/Filament/AdminPanelProvider.php` | Registrasi 6 widget baru (urutan via `$sort`) |
+
+Keputusan penting:
+
+- **Definisi "Siap Diluluskan"**: anak `Aktif` pada angkatan yang `masa_pembinaan.tanggal_selesai <= hari ini` —
+  memakai aturan yang sama dengan `PembinaanService::luluskanAngkatanSelesai()`, bukan ambang umur karangan.
+  Bila tabel/koneksi belum ada -> `null` -> kartu menampilkan **"Data belum tersedia"**.
+- **Privasi**: seluruh data dashboard adalah agregat; tidak ada nama/email pengguna yang dibaca atau dikirim ke view
+  (dikunci tes).
+- **Ketahanan**: semua query lintas database `semarak` dibungkus `try/catch`; bagian yang gagal menjadi `null`
+  ("Data belum tersedia"), bukan 500. Kolom Fase 2 tetap lewat `SchemaGuard` (pola Â§17).
+- **Kinerja**: widget dirender **non-lazy** (`$isLazy = false`) supaya angka tampil pada paint pertama — aman karena
+  hasilnya berasal dari cache 5 menit.
+- **Urutan & lebar widget** (semua `$sort >= 1` agar kartu sambutan bawaan `AccountWidget` dengan `sort = -3` tetap
+  paling atas): `1` AdminStatsOverview (lebar penuh, 6 kartu), `2` grafik batang binaan (lebar penuh), `3` grafik
+  donat komposisi status (`1` kolom) berdampingan dengan `4` grafik garis pertumbuhan (`lg` 2 kolom), `5` Perlu
+  Tindakan (lebar penuh — memuat 3 panel `md:grid-cols-3`), `6` Akses Cepat (lebar penuh).
+- **Catatan CSS**: panel Admin/Klien memakai CSS bawaan Filament (tanpa tema Tailwind kustom), sehingga kelas warna
+  arbitrer (`bg-amber-50`, `md:grid-cols-3`, dst.) tidak ikut ter-compile. Karena itu warna pada panel baru memakai
+  **inline style** dan hanya kelas layout yang benar-benar ada di `filament/dist/theme.css`.
+
+### 19.3 Dashboard Klien (`/klien`)
+
+| Bagian | Isi |
+|---|---|
+| Hero | "Selamat Datang" + nama pemilik akun, **status akun** (Aktif / Menunggu aktivasi / Diarsipkan), bar kelengkapan profil |
+| Kartu ringkasan | **Jumlah Alumni** (label "Angka sementara (belum final)" selama backfill belum berjalan), **Pelatihan Saya**, **Kelengkapan Profil** (persen + progress bar) |
+| Kelengkapan Profil | Persen + daftar **kolom yang masih kosong** + tombol **"Lengkapi Profil"**. Persentase & daftar dihitung dari satu sumber (`Dashboard::FIELD_PROFIL`), jadi tidak mungkin berbeda |
+| Pelatihan Saya | Daftar pelatihan **milik sendiri** (read-only) + keadaan kosong "Belum ada data pelatihan" |
+| Akses Cepat | Hanya **Ubah Profil** & **Data Pelatihan**; **Data Alumni** hanya bila `pendekar.alumni.directory_enabled` = true |
+
+Perubahan pendukung: `statistikAlumni()` kini mendelegasikan ke `App\Support\StatistikAlumni` (perilaku & label tidak
+berubah), ditambah `getKolomProfilKosong()`, `getPelatihanSaya()`, `getStatusAkun()`, dan `getTautanCepat()`.
+PRIVASI: dashboard tetap tidak pernah menampilkan nama/email/telepon orang lain dan tidak menambah tabel orang lain
+(`tests/Feature/Security/ClientDashboardPrivacyTest.php` tetap hijau tanpa perubahan).
+
+
+### 19.4 Tes & verifikasi Pekerjaan 2
+
+| Berkas tes | Cakupan |
+|---|---|
+| `tests/Feature/Dashboard/AdminDashboardTest.php` (5 tes) | `/admin` 200 untuk admin; **tidak** memuat nama/email pengguna lain (admin kedua & klien); angka ringkasan sesuai data; "Data belum tersedia" saat database SEMARAK belum siap; **klien tidak bisa membuka `/admin`** (403) |
+| `tests/Feature/Dashboard/AdminDashboardSchemaGuardTest.php` (3 tes) | (`AbsensiTestCase`) `/admin` tetap 200 & jujur saat `users.anak_id`/`graduated_at` dilepas (pola `PengamanSkemaFase2Test`); angka binaan/siap diluluskan/"tanpa akun" diambil dari `semarak`; cache 5 menit benar-benar dipakai & `lupakan()` menyegarkan |
+| `tests/Feature/Dashboard/ClientDashboardTest.php` (7 tes) | Sapaan + status akun; tidak memuat data/pelatihan klien lain; persentase kelengkapan profil 20% -> 40% beserta daftar kolom kosong; pelatihan read-only + keadaan kosong; **urutan bagian** (hero sebelum kartu ringkasan sebelum pelatihan sebelum akses cepat — penjaga regresi tata letak); akses cepat Alumni mengikuti config |
+
+| Verifikasi | Hasil |
+|---|---|
+| `php artisan test` (seluruh suite) | **163 passed (846 assertions)**, 0 gagal — termasuk `ClientDashboardPrivacyTest`, `AlumniStatistikDashboardTest`, `ClientPanelMenuTest`, `PengamanSkemaFase2Test`, `TemplateImportTest`, serta seluruh tes modul Absensi (dashboard absensi **tidak berubah**) |
+| `vendor/bin/pint --test` (17 berkas berubah/baru) | **PASS** — `pint` hanya merapikan gaya (line ending, urutan `use`, `unary_operator_spaces`, docblock `Collection<int, MasterTraining>`); tidak ada perubahan perilaku |
+| `php artisan tinker` pada database dev (MySQL) | `DasborAdminService::ringkasan()` berjalan tanpa error pada skema nyata: `anak_aktif=6`, `siap_diluluskan=0`, `alumni=1 (belum_final=false)`, `total_klien=2`, `admin=2`, grafik 12 bulan terisi |
+| Tangkapan layar | Tidak tersedia: tidak ada browser headless di lingkungan ini (Playwright/Puppeteer tidak terpasang, `node_modules/.bin/playwright` tidak ada). Verifikasi visual dilakukan lewat markup + kelas CSS yang sudah dipastikan ada di `filament/dist/theme.css` |
+
+Catatan: dashboard modul Absensi (`/absensi`), `routes/absensi.php`, `ApiController`, `EnsureAbsensiAdmin`,
+`database/migrations/semarak/*`, serta aset self-host font/WIP absensi **tidak disentuh** sama sekali oleh Pekerjaan 1
+maupun Pekerjaan 2.
+
