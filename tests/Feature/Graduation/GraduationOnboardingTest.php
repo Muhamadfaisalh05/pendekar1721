@@ -3,6 +3,8 @@
 namespace Tests\Feature\Graduation;
 
 use App\Enums\UserStatus;
+use App\Filament\Resources\AnakResource;
+use App\Filament\Resources\AnakResource\Pages\ManageAnak;
 use App\Models\User;
 use App\Modules\Absensi\Models\Anak;
 use App\Services\GraduationService;
@@ -10,6 +12,7 @@ use App\Services\ImportBinaanService;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
+use Livewire\Livewire;
 use RuntimeException;
 use Tests\Support\Absensi\AbsensiTestCase;
 
@@ -234,5 +237,122 @@ class GraduationOnboardingTest extends AbsensiTestCase
             ->withArgs(fn (string $pesan, array $konteks = []): bool => $pesan === 'graduation.rollback'
                 && ($konteks['anak_id'] ?? null) === 'AN-006')
             ->atLeast()->once();
+    }
+
+    /**
+     * Syarat 3 (UI): aksi "Luluskan & Aktifkan Akun Klien" mengaktifkan akun
+     * dan menampilkan kata sandi sementara SATU kali lewat modal.
+     */
+    public function test_aksi_luluskan_di_panel_menampilkan_kata_sandi_sekali(): void
+    {
+        $admin = $this->admin();
+        $anak = $this->anak('AN-002');
+
+        $this->actingAs($admin);
+
+        $komponen = Livewire::test(ManageAnak::class)
+            ->callTableAction('luluskan', $anak->getKey(), ['email' => 'Doddy@Example.test']);
+
+        $komponen->assertHasNoTableActionErrors();
+
+        $user = User::query()->where('anak_id', 'AN-002')->firstOrFail();
+
+        $this->assertSame(UserStatus::Published, $user->status);
+        $this->assertSame('doddy@example.test', $user->email);
+        $this->assertNotNull($user->graduated_at);
+        $this->assertSame(Anak::STATUS_LULUS, $anak->fresh()->status);
+
+        // Modal kata sandi menggantikan modal form (bukan menumpuk di atasnya).
+        $komponen->assertSet('mountedTableActions', ['kataSandiSekali']);
+
+        $password = $komponen->get('mountedTableActionsArguments.0.password');
+
+        $this->assertIsString($password);
+        $this->assertNotSame('', $password);
+        $this->assertTrue(Hash::check($password, $user->fresh()->password));
+        $komponen->assertSee($password);
+
+        // Kata sandi tidak tersimpan sebagai plaintext di kolom mana pun.
+        $this->assertNotSame($password, $user->fresh()->getRawOriginal('password'));
+    }
+
+    /**
+     * Syarat 1 (UI): email milik akun lain ditolak, data tidak berubah, dan
+     * modal tetap terbuka agar admin bisa memperbaiki email.
+     */
+    public function test_aksi_luluskan_menolak_email_milik_akun_lain(): void
+    {
+        $admin = $this->admin();
+        $pemilik = $this->klien(['email' => 'sudah-dipakai@example.test']);
+        $anak = $this->anak('AN-003');
+
+        $this->actingAs($admin);
+
+        Livewire::test(ManageAnak::class)
+            ->callTableAction('luluskan', $anak->getKey(), ['email' => 'sudah-dipakai@example.test'])
+            ->assertNotified('Kelulusan gagal')
+            ->assertSet('mountedTableActions', ['luluskan']);
+
+        $this->assertSame(Anak::STATUS_AKTIF, $anak->fresh()->status);
+        $this->assertNull(User::query()->where('anak_id', 'AN-003')->first());
+        $this->assertSame(UserStatus::Published, $pemilik->fresh()->status);
+        $this->assertNull($pemilik->fresh()->graduated_at);
+    }
+
+    /**
+     * Aksi kelulusan hanya untuk Administrator Pendekar dan anak yang belum Lulus.
+     */
+    public function test_aksi_luluskan_hanya_untuk_admin_dan_anak_belum_lulus(): void
+    {
+        $admin = $this->admin();
+        $adminAbsensi = User::create([
+            'name' => 'Admin Absensi',
+            'email' => 'admin-absensi-graduation@example.test',
+            'password' => 'Rahasia#12345',
+            'user_type' => User::ROLE_ADMIN_ABSENSI,
+            'status' => UserStatus::Published,
+        ]);
+        $anak = $this->anak('AN-002');
+
+        $this->assertTrue(AnakResource::bolehLuluskan($anak, $admin));
+        $this->assertFalse(AnakResource::bolehLuluskan($anak, $adminAbsensi));
+        $this->assertFalse(AnakResource::bolehLuluskan($anak, $this->klien()));
+        $this->assertFalse(AnakResource::bolehLuluskan($anak, null));
+
+        $anak->forceFill(['status' => Anak::STATUS_LULUS])->save();
+
+        $this->assertFalse(
+            AnakResource::bolehLuluskan($anak->fresh(), $admin),
+            'Anak yang sudah Lulus tidak boleh diluluskan lagi lewat tombol.'
+        );
+    }
+
+    /**
+     * Kolom "Akun Klien" membaca relasi lintas koneksi `anak.akunKlien`.
+     */
+    public function test_kolom_akun_klien_menampilkan_status_akun_tertaut(): void
+    {
+        $admin = $this->admin();
+
+        $draft = app(ImportBinaanService::class)->pastikanAkunBinaan($this->anak('AN-002'), $admin->id)['user'];
+        $aktif = $this->klien(['name' => 'Isti Komah Insani', 'email' => 'isti@example.test', 'anak_id' => 'AN-004']);
+
+        $this->actingAs($admin);
+
+        Livewire::test(ManageAnak::class)
+            ->assertSee('Akun Klien')
+            ->assertSee('isti@example.test');
+
+        $this->assertSame('Draft', AnakResource::labelAkunKlien($this->anak('AN-002')));
+        $this->assertSame('warning', AnakResource::warnaAkunKlien($this->anak('AN-002')));
+        $this->assertSame('Aktif', AnakResource::labelAkunKlien($this->anak('AN-004')));
+        $this->assertSame('success', AnakResource::warnaAkunKlien($this->anak('AN-004')));
+        $this->assertSame('Belum ada', AnakResource::labelAkunKlien($this->anak('AN-003')));
+        $this->assertSame('gray', AnakResource::warnaAkunKlien($this->anak('AN-003')));
+
+        // Relasi lintas database mengembalikan akun yang benar.
+        $this->assertTrue($this->anak('AN-002')->akunKlien->is($draft));
+        $this->assertTrue($this->anak('AN-004')->akunKlien->is($aktif));
+        $this->assertNull($this->anak('AN-003')->akunKlien);
     }
 }

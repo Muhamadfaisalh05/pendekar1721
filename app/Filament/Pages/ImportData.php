@@ -2,21 +2,21 @@
 
 namespace App\Filament\Pages;
 
-use Filament\Pages\Page;
+use App\Models\MasterCity;
+use App\Models\MasterEducationDegree;
+use App\Models\MasterTraining;
+use App\Services\ImportService;
 use Filament\Forms;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Notifications\Notification;
+use Filament\Pages\Page;
 use Illuminate\Support\Facades\Storage;
 use Livewire\WithFileUploads;
-use App\Services\ImportService;
-use App\Models\MasterCity;
-use App\Models\MasterEducationDegree;
-use App\Models\MasterTraining;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpWord\IOFactory;
 use PhpOffice\PhpWord\PhpWord;
-use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ImportData extends Page implements HasForms
 {
@@ -24,17 +24,52 @@ class ImportData extends Page implements HasForms
     use WithFileUploads;
 
     protected static ?string $navigationIcon = 'heroicon-o-arrow-up-tray';
+
     protected static ?string $navigationLabel = 'Import Data';
+
     protected static ?string $title = 'Import Data Klien';
+
     protected static ?string $slug = 'import-data';
+
     protected static ?int $navigationSort = 100;
+
     protected static ?string $navigationGroup = 'Manajemen Klien';
 
     protected static string $view = 'filament.pages.import-data';
 
     public $file;
+
     public $previewData = null;
+
     public $isProcessing = false;
+
+    /**
+     * Mode import (FASE 3): `binaan` → akun Draft, `klien` → akun langsung aktif.
+     *
+     * Dideklarasikan sebagai properti publik karena form halaman ini memakai
+     * state path kosong (setiap field = properti komponen, seperti `$file`).
+     */
+    public $mode;
+
+    /**
+     * Foto profil hasil unggah (opsional).
+     *
+     * Properti ini WAJIB ada: form halaman memakai state path kosong, sehingga
+     * tanpa properti publik di sini Filament melempar
+     * "No property found for validation: [photos]" saat getState().
+     */
+    public $photos = [];
+
+    /** Kata sandi awal opsional untuk peserta (mode klien). */
+    public $import_password;
+
+    /**
+     * Opsi penautan akun binaan ke `semarak.anak` (FASE 3, revisi review).
+     *
+     * Default MATI: tidak ada penautan otomatis berdasarkan nama. Operator
+     * harus mencentang sendiri setelah memeriksa daftar pada langkah Preview.
+     */
+    public $tautkan_anak = false;
 
     public static function canAccess(): bool
     {
@@ -44,6 +79,31 @@ class ImportData extends Page implements HasForms
     protected function getFormSchema(): array
     {
         return [
+            Forms\Components\Section::make('Jenis Data')
+                ->description('Pilih jenis akun yang dibuat. Pengaturan ini berlaku untuk seluruh baris pada file.')
+                ->schema([
+                    Forms\Components\Radio::make('mode')
+                        ->label('Mode Import')
+                        ->options(ImportService::pilihanMode())
+                        ->default(ImportService::MODE_BINAAN)
+                        ->required()
+                        // live(): checkbox penautan di bawah hanya muncul untuk
+                        // mode binaan, jadi section perlu re-render saat mode
+                        // diganti.
+                        ->live()
+                        ->helperText('"Remaja Binaan" membuat akun Draft tanpa kata sandi: belum bisa login sampai '
+                            .'admin menjalankan aksi "Luluskan & Aktifkan Akun Klien" di menu Anak Binaan.'),
+
+                    Forms\Components\Checkbox::make('tautkan_anak')
+                        ->label('Tautkan ke data anak yang namanya sama')
+                        ->default(false)
+                        ->visible(fn (Forms\Get $get): bool => $get('mode') === ImportService::MODE_BINAAN)
+                        ->helperText('Opsional dan hanya berlaku untuk mode "Remaja Binaan". Bila dicentang, akun '
+                            .'hasil import ditautkan ke data anak dengan nama yang SAMA, dengan syarat nama itu unik '
+                            .'dan anak tersebut belum punya akun. Daftar yang akan ditautkan ditampilkan di langkah '
+                            .'Preview untuk Anda periksa sebelum import.'),
+                ]),
+
             Forms\Components\Section::make('Upload File Import & Foto')
                 ->description('Upload data klien melalui file Excel/Word. Anda juga dapat mengupload banyak foto sekaligus untuk dipasangkan dengan data klien.')
                 ->schema([
@@ -90,12 +150,19 @@ class ImportData extends Page implements HasForms
 
     public function mount()
     {
-        $this->form->fill();
+        // FASE 3: pilihan awal = "Remaja Binaan" (akun Draft) supaya akun hasil
+        // impor tidak langsung aktif sebelum binaan dinyatakan lulus.
+        // Opsi penautan ke data anak juga eksplisit MATI: tidak ada penautan
+        // otomatis berdasarkan nama.
+        $this->form->fill([
+            'mode' => ImportService::MODE_BINAAN,
+            'tautkan_anak' => false,
+        ]);
     }
 
     public function downloadExcelTemplate()
     {
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
 
         $headers = [
@@ -112,12 +179,16 @@ class ImportData extends Page implements HasForms
             'Status Pekerjaan',
             'Deskripsi',
             'Status Profil',
-            'Nama File Foto'
+            'Nama File Foto',
+            // Opsional: hanya dipakai untuk deteksi "kemungkinan duplikat"
+            // nama + asal daerah + angkatan pada langkah Preview.
+            'Asal Daerah',
+            'Angkatan',
         ];
 
         $col = 'A';
         foreach ($headers as $header) {
-            $sheet->setCellValue($col . '1', $header);
+            $sheet->setCellValue($col.'1', $header);
             $sheet->getColumnDimension($col)->setAutoSize(true);
             $col++;
         }
@@ -143,12 +214,14 @@ class ImportData extends Page implements HasForms
         $sheet->setCellValue('L2', 'Klien rajin dan disiplin');
         $sheet->setCellValue('M2', 'Tersedia');
         $sheet->setCellValue('N2', 'budi.jpg');
+        $sheet->setCellValue('O2', 'Bandung');
+        $sheet->setCellValue('P2', 'Angkatan III');
 
         $writer = new Xlsx($spreadsheet);
         $fileName = 'Template_Import_Klien.xlsx';
         // File template sementara disimpan di storage/app (bukan app/public)
         // agar tidak pernah bisa diunduh langsung dari web.
-        $tempPath = storage_path('app/' . $fileName);
+        $tempPath = storage_path('app/'.$fileName);
         $writer->save($tempPath);
 
         return response()->download($tempPath)->deleteFileAfterSend(true);
@@ -156,12 +229,12 @@ class ImportData extends Page implements HasForms
 
     public function downloadWordTemplate()
     {
-        $phpWord = new PhpWord();
+        $phpWord = new PhpWord;
         $section = $phpWord->addSection();
         $section->addText('Template Import Data Klien', ['bold' => true, 'size' => 16]);
         $section->addText('Isi data pada tabel di bawah ini. Baris pertama (header) JANGAN dihapus atau diubah.');
 
-        $tableStyle = array('borderSize' => 6, 'borderColor' => '000000', 'cellMargin' => 50);
+        $tableStyle = ['borderSize' => 6, 'borderColor' => '000000', 'cellMargin' => 50];
         $phpWord->addTableStyle('Template Table', $tableStyle);
         $table = $section->addTable('Template Table');
 
@@ -179,7 +252,11 @@ class ImportData extends Page implements HasForms
             'Status Pekerjaan',
             'Deskripsi',
             'Status Profil',
-            'Nama File Foto'
+            'Nama File Foto',
+            // Opsional: hanya dipakai untuk deteksi "kemungkinan duplikat"
+            // nama + asal daerah + angkatan pada langkah Preview.
+            'Asal Daerah',
+            'Angkatan',
         ];
 
         $table->addRow();
@@ -206,12 +283,14 @@ class ImportData extends Page implements HasForms
         $table->addCell(1500)->addText('Teks deskripsi');
         $table->addCell(1500)->addText('Tersedia');
         $table->addCell(1500)->addText('siti.jpg');
+        $table->addCell(1500)->addText('Jakarta');
+        $table->addCell(1500)->addText('Angkatan III');
 
         $fileName = 'Template_Import_Klien.docx';
         // File template sementara disimpan di storage/app (bukan app/public)
         // agar tidak pernah bisa diunduh langsung dari web.
-        $tempPath = storage_path('app/' . $fileName);
-        $objWriter = \PhpOffice\PhpWord\IOFactory::createWriter($phpWord, 'Word2007');
+        $tempPath = storage_path('app/'.$fileName);
+        $objWriter = IOFactory::createWriter($phpWord, 'Word2007');
         $objWriter->save($tempPath);
 
         return response()->download($tempPath)->deleteFileAfterSend(true);
@@ -223,6 +302,7 @@ class ImportData extends Page implements HasForms
 
         if (empty($data['file'])) {
             Notification::make()->title('Silakan upload file terlebih dahulu.')->danger()->send();
+
             return;
         }
 
@@ -241,12 +321,12 @@ class ImportData extends Page implements HasForms
             $filePath = $disk->path($data['file']);
             $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
 
-            $service = new ImportService();
+            $service = new ImportService;
             $this->previewData = $service->parseAndValidate($filePath, $extension);
 
             Notification::make()->title('File berhasil diproses untuk preview.')->success()->send();
         } catch (\Exception $e) {
-            Notification::make()->title('Gagal memproses file: ' . $e->getMessage())->danger()->send();
+            Notification::make()->title('Gagal memproses file: '.$e->getMessage())->danger()->send();
             $this->previewData = null;
         }
 
@@ -257,11 +337,13 @@ class ImportData extends Page implements HasForms
     {
         if (empty($this->previewData) || count($this->previewData['errors']) > 0) {
             Notification::make()->title('Perbaiki error terlebih dahulu sebelum import.')->danger()->send();
+
             return;
         }
 
         if (count($this->previewData['valid']) === 0) {
             Notification::make()->title('Tidak ada data valid untuk diimport.')->warning()->send();
+
             return;
         }
 
@@ -269,10 +351,17 @@ class ImportData extends Page implements HasForms
             $data = $this->form->getState();
             $uploadedPhotos = $data['photos'] ?? [];
             $importPassword = $data['import_password'] ?? null;
+            $mode = $data['mode'] ?? ImportService::MODE_BINAAN;
+
+            // Penautan ke data anak hanya berlaku untuk mode binaan dan hanya
+            // bila operator mencentang opsinya. Nilai ini menentukan apakah
+            // akun hasil import dikaitkan ke `semarak.anak`.
+            $tautkanAnak = $mode === ImportService::MODE_BINAAN && (bool) ($data['tautkan_anak'] ?? false);
 
             // SECURITY (FASE 3): kata sandi awal harus cocok dengan hash
-            // yang tersimpan di server (IMPORT_PASSWORD_HASH).
-            if (! ImportService::initialPasswordMatches($importPassword)) {
+            // yang tersimpan di server (IMPORT_PASSWORD_HASH). Mode binaan
+            // tidak memakai kata sandi sama sekali, jadi tidak perlu dicek.
+            if ($mode !== ImportService::MODE_BINAAN && ! ImportService::initialPasswordMatches($importPassword)) {
                 Notification::make()
                     ->title('Kata sandi awal tidak valid atau belum dikonfigurasi di server.')
                     ->danger()
@@ -281,24 +370,38 @@ class ImportData extends Page implements HasForms
                 return;
             }
 
-            $service = new ImportService();
-            $service->importData($this->previewData['valid'], $uploadedPhotos, auth()->id(), $importPassword);
+            $service = new ImportService;
+            $service->importData(
+                $this->previewData['valid'],
+                $uploadedPhotos,
+                auth()->id(),
+                $mode === ImportService::MODE_BINAAN ? null : $importPassword,
+                $mode,
+                $tautkanAnak,
+            );
 
             $totalValid = count($this->previewData['valid']);
             $totalDuplikat = count($this->previewData['duplicates']);
+            $totalTautan = $tautkanAnak ? count($this->previewData['tautan']['akan'] ?? []) : 0;
+            $labelMode = ImportService::pilihanMode()[$mode] ?? $mode;
 
             Notification::make()
                 ->title('Import Berhasil')
-                ->body("{$totalValid} data berhasil ditambahkan. {$totalDuplikat} data dilewati karena duplikat.")
+                ->body("{$totalValid} akun dibuat dengan mode {$labelMode}. {$totalDuplikat} data dilewati karena duplikat."
+                    .($tautkanAnak ? " {$totalTautan} akun ditautkan ke data anak." : ' Tidak ada penautan ke data anak.'))
                 ->success()
                 ->send();
 
-            // Reset form
-            $this->form->fill();
+            // Reset form (mode kembali ke pilihan awal "Remaja Binaan" dan
+            // opsi penautan kembali MATI).
+            $this->form->fill([
+                'mode' => ImportService::MODE_BINAAN,
+                'tautkan_anak' => false,
+            ]);
             $this->previewData = null;
 
         } catch (\Exception $e) {
-            Notification::make()->title('Terjadi kesalahan saat menyimpan data: ' . $e->getMessage())->danger()->send();
+            Notification::make()->title('Terjadi kesalahan saat menyimpan data: '.$e->getMessage())->danger()->send();
         }
     }
 }

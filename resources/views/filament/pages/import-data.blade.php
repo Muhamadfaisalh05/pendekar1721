@@ -161,6 +161,121 @@
                 </x-filament::card>
             @endif
 
+            {{-- Penautan ke Data Anak (mode binaan) --}}
+            @if(count($previewData['tautan']['akan'] ?? []) > 0 || count($previewData['tautan']['tidak'] ?? []) > 0)
+                <x-filament::card>
+                    <h3 class="text-lg font-bold mb-2">Penautan ke Data Anak</h3>
+                    <p class="text-sm text-gray-600 mb-4">
+                        Daftar ini menunjukkan akun yang akan ditautkan ke data anak binaan <strong>bila</strong> opsi
+                        <strong>"Tautkan ke data anak yang namanya sama"</strong> Anda centang. Hanya nama yang unik yang
+                        ditautkan &mdash; nama kembar tidak pernah ditautkan otomatis.
+                    </p>
+
+                    @if(count($previewData['tautan']['akan'] ?? []) > 0)
+                        <div class="text-sm font-semibold text-success-600 mb-2">
+                            Akan ditautkan ({{ count($previewData['tautan']['akan']) }})
+                        </div>
+                        <div class="overflow-x-auto max-h-72">
+                            <table class="w-full text-sm text-left">
+                                <thead class="text-xs text-gray-700 bg-gray-50 sticky top-0">
+                                    <tr>
+                                        <th class="px-4 py-3">Baris</th>
+                                        <th class="px-4 py-3">Nama (file)</th>
+                                        <th class="px-4 py-3">Email</th>
+                                        <th class="px-4 py-3">Data Anak</th>
+                                        <th class="px-4 py-3">Asal Daerah</th>
+                                        <th class="px-4 py-3">Angkatan</th>
+                                        <th class="px-4 py-3">Status Anak</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($previewData['tautan']['akan'] as $tautan)
+                                        <tr class="border-b">
+                                            <td class="px-4 py-3">{{ $tautan['row'] ?? '-' }}</td>
+                                            <td class="px-4 py-3 font-medium">{{ $tautan['nama'] ?? '-' }}</td>
+                                            <td class="px-4 py-3">{{ $tautan['email'] ?? '-' }}</td>
+                                            <td class="px-4 py-3">{{ $tautan['anak_id'] ?? '-' }}</td>
+                                            <td class="px-4 py-3">{{ $tautan['asal_daerah'] ?? '-' }}</td>
+                                            <td class="px-4 py-3">{{ $tautan['angkatan'] ?? '-' }}</td>
+                                            <td class="px-4 py-3">{{ $tautan['status'] ?? '-' }}</td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @else
+                        <p class="text-sm text-gray-500">Tidak ada akun yang dapat ditautkan otomatis dari file ini.</p>
+                    @endif
+
+                    @if(count($previewData['tautan']['tidak'] ?? []) > 0)
+                        <div class="text-sm font-semibold text-warning-600 mt-6 mb-2">
+                            Tidak dapat ditautkan otomatis ({{ count($previewData['tautan']['tidak']) }})
+                        </div>
+                        <table class="w-full text-sm text-left">
+                            <thead class="text-xs text-gray-700 bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-3">Baris</th>
+                                    <th class="px-4 py-3">Nama (file)</th>
+                                    <th class="px-4 py-3">Email</th>
+                                    <th class="px-4 py-3">Alasan</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($previewData['tautan']['tidak'] as $tautan)
+                                    <tr class="border-b">
+                                        <td class="px-4 py-3">{{ $tautan['row'] ?? '-' }}</td>
+                                        <td class="px-4 py-3 font-medium">{{ $tautan['nama'] ?? '-' }}</td>
+                                        <td class="px-4 py-3">{{ $tautan['email'] ?? '-' }}</td>
+                                        <td class="px-4 py-3 text-gray-600">{{ $tautan['alasan'] ?? '-' }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    @endif
+                </x-filament::card>
+            @endif
+
+            {{-- Kemungkinan Duplikat (nama + asal daerah + angkatan) --}}
+            @if(count($previewData['kemungkinan_duplikat'] ?? []) > 0)
+                <x-filament::card>
+                    <div class="flex items-center gap-2 text-warning-600 mb-4">
+                        <x-filament::icon icon="heroicon-o-exclamation-triangle" class="w-6 h-6" />
+                        <h3 class="text-lg font-bold">Kemungkinan Duplikat</h3>
+                    </div>
+                    <p class="text-sm text-gray-600 mb-4">
+                        Baris berikut mirip data yang sudah ada atau mirip baris lain di file (nama + asal daerah +
+                        angkatan). Ini <strong>hanya peringatan</strong>: datanya tetap diimpor. Periksa kembali sebelum
+                        menekan tombol Import.
+                    </p>
+                    <div class="overflow-x-auto max-h-72">
+                        <table class="w-full text-sm text-left">
+                            <thead class="text-xs text-gray-700 bg-gray-50 sticky top-0">
+                                <tr>
+                                    <th class="px-4 py-3">Baris</th>
+                                    <th class="px-4 py-3">Nama</th>
+                                    <th class="px-4 py-3">Email</th>
+                                    <th class="px-4 py-3">Sumber</th>
+                                    <th class="px-4 py-3">Keyakinan</th>
+                                    <th class="px-4 py-3">Keterangan</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($previewData['kemungkinan_duplikat'] as $duplikat)
+                                    <tr class="border-b">
+                                        <td class="px-4 py-3">{{ $duplikat['row'] ?? '-' }}</td>
+                                        <td class="px-4 py-3 font-medium">{{ $duplikat['nama'] ?? '-' }}</td>
+                                        <td class="px-4 py-3">{{ $duplikat['email'] ?? '-' }}</td>
+                                        <td class="px-4 py-3">{{ $duplikat['jenis'] ?? '-' }}</td>
+                                        <td class="px-4 py-3">{{ $duplikat['keyakinan'] ?? '-' }}</td>
+                                        <td class="px-4 py-3 text-gray-600">{{ $duplikat['keterangan'] ?? '-' }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </x-filament::card>
+            @endif
+
             {{-- Import Action --}}
             <div class="flex justify-end mt-4">
                 <x-filament::button 

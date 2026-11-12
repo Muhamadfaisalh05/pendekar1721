@@ -2,8 +2,10 @@
 
 namespace App\Modules\Absensi\Models;
 
+use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * Anak binaan (tabel `anak`, parity dengan aplikasi native SEMARAK).
@@ -20,7 +22,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Anak extends Model
 {
     public const STATUS_AKTIF = 'Aktif';
+
     public const STATUS_LULUS = 'Lulus';
+
     public const STATUS_NON_AKTIF = 'Non-Aktif';
 
     protected $connection = 'semarak';
@@ -73,5 +77,32 @@ class Anak extends Model
     public function catatanRapor(): HasMany
     {
         return $this->hasMany(CatatanRapor::class, 'anak_id', 'id');
+    }
+
+    /**
+     * Akun klien aplikasi yang tertaut ke anak ini (FASE 3).
+     *
+     * Relasi lintas database: `anak` ada di koneksi `semarak`, `users` di
+     * koneksi aplikasi. Eloquent tetap bisa menjalankan relasi ini karena
+     * query-nya dijalankan di koneksi model terkait (tanpa JOIN lintas
+     * database), sehingga aman untuk MySQL maupun SQLite.
+     *
+     * Dibangun manual (bukan `$this->hasOne()`): `Model::newRelatedInstance()`
+     * menyalin nama koneksi parent (`semarak`) ke model terkait bila model itu
+     * tidak punya `$connection` eksplisit, sehingga query akan mencari tabel
+     * `users` di database SEMARAK dan gagal.
+     *
+     * @return HasOne<User, $this>
+     */
+    public function akunKlien(): HasOne
+    {
+        $akun = new User;
+
+        return new HasOne(
+            $akun->newQuery(),
+            $this,
+            $akun->qualifyColumn('anak_id'),
+            $this->getKeyName(),
+        );
     }
 }

@@ -851,3 +851,88 @@ sebagai WIP milik Anda.
 
 File WIP absensi & self-host font **tidak** di-commit.
 
+
+---
+
+## 15. Catatan hasil eksekusi Fase 3 (12 Nov 2026)
+
+Fase 3 menggantikan butir 2 & 3 pada §14.5. Backfill `graduated_at` (§14.5 butir 1) **tetap ditunda**
+sampai hasil audit produksi diterima.
+
+### 15.1 Yang dikerjakan
+
+| Kebutuhan | Implementasi |
+|---|---|
+| Aksi "Luluskan & Aktifkan Akun Klien" | `AnakResource` (tabel `anak`, panel admin): aksi `luluskan` dengan form email + tanggal lulus (opsional, default hari ini), memanggil `GraduationService::luluskan()`. Terlihat hanya untuk `admin` dan anak yang belum `Lulus`. |
+| Kata sandi tampil **satu kali** | `App\Filament\Actions\TampilkanKataSandiSekali` (nama aksi `kataSandiSekali`), dipasang lewat `replaceMountedTableAction(..., ['password' => ...])` **setelah** aksi sukses. Plaintext hanya ada di argumen aksi (memori request) — tidak di DB, tidak di log. View: `resources/views/filament/actions/kata-sandi-sekali.blade.php`. |
+| Reset Password di `UserResource` | Aksi `resetPassword` (konfirmasi) → `UserAccountService::resetPassword()` (acak 24 karakter) + modal kata sandi sekali tampil yang sama. |
+| Guard hapus akun | `UserAccountService::alasanTidakBolehDihapus()`: tidak boleh hapus akun sendiri, tidak boleh hapus administrator terakhir (admin `Archived` tidak dihitung sebagai cadangan), hanya `admin` yang boleh. Tombol hapus **disembunyikan** untuk dua kasus terlarang; service tetap menolak bila dipanggil dari jalur lain. |
+| Kolom "Akun Klien" di daftar anak | `TextColumn::make('akun_klien')` (badge: Belum ada / Draft / Aktif / Diarsipkan) + deskripsi email, membaca relasi baru `Anak::akunKlien()`; eager load satu query per halaman (`modifyQueryUsing(...->with('akunKlien'))`). |
+| Mode "Remaja Binaan" di Import Data | `ImportService::MODE_BINAAN` (`Draft`, `password = NULL`) dan `MODE_KLIEN` (`Published` + kata sandi). Form `ImportData` memakai `Radio` mode dengan **default `binaan`** (`mount()` mengisi ulang `mode` setiap kali form di-reset). |
+| Penautan akun binaan **opt-in** (revisi review) | Tidak ada penautan otomatis berdasarkan nama. `Checkbox::make('tautkan_anak')` (label "Tautkan ke data anak yang namanya sama", default **mati**, hanya tampil untuk mode binaan) menentukan apakah `users.anak_id` diisi. Rencana tautan dihitung `ImportService::petaTautanAnak()` dan ditampilkan di langkah Preview **sebelum** import; `importData()` memakai peta yang sama sehingga yang ditautkan = yang dilihat operator. Nama kembar dan nama yang muncul lebih dari sekali di file tetap **tidak pernah** ditautkan. |
+| Laporan "Kemungkinan Duplikat" (revisi review) | `ImportService::deteksiKemungkinanDuplikat()` membandingkan **nama + asal daerah + angkatan** dari tiga sumber: (1) baris lain di file yang sama, (2) data `semarak.anak`, (3) akun klien yang sudah ada dengan nama sama. Hasilnya ditampilkan di Preview sebagai peringatan (kolom Baris, Nama, Email, Sumber, Keyakinan, Keterangan) — baris **tidak ditolak** dan tetap diimpor. Kolom opsional `Asal Daerah` & `Angkatan` ditambahkan ke template Excel/Word; bila tidak diisi, perbandingan jatuh ke nama saja dengan keyakinan "Sedang". |
+
+
+### 15.2 Keputusan desain & deviasi yang perlu direview
+
+1. **Default mode service vs UI berbeda (disengaja).**
+   `ImportService::importData()` default `MODE_KLIEN` agar pemanggil lama (dan tes lama) tidak berubah perilaku;
+   form `ImportData` memakai `binaan` sebagai pilihan awal. Jadi "default Draft" hanya berlaku di UI admin.
+2. **Penautan akun binaan ke `semarak.anak` bersifat OPT-IN (revisi review).**
+   Semula penautan berjalan otomatis; atas keputusan pemilik produk, penautan kini hanya terjadi bila operator
+   mencentang "Tautkan ke data anak yang namanya sama" (default **mati**). Modul memakai `petaTautanAnak()` yang
+   sama untuk Preview dan import, jadi hasil tautan selalu sama dengan yang diperiksa operator. Aturan tetap ketat:
+   hanya nama yang PERSIS sama (case-insensitive), nama itu harus unik di `anak`, tidak muncul lebih dari sekali di
+   file, dan anak belum punya akun. Nama kembar **tidak pernah** ditautkan meski opsi dicentang.
+   Kegagalan membaca koneksi `semarak` hanya menghasilkan `Log::warning('import.binaan.taut_gagal')` — impor tetap jalan.
+3. **`DeleteBulkAction` di `UserResource` dihapus.** Guard "tidak hapus diri sendiri / admin terakhir" tidak bisa dijamin
+   pada hapus massal, jadi penghapusan akun kini satu per satu. (Hapus massal anak binaan tidak diubah.)
+4. **Aksi modal kata sandi memakai `hidden()` dinamis, bukan statis.** Filament menandai aksi yang `hidden()` sebagai
+   `isDisabled()`, sehingga tidak bisa dipasang programatik. Karena itu visibilitasnya `blank($arguments['password'])`.
+5. **`Anak::akunKlien()` dibangun manual** (`new HasOne(...)`), bukan `$this->hasOne(...)`: `Model::newRelatedInstance()`
+   menyalin koneksi parent (`semarak`) ke model `User` sehingga query mencari tabel `users` di database SEMARAK.
+6. **Bug lama ditemukan & diperbaiki di `ImportData`.** Form halaman ini memakai state path kosong (setiap field =
+   properti komponen). `photos` dan `import_password` tidak punya properti publik sehingga `$this->form->getState()`
+   melempar `No property found for validation: [photos]` — artinya Preview/Import lewat UI gagal sebelum perubahan ini.
+   Ditambahkan `public $photos = []` dan `public $import_password`.
+7. **Pint** juga merapikan `class_attributes_separation` pada beberapa berkas yang disentuh (`ImportData`, `ImportService`,
+   `Anak`) — perubahan gaya, bukan logika.
+8. **Batas "sekali tampil".** Plaintext kata sandi hanya hidup di argumen aksi Livewire (payload milik admin yang
+   menjalankan aksi) dan tidak pernah ditulis ke DB/log/audit trail. Setelah modal ditutup (`unmountTableAction`),
+   argumen dibuang sehingga kata sandi tidak bisa ditampilkan lagi; satu-satunya jalan adalah "Reset Kata Sandi".
+9. **"Kemungkinan duplikat" adalah peringatan, bukan penolakan (revisi review).** Sesuai keputusan pemilik produk,
+   baris yang namanya sama dengan data anak/akun lain (dan asal daerah + angkatan sama bila kolom di file diisi)
+   tetap masuk daftar `valid` dan tetap diimpor; laporan hanya ditampilkan di Preview. Asal daerah/angkatan yang
+   **berbeda** membuat baris tidak dilaporkan (dianggap orang lain). Kolom `Asal Daerah` dan `Angkatan` di template
+   bersifat opsional dan tidak disimpan ke `users` — hanya dipakai untuk perbandingan & keterangan.
+
+### 15.3 Tes
+
+| Berkas | Isi |
+|---|---|
+| `tests/Feature/Graduation/GraduationOnboardingTest.php` (+4) | aksi panel mengaktifkan akun + kata sandi sekali tampil (syarat 3), email bentrok ditolak tanpa mengubah data & modal tetap terbuka (syarat 1), gating `bolehLuluskan()` (hanya admin, bukan anak Lulus), kolom "Akun Klien" + relasi lintas database |
+| `tests/Feature/Graduation/ImportBinaanTest.php` (**baru, 16**) | mode binaan → Draft tanpa kata sandi, tautan hanya saat opsi dicentang (dan diabaikan untuk mode klien), tidak menautkan nama kembar/nama ganda di file/anak yang sudah berakun, Preview memisahkan "akan ditautkan" vs "tidak dapat ditautkan" beserta alasannya, deteksi kemungkinan duplikat (nama + asal + angkatan) dari file/data anak dan **tidak** menolak baris, akun Draft tidak bisa login (syarat 4), kata sandi awal diabaikan, kelulusan memakai akun hasil impor & mengabaikan email akun tertaut (syarat 1 & 3), mode klien tetap aktif & bisa login, ringkasan `importSemua()`, default mode `binaan` + opsi penautan mati di form Import Data, Preview menampilkan kartu penautan & kemungkinan duplikat |
+| `tests/Feature/Security/UserAccountGuardTest.php` (**baru, 6**) | reset password mengganti hash & plaintext sekali, aksi panel reset menampilkan kata sandi sekali, tolak hapus akun sendiri, tolak hapus administrator terakhir (dengan admin kedua diizinkan), hanya admin boleh menghapus, tombol hapus tersembunyi untuk dua kasus terlarang |
+
+Hasil: `php artisan test` → **127 passed (549 assertions)**; `pint --test` pada 10 berkas yang disentuh → **PASS**.
+
+### 15.4 Belum dikerjakan
+
+1. **Backfill `graduated_at`** — masih menunggu hasil audit produksi (`docs/AUDIT-PRODUKSI-USERS.md`).
+   Setelah itu: migrasi data terbatas daftar `id`, lalu `Dashboard::getStatistik()` → `User::query()->alumni()->count()`
+   dan hapus penanda `total_alumni_belum_final`.
+2. **Fase 4**: rapikan penuh `docs/SECURITY-AUDIT-L13.md`.
+3. Pekerjaan yang masih terbuka setelah Fase 3 (opsional, bukan bagian syarat): dedup **email** tetap satu-satunya
+   penolakan otomatis; laporan duplikat nama/asal/angkatan hanya peringatan. Bila nanti ingin penolakan otomatis,
+   itu keputusan produk baru.
+
+### 15.5 Keputusan review pemilik produk atas Fase 3 (12 Nov 2026)
+
+1. Fase 3 di-commit sebagai commit tersendiri, **tanpa** file WIP absensi & self-host font.
+2. Default `ImportService::importData()` tetap `MODE_KLIEN`; default UI tetap `MODE_BINAAN`. Tidak diubah.
+3. Penautan otomatis `anak_id` berdasarkan nama **dilepas** dan diganti checkbox opsional "Tautkan ke data anak yang
+   namanya sama" (default mati) + daftar tautan di langkah Preview. Nama kembar tetap tidak boleh ditautkan.
+4. Dedup **nama + asal daerah + angkatan** pada import binaan dikerjakan dan dilaporkan di Preview sebagai
+   "kemungkinan duplikat" (bukan penolakan diam-diam).
+5. `DeleteBulkAction` pada `UserResource` tetap dihapus, tidak dikembalikan.
+
