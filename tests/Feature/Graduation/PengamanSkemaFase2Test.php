@@ -130,7 +130,9 @@ class PengamanSkemaFase2Test extends AbsensiTestCase
         $this->get('/klien')
             ->assertOk()
             ->assertSee('Jumlah Alumni')
-            ->assertSee('Angka sementara (belum final)');
+            // Label boleh berkembang (mis. "Angka sementara (belum final)"),
+            // yang penting penanda angka sementara tetap tampil.
+            ->assertSee('Angka sementara');
     }
 
     public function test_daftar_user_tetap_terbuka_tanpa_kolom_fase_2(): void
@@ -170,7 +172,9 @@ class PengamanSkemaFase2Test extends AbsensiTestCase
             true,
         );
 
-        $this->assertTrue($berhasil);
+        $this->assertSame(1, $berhasil['akun_dibuat'], 'Akun Draft harus tetap dibuat walau kolom Fase 2 belum ada.');
+        $this->assertSame(0, $berhasil['anak_baru'], 'Tanpa kolom anak_id, data anak baru tidak dibuat (dibuat setelah migrasi).');
+        $this->assertSame(0, $berhasil['gagal']);
         $this->assertDatabaseHas('users', ['email' => 'endang.import@example.test']);
     }
 

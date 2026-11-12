@@ -161,13 +161,57 @@
                 </x-filament::card>
             @endif
 
+            {{-- Rencana Import per Baris (mode binaan) --}}
+            @if(count($previewData['tautan']['rencana'] ?? []) > 0)
+                <x-filament::card>
+                    <h3 class="text-lg font-bold mb-2">Rencana Import per Baris</h3>
+                    <p class="text-sm text-gray-600 mb-4">
+                        Setiap baris pada mode Remaja Binaan membuat <strong>data anak baru (status Aktif)</strong> sekaligus
+                        <strong>akun Draft</strong> yang tertaut. Bila opsi
+                        <strong>&quot;Tautkan ke anak yang sudah ada&quot;</strong> dicentang, baris yang cocok hanya dibuatkan
+                        akun Draft (tanpa anak baru).
+                    </p>
+                    <div class="overflow-x-auto max-h-72">
+                        <table class="w-full text-sm text-left">
+                            <thead class="text-xs text-gray-700 bg-gray-50 sticky top-0">
+                                <tr>
+                                    <th class="px-4 py-3">Baris</th>
+                                    <th class="px-4 py-3">Nama</th>
+                                    <th class="px-4 py-3">Email</th>
+                                    <th class="px-4 py-3">Rencana</th>
+                                    <th class="px-4 py-3">Keterangan</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($previewData['tautan']['rencana'] as $rencana)
+                                    <tr class="border-b">
+                                        <td class="px-4 py-3">{{ $rencana['row'] ?? '-' }}</td>
+                                        <td class="px-4 py-3 font-medium">{{ $rencana['nama'] ?? '-' }}</td>
+                                        <td class="px-4 py-3">{{ $rencana['email'] ?: '-' }}</td>
+                                        <td class="px-4 py-3">
+                                            @if(($rencana['aksi'] ?? '') === 'tautkan')
+                                                <span class="text-info-600 font-semibold">Tautkan ke {{ $rencana['anak_id'] }}</span>
+                                            @else
+                                                <span class="text-success-600 font-semibold">Anak baru + akun Draft</span>
+                                            @endif
+                                        </td>
+                                        <td class="px-4 py-3 text-gray-600">{{ $rencana['keterangan'] ?? '-' }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </x-filament::card>
+            @endif
+
             {{-- Penautan ke Data Anak (mode binaan) --}}
             @if(count($previewData['tautan']['akan'] ?? []) > 0 || count($previewData['tautan']['tidak'] ?? []) > 0)
                 <x-filament::card>
                     <h3 class="text-lg font-bold mb-2">Penautan ke Data Anak</h3>
                     <p class="text-sm text-gray-600 mb-4">
-                        Daftar ini menunjukkan akun yang akan ditautkan ke data anak binaan <strong>bila</strong> opsi
-                        <strong>"Tautkan ke data anak yang namanya sama"</strong> Anda centang. Hanya nama yang unik yang
+                        Daftar ini menunjukkan baris yang akan ditautkan ke data anak binaan <strong>bila</strong> opsi
+                        <strong>&quot;Tautkan ke anak yang sudah ada (jangan buat anak baru)&quot;</strong> Anda centang.
+                        Hanya nama yang unik, anak belum punya akun, dan asal daerah/angkatan tidak bertentangan yang
                         ditautkan &mdash; nama kembar tidak pernah ditautkan otomatis.
                     </p>
 
@@ -290,4 +334,42 @@
             </div>
         </div>
     @endif
+
+        <div class="mt-8">
+            {{-- Hasil Import (ringkasan + baris gagal) --}}
+            @if(is_array($hasilImport))
+                <x-filament::card>
+                    <h3 class="text-lg font-bold mb-2">Hasil Import</h3>
+                    <p class="text-sm text-gray-600 mb-4">
+                        {{ $hasilImport['akun_dibuat'] }} akun dibuat
+                        ({{ $hasilImport['anak_baru'] }} anak baru,
+                        {{ $hasilImport['ditautkan'] }} akun ditautkan),
+                        {{ $hasilImport['gagal'] }} baris gagal.
+                    </p>
+
+                    @if(count($hasilImport['gagal_detail'] ?? []) > 0)
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-left">
+                                <thead class="text-xs text-gray-700 bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-3">Baris</th>
+                                        <th class="px-4 py-3">Nama</th>
+                                        <th class="px-4 py-3">Alasan Gagal</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($hasilImport['gagal_detail'] as $gagal)
+                                        <tr class="border-b">
+                                            <td class="px-4 py-3">{{ $gagal['row'] ?? '-' }}</td>
+                                            <td class="px-4 py-3 font-medium">{{ $gagal['nama'] ?? '-' }}</td>
+                                            <td class="px-4 py-3 text-danger-600">{{ $gagal['alasan'] ?? '-' }}</td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @endif
+                </x-filament::card>
+            @endif
+        </div>
 </x-filament-panels::page>

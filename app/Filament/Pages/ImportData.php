@@ -3,10 +3,8 @@
 namespace App\Filament\Pages;
 
 use App\Filament\Support\PeringatanMigrasi;
-use App\Models\MasterCity;
-use App\Models\MasterEducationDegree;
-use App\Models\MasterTraining;
 use App\Services\ImportService;
+use App\Services\ImportTemplateService;
 use Filament\Forms;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
@@ -14,10 +12,6 @@ use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Illuminate\Support\Facades\Storage;
 use Livewire\WithFileUploads;
-use PhpOffice\PhpSpreadsheet\Spreadsheet;
-use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
-use PhpOffice\PhpWord\IOFactory;
-use PhpOffice\PhpWord\PhpWord;
 
 class ImportData extends Page implements HasForms
 {
@@ -28,7 +22,7 @@ class ImportData extends Page implements HasForms
 
     protected static ?string $navigationLabel = 'Import Data';
 
-    protected static ?string $title = 'Import Data Klien';
+    protected static ?string $title = 'Import Data';
 
     protected static ?string $slug = 'import-data';
 
@@ -42,10 +36,15 @@ class ImportData extends Page implements HasForms
 
     public $previewData = null;
 
+    /**
+     * Ringkasan hasil import terakhir (dipakai untuk melaporkan baris gagal).
+     */
+    public $hasilImport = null;
+
     public $isProcessing = false;
 
     /**
-     * Mode import (FASE 3): `binaan` → akun Draft, `klien` → akun langsung aktif.
+     * Mode import (FASE 3): `binaan` â†’ akun Draft, `klien` â†’ akun langsung aktif.
      *
      * Dideklarasikan sebagai properti publik karena form halaman ini memakai
      * state path kosong (setiap field = properti komponen, seperti `$file`).
@@ -92,17 +91,18 @@ class ImportData extends Page implements HasForms
                         // mode binaan, jadi section perlu re-render saat mode
                         // diganti.
                         ->live()
-                        ->helperText('"Remaja Binaan" membuat akun Draft tanpa kata sandi: belum bisa login sampai '
-                            .'admin menjalankan aksi "Luluskan & Aktifkan Akun Klien" di menu Anak Binaan.'),
+                        ->helperText('"Remaja Binaan" membuat data anak baru (status Aktif) sekaligus akun Draft tanpa '
+                            .'kata sandi: akun belum bisa login sampai admin menjalankan aksi "Luluskan & Aktifkan Akun Klien" '
+                            .'di menu Anak Binaan.'),
 
                     Forms\Components\Checkbox::make('tautkan_anak')
-                        ->label('Tautkan ke data anak yang namanya sama')
+                        ->label('Tautkan ke anak yang sudah ada (jangan buat anak baru)')
                         ->default(false)
                         ->visible(fn (Forms\Get $get): bool => $get('mode') === ImportService::MODE_BINAAN)
-                        ->helperText('Opsional dan hanya berlaku untuk mode "Remaja Binaan". Bila dicentang, akun '
-                            .'hasil import ditautkan ke data anak dengan nama yang SAMA, dengan syarat nama itu unik '
-                            .'dan anak tersebut belum punya akun. Daftar yang akan ditautkan ditampilkan di langkah '
-                            .'Preview untuk Anda periksa sebelum import.'),
+                        ->helperText('Opsional dan hanya berlaku untuk mode "Remaja Binaan". Bila dicentang, baris yang '
+                            .'namanya cocok dengan SATU data anak yang belum punya akun hanya dibuatkan akun Draft yang '
+                            .'ditautkan (tanpa anak baru); baris lain tetap membuat anak baru. Nama kembar tidak pernah '
+                            .'ditautkan. Centang sebelum menekan "Preview Data" agar rencana per baris ikut diperbarui.'),
                 ]),
 
             Forms\Components\Section::make('Upload File Import & Foto')
@@ -166,140 +166,32 @@ class ImportData extends Page implements HasForms
         ]);
     }
 
+    /**
+     * Unduh template Excel resmi (sheet PETUNJUK, DATA, dan DAFTAR).
+     */
     public function downloadExcelTemplate()
     {
-        $spreadsheet = new Spreadsheet;
-        $sheet = $spreadsheet->getActiveSheet();
+        $layanan = new ImportTemplateService;
+        $path = $layanan->buatExcel();
 
-        $headers = [
-            'Nama*',
-            'Email*',
-            'Jenis Kelamin*',
-            'Tempat Lahir',
-            'Tanggal Lahir',
-            'Alamat KTP',
-            'Kota KTP',
-            'Pendidikan',
-            'Pelatihan',
-            'Penempatan Wilayah',
-            'Status Pekerjaan',
-            'Deskripsi',
-            'Status Profil',
-            'Nama File Foto',
-            // Opsional: hanya dipakai untuk deteksi "kemungkinan duplikat"
-            // nama + asal daerah + angkatan pada langkah Preview.
-            'Asal Daerah',
-            'Angkatan',
-        ];
-
-        $col = 'A';
-        foreach ($headers as $header) {
-            $sheet->setCellValue($col.'1', $header);
-            $sheet->getColumnDimension($col)->setAutoSize(true);
-            $col++;
-        }
-
-        // Contoh Data
-        $sheet->setCellValue('A2', 'Budi Santoso');
-        $sheet->setCellValue('B2', 'budi@example.com');
-        $sheet->setCellValue('C2', 'L');
-        $sheet->setCellValue('D2', 'Bandung');
-        $sheet->setCellValue('E2', '1995-08-17');
-        $sheet->setCellValue('F2', 'Jl. Merdeka No. 1');
-
-        // Ambil data referensi
-        $city = MasterCity::first()?->title ?? 'Bandung';
-        $edu = MasterEducationDegree::first()?->title ?? 'SMA';
-        $training = MasterTraining::first()?->title ?? 'Menjahit';
-
-        $sheet->setCellValue('G2', $city);
-        $sheet->setCellValue('H2', $edu);
-        $sheet->setCellValue('I2', $training);
-        $sheet->setCellValue('J2', $city);
-        $sheet->setCellValue('K2', 'Sedang Bekerja');
-        $sheet->setCellValue('L2', 'Klien rajin dan disiplin');
-        $sheet->setCellValue('M2', 'Tersedia');
-        $sheet->setCellValue('N2', 'budi.jpg');
-        $sheet->setCellValue('O2', 'Bandung');
-        $sheet->setCellValue('P2', 'Angkatan III');
-
-        $writer = new Xlsx($spreadsheet);
-        $fileName = 'Template_Import_Klien.xlsx';
-        // File template sementara disimpan di storage/app (bukan app/public)
-        // agar tidak pernah bisa diunduh langsung dari web.
-        $tempPath = storage_path('app/'.$fileName);
-        $writer->save($tempPath);
-
-        return response()->download($tempPath)->deleteFileAfterSend(true);
+        // File disimpan di storage/app/import-templates (bukan app/public) agar
+        // tidak pernah bisa diunduh langsung dari web; dihapus setelah dikirim.
+        return response()
+            ->download($path, $layanan->namaBerkas('xlsx'))
+            ->deleteFileAfterSend(true);
     }
 
+    /**
+     * Unduh template Word resmi (.docx).
+     */
     public function downloadWordTemplate()
     {
-        $phpWord = new PhpWord;
-        $section = $phpWord->addSection();
-        $section->addText('Template Import Data Klien', ['bold' => true, 'size' => 16]);
-        $section->addText('Isi data pada tabel di bawah ini. Baris pertama (header) JANGAN dihapus atau diubah.');
+        $layanan = new ImportTemplateService;
+        $path = $layanan->buatWord();
 
-        $tableStyle = ['borderSize' => 6, 'borderColor' => '000000', 'cellMargin' => 50];
-        $phpWord->addTableStyle('Template Table', $tableStyle);
-        $table = $section->addTable('Template Table');
-
-        $headers = [
-            'Nama*',
-            'Email*',
-            'Jenis Kelamin*',
-            'Tempat Lahir',
-            'Tanggal Lahir',
-            'Alamat KTP',
-            'Kota KTP',
-            'Pendidikan',
-            'Pelatihan',
-            'Penempatan Wilayah',
-            'Status Pekerjaan',
-            'Deskripsi',
-            'Status Profil',
-            'Nama File Foto',
-            // Opsional: hanya dipakai untuk deteksi "kemungkinan duplikat"
-            // nama + asal daerah + angkatan pada langkah Preview.
-            'Asal Daerah',
-            'Angkatan',
-        ];
-
-        $table->addRow();
-        foreach ($headers as $header) {
-            $table->addCell(1500)->addText($header, ['bold' => true]);
-        }
-
-        $city = MasterCity::first()?->title ?? 'Bandung';
-        $edu = MasterEducationDegree::first()?->title ?? 'SMA';
-        $training = MasterTraining::first()?->title ?? 'Menjahit';
-
-        $table->addRow();
-        $table->addCell(1500)->addText('Siti Aminah');
-        $table->addCell(1500)->addText('siti@example.com');
-        $table->addCell(1500)->addText('P');
-        $table->addCell(1500)->addText('Jakarta');
-        $table->addCell(1500)->addText('1998-12-01');
-        $table->addCell(1500)->addText('Jl. Sudirman');
-        $table->addCell(1500)->addText($city);
-        $table->addCell(1500)->addText($edu);
-        $table->addCell(1500)->addText($training);
-        $table->addCell(1500)->addText($city);
-        $table->addCell(1500)->addText('Belum Bekerja');
-        $table->addCell(1500)->addText('Teks deskripsi');
-        $table->addCell(1500)->addText('Tersedia');
-        $table->addCell(1500)->addText('siti.jpg');
-        $table->addCell(1500)->addText('Jakarta');
-        $table->addCell(1500)->addText('Angkatan III');
-
-        $fileName = 'Template_Import_Klien.docx';
-        // File template sementara disimpan di storage/app (bukan app/public)
-        // agar tidak pernah bisa diunduh langsung dari web.
-        $tempPath = storage_path('app/'.$fileName);
-        $objWriter = IOFactory::createWriter($phpWord, 'Word2007');
-        $objWriter->save($tempPath);
-
-        return response()->download($tempPath)->deleteFileAfterSend(true);
+        return response()
+            ->download($path, $layanan->namaBerkas('docx'))
+            ->deleteFileAfterSend(true);
     }
 
     public function processPreview()
@@ -327,8 +219,16 @@ class ImportData extends Page implements HasForms
             $filePath = $disk->path($data['file']);
             $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
 
+            // Mode menentukan kolom wajib (mode binaan: asal daerah/agama/umur/
+            // angkatan wajib). Checkbox penautan menentukan rencana per baris
+            // yang ditampilkan, jadi nilainya ikut dibaca di sini.
+            $mode = $data['mode'] ?? ImportService::MODE_BINAAN;
+            $tautkanAnak = $mode === ImportService::MODE_BINAAN && (bool) ($data['tautkan_anak'] ?? false);
+
+            $this->hasilImport = null;
+
             $service = new ImportService;
-            $this->previewData = $service->parseAndValidate($filePath, $extension);
+            $this->previewData = $service->parseAndValidate($filePath, $extension, $mode, $tautkanAnak);
 
             Notification::make()->title('File berhasil diproses untuk preview.')->success()->send();
         } catch (\Exception $e) {
@@ -377,7 +277,7 @@ class ImportData extends Page implements HasForms
             }
 
             $service = new ImportService;
-            $service->importData(
+            $ringkasan = $service->importData(
                 $this->previewData['valid'],
                 $uploadedPhotos,
                 auth()->id(),
@@ -386,16 +286,19 @@ class ImportData extends Page implements HasForms
                 $tautkanAnak,
             );
 
-            $totalValid = count($this->previewData['valid']);
+            $this->hasilImport = $ringkasan;
+
             $totalDuplikat = count($this->previewData['duplicates']);
-            $totalTautan = $tautkanAnak ? count($this->previewData['tautan']['akan'] ?? []) : 0;
-            $labelMode = ImportService::pilihanMode()[$mode] ?? $mode;
+
+            $pesan = $mode === ImportService::MODE_BINAAN
+                ? "{$ringkasan['akun_dibuat']} akun Draft dibuat: {$ringkasan['anak_baru']} anak baru, "
+                    ."{$ringkasan['ditautkan']} akun ditautkan ke anak yang sudah ada, {$ringkasan['gagal']} baris gagal."
+                : "{$ringkasan['akun_dibuat']} akun klien aktif dibuat.";
 
             Notification::make()
-                ->title('Import Berhasil')
-                ->body("{$totalValid} akun dibuat dengan mode {$labelMode}. {$totalDuplikat} data dilewati karena duplikat."
-                    .($tautkanAnak ? " {$totalTautan} akun ditautkan ke data anak." : ' Tidak ada penautan ke data anak.'))
-                ->success()
+                ->title($ringkasan['gagal'] > 0 ? 'Import Selesai Dengan Catatan' : 'Import Berhasil')
+                ->body($pesan." {$totalDuplikat} data dilewati karena duplikat.")
+                ->status($ringkasan['gagal'] > 0 ? 'warning' : 'success')
                 ->send();
 
             // Reset form (mode kembali ke pilihan awal "Remaja Binaan" dan

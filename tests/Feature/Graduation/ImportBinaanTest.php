@@ -9,135 +9,96 @@ use App\Modules\Absensi\Models\Anak;
 use App\Services\GraduationService;
 use App\Services\ImportBinaanService;
 use App\Services\ImportService;
-use Illuminate\Support\Facades\DB;
+use App\Support\Import\SpesifikasiKolomImport;
 use Illuminate\Support\Facades\Hash;
 use Livewire\Livewire;
-use Tests\Support\Absensi\AbsensiTestCase;
+use Tests\Support\Import\ImportTestCase;
 
 /**
- * FASE 3 — impor "Remaja Binaan" (default Draft) dan pemenuhan empat syarat
- * wajib onboarding alumni dari sisi impor
- * (docs/BACKUP-LOGIC-SEBELUM-REFACTOR.md §11).
+ * FASE 3 — impor "Remaja Binaan" dan "Klien Umum" pada menu Import Data.
  *
  * Yang dikunci oleh tes ini:
- * - syarat 1: email unik saat kelulusan MENGABAIKAN akun yang sudah tertaut;
- * - syarat 3: kelulusan memberi kata sandi satu kali (bukan kata sandi publik);
- * - syarat 4: akun binaan tanpa kata sandi TIDAK bisa login sebelum diaktifkan;
- * - impor binaan hanya menautkan ke `anak` bila namanya unik dan belum berakun;
- * - mode klien (perilaku lama) tetap membuat akun aktif dan bisa login.
+ * - mode binaan membuat data anak (status Aktif) + akun Draft tertaut;
+ * - email boleh kosong (kasus "kholis") dan akun baru bisa login setelah lulus;
+ * - kolom wajib mode binaan ditolak di langkah Preview bila kosong;
+ * - opsi "Tautkan ke anak yang sudah ada" hanya menautkan baris yang cocok;
+ * - kegagalan pembuatan akun menghapus kembali anak yang baru dibuat;
+ * - mode Klien Umum tidak berubah (akun aktif, tanpa data anak).
  */
-class ImportBinaanTest extends AbsensiTestCase
+class ImportBinaanTest extends ImportTestCase
 {
-    private function admin(): User
+    /**
+     * Baris hasil validasi (struktur yang dipakai importData) untuk mode binaan.
+     *
+     * @param  array<string, mixed>  $ganti
+     * @return array<string, mixed>
+     */
+    private function barisBinaan(array $ganti = []): array
     {
-        return User::create([
-            'name' => 'Admin Impor Binaan',
-            'email' => 'admin-import-binaan@example.test',
-            'password' => 'Rahasia#12345',
-            'user_type' => User::ROLE_ADMIN,
-            'status' => UserStatus::Published,
-        ]);
-    }
-
-    private function tambahAnak(string $id, string $nama): void
-    {
-        DB::connection('semarak')->table('anak')->insert([
-            'id' => $id,
-            'nama' => $nama,
-            'jenis_kelamin' => 'Laki-laki',
+        return array_merge([
+            'name' => 'Rizky Pratama',
+            'email' => 'rizky.pratama@example.test',
+            'gender' => 'L',
             'asal_daerah' => 'Bandung',
-            'umur' => 17,
             'agama' => 'Islam',
-            'angkatan' => 'Angkatan III',
-            'status' => Anak::STATUS_AKTIF,
-        ]);
+            'umur' => 17,
+            'angkatan' => 'Angkatan 2026',
+            'birth_date' => null,
+            'birth_place' => null,
+            'ktp_address' => null,
+            'ktp_city_id' => null,
+            'education_degree_id' => null,
+            'trainings' => [],
+            'work_locations' => [],
+            'is_current_job' => false,
+            'description' => null,
+            'hire_status' => '0',
+            'photo_filename' => '',
+            '_row_number' => 2,
+        ], $ganti);
     }
 
-    public function test_mode_binaan_membuat_akun_draft_tanpa_kata_sandi_dan_tertaut_bila_opsi_dipilih(): void
+    public function test_import_binaan_membuat_anak_aktif_dan_akun_draft_tertaut(): void
     {
         $admin = $this->admin();
+        $sebelum = Anak::query()->count();
 
-        (new ImportService)->importData(
-            [['name' => 'Doddy', 'email' => 'doddy.binaan@example.test']],
+        $ringkasan = (new ImportService)->importData(
+            [$this->barisBinaan()],
             [],
             $admin->id,
             null,
             ImportService::MODE_BINAAN,
-            // Opsi penautan dipilih operator (checkbox di form Import Data).
-            true,
         );
 
-        $user = User::query()->where('email', 'doddy.binaan@example.test')->firstOrFail();
+        $this->assertSame(1, $ringkasan['anak_baru']);
+        $this->assertSame(0, $ringkasan['ditautkan']);
+        $this->assertSame(1, $ringkasan['akun_dibuat']);
+        $this->assertSame(0, $ringkasan['gagal']);
+        $this->assertSame($sebelum + 1, Anak::query()->count());
 
+        $anak = Anak::query()->where('nama', 'Rizky Pratama')->firstOrFail();
+        $this->assertSame(Anak::STATUS_AKTIF, $anak->status);
+        $this->assertSame('Laki-laki', $anak->jenis_kelamin);
+        $this->assertSame('Bandung', $anak->asal_daerah);
+        $this->assertSame('Islam', $anak->agama);
+        $this->assertSame(17, $anak->umur);
+        $this->assertSame('Angkatan 2026', $anak->angkatan);
+        $this->assertMatchesRegularExpression('/^AN-\d{3,}$/', (string) $anak->id);
+
+        $user = User::query()->where('anak_id', $anak->id)->firstOrFail();
+        $this->assertSame('Rizky Pratama', $user->name);
         $this->assertSame(User::ROLE_CLIENT, $user->user_type);
         $this->assertSame(UserStatus::Draft, $user->status);
-        $this->assertNull($user->password, 'Binaan belum boleh punya kata sandi sebelum diaktifkan.');
+        $this->assertNull($user->password, 'Akun binaan belum boleh punya kata sandi.');
         $this->assertNull($user->graduated_at);
-        $this->assertSame('AN-002', $user->anak_id, 'Nama unik dan belum berakun → akun harus tertaut.');
         $this->assertSame($admin->id, $user->created_by);
         $this->assertTrue($user->userProfile()->exists());
         $this->assertFalse($user->isAlumni());
-    }
 
-    public function test_mode_binaan_tidak_menautkan_nama_kembar_atau_anak_yang_sudah_berakun(): void
-    {
-        $admin = $this->admin();
-        $service = new ImportService;
-
-        // AN-005 juga bernama "Cece" → dua kandidat, jangan menebak.
-        $this->tambahAnak('AN-010', 'Cece');
-
-        $service->importData(
-            [['name' => 'Cece', 'email' => 'cece.kembar@example.test']],
-            [],
-            $admin->id,
-            null,
-            ImportService::MODE_BINAAN,
-            true,
-        );
-
-        $cece = User::query()->where('email', 'cece.kembar@example.test')->firstOrFail();
-        $this->assertNull($cece->anak_id, 'Nama kembar tidak boleh ditautkan otomatis.');
-
-        // Impor kedua untuk anak yang sudah berakun tidak boleh bentrok unique.
-        $service->importData(
-            [['name' => 'Doddy', 'email' => 'doddy.pertama@example.test']],
-            [],
-            $admin->id,
-            null,
-            ImportService::MODE_BINAAN,
-            true,
-        );
-        $service->importData(
-            [['name' => 'Doddy', 'email' => 'doddy.kedua@example.test']],
-            [],
-            $admin->id,
-            null,
-            ImportService::MODE_BINAAN,
-            true,
-        );
-
-        $this->assertSame(1, User::query()->where('anak_id', 'AN-002')->count(), 'Satu anak hanya boleh punya satu akun.');
-        $this->assertSame(
-            'doddy.pertama@example.test',
-            User::query()->where('anak_id', 'AN-002')->value('email')
-        );
-    }
-
-    public function test_akun_binaan_hasil_impor_tidak_bisa_login_sebelum_diluluskan(): void
-    {
-        $this->admin();
-
-        (new ImportService)->importData(
-            [['name' => 'Doddy', 'email' => 'doddy.login@example.test']],
-            [],
-            null,
-            null,
-            ImportService::MODE_BINAAN,
-        );
-
+        // Akun Draft belum bisa login sebelum diaktifkan pada proses kelulusan.
         $this->post('/login', [
-            'email' => 'doddy.login@example.test',
+            'email' => 'rizky.pratama@example.test',
             'password' => 'apa-saja-yang-ditebak',
         ])->assertInvalid([
             'email' => 'Email atau kata sandi tidak sesuai. Mohon periksa kembali lalu coba lagi.',
@@ -146,10 +107,273 @@ class ImportBinaanTest extends AbsensiTestCase
         $this->assertGuest();
     }
 
+    public function test_import_binaan_tanpa_email_berhasil(): void
+    {
+        $ringkasan = (new ImportService)->importData(
+            [$this->barisBinaan([
+                'name' => 'Kholis',
+                'email' => null,
+                'gender' => 'L',
+                'asal_daerah' => 'Cirebon',
+                'umur' => 16,
+            ])],
+            [],
+            null,
+            null,
+            ImportService::MODE_BINAAN,
+        );
+
+        $this->assertSame(0, $ringkasan['gagal']);
+        $this->assertSame(1, $ringkasan['anak_baru']);
+        $this->assertSame(1, $ringkasan['akun_dibuat']);
+
+        $user = User::query()->where('name', 'Kholis')->firstOrFail();
+
+        $this->assertNull($user->email, 'Email boleh kosong pada mode Remaja Binaan.');
+        $this->assertNull($user->password);
+        $this->assertSame(UserStatus::Draft, $user->status);
+        $this->assertNotNull($user->anak_id);
+
+        $anak = Anak::query()->findOrFail($user->anak_id);
+        $this->assertSame(Anak::STATUS_AKTIF, $anak->status);
+        $this->assertSame('Cirebon', $anak->asal_daerah);
+    }
+
+    public function test_preview_binaan_menolak_kolom_wajib_yang_kosong(): void
+    {
+        $header = SpesifikasiKolomImport::header();
+        $baris = array_fill(0, count($header), '');
+
+        // Hanya Nama & Email yang diisi; kolom wajib lainnya kosong.
+        $baris[0] = '1';
+        $baris[1] = 'Kholis';
+        $baris[8] = 'kholis@example.test';
+
+        $path = $this->tulisXlsx($header, [$baris], 'wajib-kosong.xlsx');
+
+        $hasil = (new ImportService)->parseAndValidate($path, 'xlsx', ImportService::MODE_BINAAN);
+
+        $this->assertSame([], $hasil['valid']);
+        $this->assertSame(ImportService::MODE_BINAAN, $hasil['mode']);
+
+        $kolomError = array_column($hasil['errors'], 'col');
+
+        $this->assertContains('Jenis Kelamin', $kolomError);
+        $this->assertContains('Asal Daerah', $kolomError);
+        $this->assertContains('Agama', $kolomError);
+        $this->assertContains('Umur', $kolomError);
+        $this->assertContains('Angkatan', $kolomError);
+    }
+
+    public function test_preview_binaan_menghitung_umur_dari_tanggal_lahir(): void
+    {
+        $header = SpesifikasiKolomImport::header();
+        $baris = array_fill(0, count($header), '');
+
+        $baris[0] = '1';
+        $baris[1] = 'Nadia Putri';
+        $baris[2] = 'P';
+        $baris[3] = 'Sumedang';
+        $baris[4] = 'Islam';
+        $baris[5] = '';                       // Umur sengaja kosong
+        $baris[6] = (new \DateTimeImmutable('-16 years -1 month'))->format('d/m/Y');
+        $baris[7] = 'Angkatan 2026';
+        $baris[8] = 'nadia@example.test';
+
+        $path = $this->tulisXlsx($header, [$baris], 'umur-dari-tanggal.xlsx');
+
+        $hasil = (new ImportService)->parseAndValidate($path, 'xlsx', ImportService::MODE_BINAAN);
+
+        $this->assertSame([], $hasil['errors']);
+        $this->assertCount(1, $hasil['valid']);
+        $this->assertSame(16, $hasil['valid'][0]['umur']);
+        $this->assertSame('P', $hasil['valid'][0]['gender']);
+        $this->assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2}$/', (string) $hasil['valid'][0]['birth_date']);
+    }
+
+    public function test_mode_tautkan_hanya_menautkan_anak_yang_cocok(): void
+    {
+        $admin = $this->admin();
+
+        // Fajar: nama unik, belum berakun, asal & angkatan sama → kandidat tautan.
+        $this->tambahAnak('AN-900', 'Fajar Nugraha', 'Bandung', 'Angkatan 2026');
+        $sebelum = Anak::query()->count();
+
+        $valid = [
+            $this->barisBinaan([
+                'name' => 'Fajar Nugraha',
+                'email' => 'fajar@example.test',
+                'asal_daerah' => 'Bandung',
+                'angkatan' => 'Angkatan 2026',
+                '_row_number' => 2,
+            ]),
+            $this->barisBinaan([
+                'name' => 'Tanpa Kembar',
+                'email' => 'tanpa.kembar@example.test',
+                '_row_number' => 3,
+            ]),
+        ];
+
+        $ringkasan = (new ImportService)->importData(
+            $valid,
+            [],
+            $admin->id,
+            null,
+            ImportService::MODE_BINAAN,
+            true,
+        );
+
+        $this->assertSame(1, $ringkasan['ditautkan'], 'Baris yang cocok tidak boleh membuat anak baru.');
+        $this->assertSame(1, $ringkasan['anak_baru']);
+        $this->assertSame(0, $ringkasan['gagal']);
+        $this->assertSame($sebelum + 1, Anak::query()->count());
+
+        $fajar = User::query()->where('email', 'fajar@example.test')->firstOrFail();
+        $this->assertSame('AN-900', $fajar->anak_id);
+        $this->assertSame(1, Anak::query()->where('nama', 'Fajar Nugraha')->count());
+
+        $baru = User::query()->where('email', 'tanpa.kembar@example.test')->firstOrFail();
+        $this->assertNotSame('AN-900', $baru->anak_id);
+        $this->assertSame(Anak::STATUS_AKTIF, $baru->anak?->status);
+    }
+
+    public function test_mode_tautkan_tidak_menautkan_nama_kembar_atau_identitas_berbeda(): void
+    {
+        $this->tambahAnak('AN-910', 'Cece', 'Bandung', 'Angkatan III');
+        $this->tambahAnak('AN-911', 'Cece', 'Garut', 'Angkatan III');
+
+        $hasil = (new ImportService)->petaTautanAnak([
+            $this->barisBinaan([
+                'name' => 'Cece',
+                'email' => 'cece@example.test',
+                'asal_daerah' => 'Bandung',
+                '_row_number' => 2,
+            ]),
+            // Doddy ada di AN-002 (Bogor · Angkatan II) — identitas bertentangan.
+            $this->barisBinaan([
+                'name' => 'Doddy',
+                'email' => 'doddy.lain@example.test',
+                'asal_daerah' => 'Jakarta',
+                'angkatan' => 'Angkatan I',
+                '_row_number' => 3,
+            ]),
+        ], true);
+
+        $this->assertSame([], $hasil['akan'], 'Nama kembar/identitas berbeda tidak boleh ditautkan.');
+        $this->assertSame([], $hasil['peta']);
+
+        $alasan = array_column($hasil['tidak'], 'alasan');
+        $this->assertContains('Nama kembar: 3 anak memakai nama ini', $alasan);
+        $this->assertContains('Asal daerah berbeda dengan data anak AN-002', $alasan);
+
+        $this->assertSame(['anak_baru', 'anak_baru'], array_column($hasil['rencana'], 'aksi'));
+    }
+
+    public function test_preview_menampilkan_rencana_anak_baru_atau_tautkan(): void
+    {
+        $this->tambahAnak('AN-920', 'Fajar', 'Bandung', 'Angkatan 2026');
+
+        $hasil = (new ImportService)->petaTautanAnak([
+            $this->barisBinaan([
+                'name' => 'Fajar',
+                'email' => 'fajar@example.test',
+                'angkatan' => 'Angkatan 2026',
+                '_row_number' => 2,
+            ]),
+            $this->barisBinaan([
+                'name' => 'Fiktif',
+                'email' => 'fiktif@example.test',
+                '_row_number' => 3,
+            ]),
+        ], true);
+
+        $this->assertSame('tautkan', $hasil['rencana'][0]['aksi']);
+        $this->assertSame('AN-920', $hasil['rencana'][0]['anak_id']);
+        $this->assertStringContainsString('Tautkan ke AN-920', $hasil['rencana'][0]['keterangan']);
+
+        $this->assertSame('anak_baru', $hasil['rencana'][1]['aksi']);
+        $this->assertStringContainsString('Anak baru + akun Draft', $hasil['rencana'][1]['keterangan']);
+
+        // Tanpa centang, semua baris selalu membuat anak baru.
+        $tanpaTautan = (new ImportService)->petaTautanAnak([
+            $this->barisBinaan(['name' => 'Fajar', '_row_number' => 2]),
+        ]);
+
+        $this->assertSame('anak_baru', $tanpaTautan['rencana'][0]['aksi']);
+    }
+
+    public function test_kegagalan_pembuatan_akun_mengompensasi_anak_baru(): void
+    {
+        // Email sudah dipakai akun lain → INSERT users gagal (unique).
+        User::create([
+            'name' => 'Akun Lama',
+            'email' => 'email.bentrok@example.test',
+            'password' => 'Rahasia#12345',
+            'user_type' => User::ROLE_CLIENT,
+            'status' => UserStatus::Published,
+        ]);
+
+        $sebelum = Anak::query()->count();
+
+        $ringkasan = (new ImportService)->importData(
+            [$this->barisBinaan([
+                'name' => 'Budi Kompensasi',
+                'email' => 'email.bentrok@example.test',
+            ])],
+            [],
+            null,
+            null,
+            ImportService::MODE_BINAAN,
+        );
+
+        $this->assertSame(1, $ringkasan['gagal']);
+        $this->assertSame(0, $ringkasan['akun_dibuat']);
+        $this->assertSame($sebelum, Anak::query()->count(), 'Anak yang baru dibuat harus dihapus kembali.');
+        $this->assertSame(0, Anak::query()->where('nama', 'Budi Kompensasi')->count());
+
+        $this->assertSame(2, $ringkasan['gagal_detail'][0]['row']);
+        $this->assertSame('Budi Kompensasi', $ringkasan['gagal_detail'][0]['nama']);
+        $this->assertArrayNotHasKey('email', $ringkasan['gagal_detail'][0], 'Laporan tidak boleh memuat email (PII).');
+    }
+
+    public function test_mode_klien_tetap_membuat_akun_aktif_tanpa_data_anak(): void
+    {
+        $sebelum = Anak::query()->count();
+
+        $ringkasan = (new ImportService)->importData(
+            [$this->barisBinaan([
+                'name' => 'Siti Aminah',
+                'email' => 'siti.klien@example.test',
+            ])],
+            [],
+            null,
+            'Rahasia#2026',
+            ImportService::MODE_KLIEN,
+        );
+
+        $this->assertSame(0, $ringkasan['anak_baru']);
+        $this->assertSame(0, $ringkasan['ditautkan']);
+        $this->assertSame(1, $ringkasan['akun_dibuat']);
+        $this->assertSame($sebelum, Anak::query()->count(), 'Mode klien tidak membuat data anak.');
+
+        $user = User::query()->where('email', 'siti.klien@example.test')->firstOrFail();
+
+        $this->assertSame(UserStatus::Published, $user->status);
+        $this->assertNull($user->anak_id);
+        $this->assertTrue(Hash::check('Rahasia#2026', (string) $user->password));
+
+        $this->post('/login', [
+            'email' => 'siti.klien@example.test',
+            'password' => 'Rahasia#2026',
+        ])->assertRedirect('/klien');
+
+        $this->assertAuthenticatedAs($user);
+    }
+
     public function test_mode_binaan_mengabaikan_kata_sandi_awal_operator(): void
     {
         (new ImportService)->importData(
-            [['name' => 'Doddy', 'email' => 'doddy.sandi@example.test']],
+            [$this->barisBinaan(['name' => 'Doddy Sandi', 'email' => 'doddy.sandi@example.test'])],
             [],
             null,
             'Rahasia#2026',
@@ -162,24 +386,26 @@ class ImportBinaanTest extends AbsensiTestCase
         $this->assertSame(UserStatus::Draft, $user->status);
     }
 
-    public function test_kelulusan_memakai_akun_hasil_impor_binaan_dan_mengabaikan_email_akun_tertaut(): void
+    public function test_akun_binaan_hasil_import_dipakai_saat_kelulusan(): void
     {
         $admin = $this->admin();
 
         (new ImportService)->importData(
-            [['name' => 'Doddy', 'email' => 'doddy.binaan@example.test']],
+            [$this->barisBinaan([
+                'name' => 'Doddy Binaan',
+                'email' => 'doddy.binaan@example.test',
+            ])],
             [],
             $admin->id,
             null,
             ImportService::MODE_BINAAN,
-            true,
         );
 
-        $binaan = User::query()->where('anak_id', 'AN-002')->firstOrFail();
-        $anak = Anak::query()->findOrFail('AN-002');
+        $binaan = User::query()->where('email', 'doddy.binaan@example.test')->firstOrFail();
+        $anak = Anak::query()->findOrFail($binaan->anak_id);
 
-        // Email sama (beda kapital) dengan akun yang sudah tertaut ke anak ini:
-        // syarat 1 — tidak boleh dianggap "sudah dipakai akun lain".
+        // Email sama (beda kapital) dengan akun yang sudah tertaut: syarat 1 —
+        // tidak boleh dianggap "sudah dipakai akun lain".
         $hasil = app(GraduationService::class)->luluskan($anak, '  DODDY.BINAAN@example.test ', null, $admin->id);
 
         $this->assertFalse($hasil['akun_dibuat'], 'Akun hasil impor harus dipakai ulang, bukan dibuat baru.');
@@ -189,147 +415,88 @@ class ImportBinaanTest extends AbsensiTestCase
         $this->assertNotNull($hasil['user']->graduated_at);
         $this->assertTrue($hasil['user']->isAlumni());
         $this->assertSame(Anak::STATUS_LULUS, $anak->fresh()->status);
-        $this->assertSame(1, User::query()->where('anak_id', 'AN-002')->count());
+        $this->assertSame(1, User::query()->where('anak_id', $anak->id)->count());
 
         // Syarat 3: kata sandi acak dikembalikan sekali dan tersimpan sebagai hash.
         $this->assertIsString($hasil['password']);
-        $this->assertTrue(Hash::check($hasil['password'], $hasil['user']->fresh()->password));
+        $this->assertTrue(Hash::check($hasil['password'], (string) $hasil['user']->fresh()->password));
     }
 
-    public function test_mode_klien_tetap_membuat_akun_aktif_dan_bisa_login(): void
-    {
-        (new ImportService)->importData(
-            [['name' => 'Siti Aminah', 'email' => 'siti.klien@example.test']],
-            [],
-            null,
-            'Rahasia#2026',
-            ImportService::MODE_KLIEN,
-        );
-
-        $user = User::query()->where('email', 'siti.klien@example.test')->firstOrFail();
-
-        $this->assertSame(UserStatus::Published, $user->status);
-        $this->assertNull($user->anak_id, 'Mode klien tidak menautkan ke data anak.');
-        $this->assertTrue(Hash::check('Rahasia#2026', $user->password));
-
-        $this->post('/login', [
-            'email' => 'siti.klien@example.test',
-            'password' => 'Rahasia#2026',
-        ])->assertRedirect('/klien');
-
-        $this->assertAuthenticatedAs($user);
-    }
-
-    public function test_mode_binaan_tanpa_opsi_penautan_tidak_menautkan_akun_ke_anak(): void
-    {
-        $admin = $this->admin();
-
-        (new ImportService)->importData(
-            [['name' => 'Doddy', 'email' => 'doddy.tanpa.tautan@example.test']],
-            [],
-            $admin->id,
-            null,
-            ImportService::MODE_BINAAN,
-        );
-
-        $user = User::query()->where('email', 'doddy.tanpa.tautan@example.test')->firstOrFail();
-
-        $this->assertNull($user->anak_id, 'Tanpa centang opsi, tidak boleh ada penautan otomatis.');
-        $this->assertSame(UserStatus::Draft, $user->status);
-    }
-
-    public function test_opsi_penautan_diabaikan_untuk_mode_klien(): void
-    {
-        (new ImportService)->importData(
-            [['name' => 'Doddy', 'email' => 'doddy.klien.tautan@example.test']],
-            [],
-            null,
-            'Rahasia#2026',
-            ImportService::MODE_KLIEN,
-            true,
-        );
-
-        $user = User::query()->where('email', 'doddy.klien.tautan@example.test')->firstOrFail();
-
-        $this->assertNull($user->anak_id, 'Penautan hanya berlaku untuk mode binaan.');
-        $this->assertSame(UserStatus::Published, $user->status);
-    }
-
-    public function test_pratinjau_penautan_memisahkan_yang_akan_dan_tidak_ditautkan(): void
-    {
-        $admin = $this->admin();
-
-        // AN-020 "Fajar" unik dan belum berakun → satu-satunya kandidat tautan.
-        $this->tambahAnak('AN-020', 'Fajar');
-        // AN-005 juga bernama "Cece" → nama kembar, tidak boleh ditebak.
-        $this->tambahAnak('AN-010', 'Cece');
-
-        // Akun Doddy yang sudah tertaut ke AN-002 membuat kandidat itu tidak
-        // boleh ditautkan lagi (unique `users.anak_id`).
-        (new ImportService)->importData(
-            [['name' => 'Doddy', 'email' => 'doddy.tertaut@example.test']],
-            [],
-            $admin->id,
-            null,
-            ImportService::MODE_BINAAN,
-            true,
-        );
-
-        $hasil = (new ImportService)->petaTautanAnak([
-            ['name' => 'fajar', 'email' => 'fajar@example.test', '_row_number' => 2],
-            ['name' => 'Cece', 'email' => 'cece@example.test', '_row_number' => 3],
-            ['name' => 'Doddy', 'email' => 'doddy.lain@example.test', '_row_number' => 4],
-            ['name' => 'Nama Fiktif', 'email' => 'fiktif@example.test', '_row_number' => 5],
-        ]);
-
-        $this->assertCount(1, $hasil['akan'], 'Hanya nama unik yang belum berakun yang boleh ditautkan.');
-        $this->assertSame('AN-020', $hasil['akan'][0]['anak_id']);
-        $this->assertSame('fajar@example.test', $hasil['akan'][0]['email']);
-        $this->assertSame(['fajar@example.test' => 'AN-020'], $hasil['peta']);
-
-        $alasan = array_column($hasil['tidak'], 'alasan');
-        $this->assertContains('Nama kembar: 2 anak memakai nama ini', $alasan);
-        $this->assertContains('Anak AN-002 sudah punya akun klien', $alasan);
-        $this->assertContains('Tidak ada data anak dengan nama ini', $alasan);
-    }
-
-    public function test_pratinjau_penautan_tidak_menautkan_nama_yang_muncul_dua_kali_di_file(): void
-    {
-        $this->tambahAnak('AN-030', 'Gita');
-
-        $hasil = (new ImportService)->petaTautanAnak([
-            ['name' => 'Gita', 'email' => 'gita.satu@example.test', '_row_number' => 2],
-            ['name' => 'gita', 'email' => 'gita.dua@example.test', '_row_number' => 3],
-        ]);
-
-        $this->assertSame([], $hasil['akan']);
-        $this->assertSame([], $hasil['peta']);
-        $this->assertCount(2, $hasil['tidak']);
-        $this->assertSame('Nama ini muncul lebih dari sekali di file', $hasil['tidak'][0]['alasan']);
-    }
-
-    public function test_form_import_data_menawarkan_mode_binaan_sebagai_pilihan_awal(): void
+    public function test_form_import_data_memakai_judul_import_data_dan_opsi_penautan_baru(): void
     {
         $this->actingAs($this->admin());
 
-        // Radio "binaan" terpilih secara default; nilai state inilah yang
-        // dikirim ke ImportService saat confirmImport().
-        Livewire::test(ImportData::class)
+        $komponen = Livewire::test(ImportData::class)
             ->assertSuccessful()
-            ->assertSee('Remaja Binaan')
-            ->assertSet('mode', ImportService::MODE_BINAAN);
+            ->assertSet('tautkan_anak', false)
+            ->assertSet('mode', ImportService::MODE_BINAAN)
+            ->assertSee('Tautkan ke anak yang sudah ada (jangan buat anak baru)')
+            ->assertSee('Remaja Binaan');
+
+        $this->assertSame('Import Data', $komponen->instance()->getTitle());
+    }
+
+    public function test_preview_halaman_menampilkan_rencana_per_baris(): void
+    {
+        $this->actingAs($this->admin());
+
+        Livewire::test(ImportData::class)
+            ->set('previewData', [
+                'total' => 2,
+                'mode' => ImportService::MODE_BINAAN,
+                'valid' => [
+                    ['name' => 'Fajar', 'email' => 'fajar@example.test', 'gender' => 'L', 'ktp_city_id' => null, 'hire_status' => '0', 'photo_filename' => null],
+                ],
+                'errors' => [],
+                'duplicates' => [],
+                'tautan' => [
+                    'akan' => [],
+                    'tidak' => [],
+                    'peta' => ['2' => 'AN-920'],
+                    'rencana' => [
+                        [
+                            'row' => 2,
+                            'nama' => 'Fajar',
+                            'email' => 'fajar@example.test',
+                            'aksi' => 'tautkan',
+                            'anak_id' => 'AN-920',
+                            'keterangan' => 'Tautkan ke AN-920 (akun Draft, tanpa anak baru)',
+                        ],
+                        [
+                            'row' => 3,
+                            'nama' => 'Fiktif',
+                            'email' => null,
+                            'aksi' => 'anak_baru',
+                            'anak_id' => null,
+                            'keterangan' => 'Anak baru (status Aktif) + akun Draft',
+                        ],
+                    ],
+                ],
+                'kemungkinan_duplikat' => [[
+                    'row' => 2,
+                    'nama' => 'Fajar',
+                    'email' => 'fajar@example.test',
+                    'jenis' => 'Data anak',
+                    'keyakinan' => 'Tinggi',
+                    'keterangan' => 'Nama sama dengan anak AN-920.',
+                ]],
+            ])
+            ->assertSee('Rencana Import per Baris')
+            ->assertSee('Tautkan ke AN-920')
+            ->assertSee('Anak baru + akun Draft')
+            ->assertSee('Kemungkinan Duplikat');
     }
 
     public function test_kemungkinan_duplikat_dilaporkan_berdasarkan_nama_asal_dan_angkatan(): void
     {
         $hasil = (new ImportService)->deteksiKemungkinanDuplikat([
             // Dua baris identik (nama + asal + angkatan) di dalam file.
-            ['name' => 'Sari', 'email' => 'sari.satu@example.test', 'asal_daerah' => 'Bandung', 'angkatan' => 'Angkatan III', '_row_number' => 2],
-            ['name' => 'Sari', 'email' => 'sari.dua@example.test', 'asal_daerah' => 'Bandung', 'angkatan' => 'Angkatan III', '_row_number' => 3],
+            $this->barisBinaan(['name' => 'Sari', 'email' => 'sari.satu@example.test', 'asal_daerah' => 'Bandung', 'angkatan' => 'Angkatan III', '_row_number' => 2]),
+            $this->barisBinaan(['name' => 'Sari', 'email' => 'sari.dua@example.test', 'asal_daerah' => 'Bandung', 'angkatan' => 'Angkatan III', '_row_number' => 3]),
             // Nama sama dengan anak AN-002 (Bogor · Angkatan II) — beda kapital.
-            ['name' => 'Doddy', 'email' => 'doddy.dup@example.test', 'asal_daerah' => 'bogor', 'angkatan' => 'angkatan ii', '_row_number' => 4],
+            $this->barisBinaan(['name' => 'Doddy', 'email' => 'doddy.dup@example.test', 'asal_daerah' => 'bogor', 'angkatan' => 'angkatan ii', '_row_number' => 4]),
             // Nama sama, tetapi asal daerah berbeda → dianggap orang lain.
-            ['name' => 'Doddy', 'email' => 'doddy.lain@example.test', 'asal_daerah' => 'Jakarta', 'angkatan' => 'Angkatan I', '_row_number' => 5],
+            $this->barisBinaan(['name' => 'Doddy', 'email' => 'doddy.lain@example.test', 'asal_daerah' => 'Jakarta', 'angkatan' => 'Angkatan I', '_row_number' => 5]),
         ]);
 
         $dalamFile = array_values(array_filter($hasil, fn (array $d) => $d['jenis'] === 'Di dalam file'));
@@ -340,89 +507,7 @@ class ImportBinaanTest extends AbsensiTestCase
         $terhadapAnak = array_values(array_filter($hasil, fn (array $d) => $d['jenis'] === 'Data anak'));
         $this->assertCount(1, $terhadapAnak);
         $this->assertSame(4, $terhadapAnak[0]['row']);
-        $this->assertSame('Tinggi', $terhadapAnak[0]['keyakinan']);
-        $this->assertStringContainsString('AN-002', $terhadapAnak[0]['keterangan']);
-    }
-
-    public function test_kemungkinan_duplikat_tidak_menolak_baris_saat_import(): void
-    {
-        $admin = $this->admin();
-        $service = new ImportService;
-
-        $valid = [
-            ['name' => 'Doddy', 'email' => 'doddy.ganda.satu@example.test', 'asal_daerah' => 'Bandung', 'angkatan' => 'Angkatan III', '_row_number' => 2],
-            ['name' => 'Doddy', 'email' => 'doddy.ganda.dua@example.test', 'asal_daerah' => 'Bandung', 'angkatan' => 'Angkatan III', '_row_number' => 3],
-        ];
-
-        $this->assertNotEmpty($service->deteksiKemungkinanDuplikat($valid), 'Duplikat harus dilaporkan.');
-
-        // Dilaporkan, bukan ditolak: kedua baris tetap dibuatkan akun.
-        $service->importData($valid, [], $admin->id, null, ImportService::MODE_BINAAN);
-
-        $this->assertSame(2, User::query()
-            ->whereIn('email', ['doddy.ganda.satu@example.test', 'doddy.ganda.dua@example.test'])
-            ->count());
-    }
-
-    public function test_form_import_data_memiliki_opsi_penautan_yang_default_mati(): void
-    {
-        $this->actingAs($this->admin());
-
-        Livewire::test(ImportData::class)
-            ->assertSuccessful()
-            ->assertSet('tautkan_anak', false)
-            ->assertSee('Tautkan ke data anak yang namanya sama');
-    }
-
-    public function test_preview_import_menampilkan_rencana_penautan_dan_kemungkinan_duplikat(): void
-    {
-        $this->actingAs($this->admin());
-
-        Livewire::test(ImportData::class)
-            ->set('previewData', [
-                'total' => 1,
-                'valid' => [[
-                    'name' => 'Fajar',
-                    'email' => 'fajar@example.test',
-                    'gender' => 'L',
-                    'ktp_city_id' => null,
-                    'hire_status' => '0',
-                    'photo_filename' => null,
-                ]],
-                'errors' => [],
-                'duplicates' => [],
-                'tautan' => [
-                    'akan' => [[
-                        'row' => 2,
-                        'nama' => 'Fajar',
-                        'email' => 'fajar@example.test',
-                        'anak_id' => 'AN-020',
-                        'asal_daerah' => 'Bandung',
-                        'angkatan' => 'Angkatan III',
-                        'status' => 'Aktif',
-                    ]],
-                    'tidak' => [[
-                        'row' => 3,
-                        'nama' => 'Cece',
-                        'email' => 'cece@example.test',
-                        'alasan' => 'Nama kembar: 2 anak memakai nama ini',
-                    ]],
-                    'peta' => ['fajar@example.test' => 'AN-020'],
-                ],
-                'kemungkinan_duplikat' => [[
-                    'row' => 2,
-                    'nama' => 'Fajar',
-                    'email' => 'fajar@example.test',
-                    'jenis' => 'Data anak',
-                    'keyakinan' => 'Tinggi',
-                    'keterangan' => 'Nama sama dengan anak AN-020.',
-                ]],
-            ])
-            ->assertSee('Penautan ke Data Anak')
-            ->assertSee('Akan ditautkan')
-            ->assertSee('AN-020')
-            ->assertSee('Nama kembar: 2 anak memakai nama ini')
-            ->assertSee('Kemungkinan Duplikat');
+        $this->assertStringContainsString('AN-002', (string) $terhadapAnak[0]['keterangan']);
     }
 
     public function test_import_semua_binaan_melaporkan_ringkasan_per_anak(): void

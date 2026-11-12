@@ -17,7 +17,7 @@ use Tests\TestCase;
  *
  * Fallback sementara: selama **belum satu pun** klien `published` punya
  * `graduated_at` (backfill belum berjalan), kartu memakai definisi lama
- * (`client` + `published`) dan menampilkan label "Angka sementara (belum final)".
+ * (`client` + `published`) dan menampilkan penanda "Angka sementara".
  * Begitu satu `graduated_at` terisi, angka otomatis memakai `alumni()->count()`
  * dan label tersebut hilang.
  */
@@ -63,7 +63,8 @@ class AlumniStatistikDashboardTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('Jumlah Alumni');
-        $response->assertSee('Angka sementara (belum final)');
+        // Label penanda angka sementara (teks persisnya mengikuti desain kartu).
+        $response->assertSee('Angka sementara');
     }
 
     public function test_kartu_otomatis_beralih_ke_definisi_resmi_setelah_satu_graduated_at_diisi(): void

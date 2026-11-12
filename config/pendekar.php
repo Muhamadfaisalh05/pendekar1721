@@ -4,6 +4,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Identitas Instansi
+    |--------------------------------------------------------------------------
+    |
+    | Nama instansi yang dicetak pada template import (Excel & Word). Boleh
+    | dikosongkan; template akan memakai placeholder "Nama Instansi" supaya
+    | tidak pernah menampilkan nama instansi yang salah.
+    |
+    */
+
+    'instansi_nama' => env('PENDEKAR_INSTANSI_NAMA', ''),
+
+    /*
+    |--------------------------------------------------------------------------
     | Batasan Alur Import Data
     |--------------------------------------------------------------------------
     |
