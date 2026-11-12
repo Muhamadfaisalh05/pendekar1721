@@ -1086,3 +1086,88 @@ Alasan urutan ini: skema harus ada sebelum kode baru dipakai (agar tidak terulan
 alumni harus diaudit sebelum angka publik ditampilkan. Pengaman skema tetap dipertahankan sebagai jaring
 pengaman permanen — bukan pengganti urutan rilis di atas.
 
+## 18. Perbaikan mode "Remaja Binaan" & template import resmi (12 Nov 2026)
+
+Lingkup: halaman **Import Data** (mode *Remaja Binaan*), template **Excel & Word** baru, dan tesnya.
+Tidak ada perubahan data dev, tidak ada migrasi baru, dan tidak ada berkas modul absensi/font WIP yang disentuh.
+
+### 18.1 Masalah yang ditemukan
+
+| Temuan | Dampak |
+|---|---|
+| Mode binaan hanya membuat **akun** (`users`, status `Draft`), **tidak** membuat baris `semarak.anak` saat baris tidak ditautkan | Satu baris import tidak menghasilkan satu anak binaan; anak yang belum ada di SEMARAK hilang dari modul absensi/dashboard dan tidak bisa diluluskan (tidak ada `anak_id`) |
+| Kolom **Email** diwajibkan pada semua mode | Data lapangan yang tidak punya email (mis. "Kholis") ditolak, padahal akun Draft memang tidak perlu email untuk login |
+| Kolom wajib mode binaan (Asal Daerah, Agama, Umur/Tanggal Lahir, Angkatan) tidak ditegakkan | Baris tidak lengkap lolos ke database, data anak menjadi tidak konsisten |
+| Template lama: satu sheet/tabel, header di baris 1, tanpa petunjuk, tanpa dropdown, tanpa penanda baris contoh | Operator salah isi format (tanggal, L/P, agama), baris contoh ikut terimpor, dan tidak ada rujukan nilai yang sah |
+| Parser lama hanya membaca header baris 1 dan tabel pertama | Template baru (judul + petunjuk di atas tabel) gagal terbaca; template lama harus tetap didukung |
+
+### 18.2 Perubahan alur per baris (mode binaan)
+
+`petaTautanAnak()` tetap menjadi **satu-satunya sumber kebenaran** untuk Preview dan import, tetapi sekarang
+di-key berdasarkan **nomor baris** (bukan email) supaya baris tanpa email pun mendapat rencana yang benar.
+
+| Kondisi baris | Hasil import |
+|---|---|
+| Checkbox "Tautkan ke anak yang sudah ada" **tidak** dicentang (default) | `semarak.anak` **baru** (status `Aktif`) + akun `Draft` (`users.anak_id` terisi, `email`/`password` NULL) |
+| Dicentang, nama unik di `anak`, identitas cocok, anak belum punya akun | Akun `Draft` **ditautkan** ke anak yang sudah ada (tanpa membuat anak baru) |
+| Dicentang, tetapi nama **kembar** / lebih dari sekali di file / identitas berbeda / anak sudah berakun | Anak **baru** dibuat (sistem tidak menebak); alasan tampil di kolom Rencana |
+| Mode **Klien Umum** | Perilaku lama tidak berubah: akun `Published` + kata sandi |
+
+Atomicity per baris: anak baru dibuat `ImportBinaanService::buatAnakBaru()` (pre-check ID + retry maksimum 5 kali
+di dalam transaksi, ID dari `AnakService::generateId()`), lalu akun `buatAkunDraft()`. Bila pembuatan akun gagal,
+`hapusAnakBaru()` menghapus anak yang baru dibuat (kompensasi) sehingga tidak ada anak tanpa akun, dan baris
+dicatat gagal pada ringkasan "Hasil Import" — log hanya memuat nomor baris + pesan, **tanpa PII**.
+
+
+### 18.3 Template resmi baru
+
+| Berkas | Isi |
+|---|---|
+| `app/Support/Import/SpesifikasiKolomImport.php` | Definisi tunggal semua kolom (kunci, header, wajib per mode, format, contoh, keterangan, lebar), daftar langkah, aturan umum, catatan privasi, nama instansi, judul template. Dipakai template **dan** parser |
+| `app/Support/Import/TemplateExcel.php` | Sheet **PETUNJUK** (judul, langkah, aturan, tabel kolom, catatan privasi), sheet **DATA** (judul, legenda, header berwarna wajib/opsional, baris CONTOH, 200 baris pra-format `=ROW()-4`, zebra, format tanggal/angka, dropdown dari sheet DAFTAR, validasi umur 5–30, batas panjang teks), sheet **DAFTAR** (sumber dropdown, *hidden* + terkunci). Freeze panes `C4`, autofilter, A4 landscape, header/footer cetak, proteksi sheet |
+| `app/Support/Import/TemplateWord.php` | **Baru.** A4 landscape; properti dokumen; header (nama instansi + judul); footer "Halaman X dari Y" (`{PAGE}`/`{NUMPAGES}`); halaman PETUNJUK; tabel DATA **tanpa sel gabungan**, header berulang tiap halaman (`tblHeader`), baris CONTOH, 15 baris kosong, zebra |
+| `app/Services/ImportTemplateService.php` | **Baru.** `namaBerkas()` (`template-import-remaja-binaan-YYYYMMDD.xlsx/.docx`), `buatExcel()`, `buatWord()`, `referensi()` (agama/jenis kelamin/pendidikan/pelatihan/wilayah dari master + fallback), `daftarDariDatabase()`, `pathSementara()` |
+| `app/Services/ImportService.php` | Parser baru: mencari sheet/baris header sampai 40 baris (mendukung template lama header baris 1 dan template baru baris 3), memetakan header beralias, mengabaikan kolom "No" berisi rumus, menolak baris CONTOH, validasi per mode, dedup email, parsing tanggal/umur |
+
+Detail yang dikunci oleh desain:
+
+- Baris contoh memakai penanda literal **`CONTOH - HAPUS SEBELUM IMPORT`**; bila belum dihapus, seluruh file ditolak
+  dengan pesan yang menyuruh operator menghapus baris itu (bukan diimpor diam-diam).
+- Nama file unduhan bertanggal supaya operator tidak tertukar antar versi template.
+- PhpWord menulis teks **tanpa escape** secara default; `TemplateWord::simpan()` menyalakan
+  `Settings::setOutputEscapingEnabled(true)` hanya selama pembuatan dokumen (dipulihkan di `finally`) agar karakter
+  `&` (mis. pada nama instansi) tidak menghasilkan `.docx` rusak.
+- `pendekar.instansi_nama` (env `PENDEKAR_INSTANSI_NAMA`) boleh kosong; template memakai placeholder "Nama Instansi".
+
+### 18.4 Keamanan & privasi
+
+- `users.email` dan `users.password` **nullable** untuk akun Draft: akun tidak bisa login sampai diluluskan.
+- Tautan hanya terjadi bila identitas cocok dan tidak ambigu; sistem **tidak pernah** menebak anak.
+- Log import tidak memuat nama/email/asal daerah; ringkasan "Hasil Import" di UI hanya menampilkan nomor baris + alasan.
+- "Kemungkinan duplikat" tetap **informasi**, bukan penolakan: baris tetap diimpor.
+- Query kandidat anak dipotong per 500 parameter (SQLite hanya mendukung 999 variabel per query) dan toleran bila
+  koneksi `semarak` gagal (hanya `Log::warning`, import tetap jalan tanpa tautan).
+- **Pengaman skema tetap berlaku (§17).** Bila `users.anak_id` belum ada (migrasi Fase 2 tertunda), mode binaan
+  jatuh ke `importBinaanTanpaTautan()`: akun `Draft` tetap dibuat, **tanpa** data anak baru, dan alasannya
+  dilaporkan lewat `petaTautanAnak()` (`"Migrasi database belum dijalankan…"`). Setelah migrasi dijalankan,
+  operator cukup mengulang import; baris lama belum punya anak sehingga tidak menimbulkan data ganda.
+
+### 18.5 Deviasi Fase 3 yang diperbaiki di sini
+
+§15.1 mencatat "Mode Remaja Binaan di Import Data" sebagai **akun Draft** saja, dan implementasi Fase 3 memang
+hanya membuat akun. Itu menyimpang dari maksud desain "satu baris = satu remaja binaan": anak yang belum ada di
+SEMARAK tidak pernah dibuat. Perbaikan ini mengembalikan maksud tersebut (anak `Aktif` + akun `Draft`), sekaligus
+mempertahankan keputusan §15.2 butir 2 (penautan **opt-in**, tidak pernah menebak nama kembar).
+
+
+### 18.6 Verifikasi
+
+| Butir | Hasil |
+|---|---|
+| `tests/Feature/Graduation/ImportBinaanTest.php` | 15 tes lulus (anak + akun Draft, baris tanpa email, kolom wajib, umur dari tanggal lahir, aturan tautan, kompensasi, Klien Umum tidak berubah, kata sandi operator diabaikan, kelulusan memakai akun hasil import, judul & checkbox halaman, rencana per baris, duplikat, ringkasan `importSemua`) |
+| `tests/Feature/Graduation/TemplateImportTest.php` | **Baru, 8 tes / 67 assertions**: struktur Excel (sheet, header = parser, hidden DAFTAR, proteksi, freeze `C4`, autofilter, dropdown L/P, umur 5–30, tanggal, baris CONTOH, nomor otomatis), struktur Word (properti, tabel DATA tanpa `gridSpan`, `tblHeader`, header instansi, footer `PAGE`/`NUMPAGES`), round-trip Excel & Word (2 baris → 2 anak + 2 akun Draft), penolakan baris CONTOH (Excel & Word), template **lama** Excel & Word tetap bisa diimpor |
+| `php artisan test` | **146 passed (730 assertions)**, 0 gagal |
+| `vendor/bin/pint --test` (berkas yang berubah) | **PASS** (13 berkas: `app/Support/Import`, `ImportService`, `ImportBinaanService`, `ImportTemplateService`, `ImportData`, `tests/Feature/Graduation`, `tests/Support/Import`) |
+| Pemeriksaan manual template | `.xlsx` dibuka ulang dengan PhpSpreadsheet (sheet, header, dropdown, freeze) dan `.docx` dengan PhpWord/`ZipArchive` (header1/footer1, `tblHeader`, tanpa `gridSpan`) — semua sesuai |
+
+
