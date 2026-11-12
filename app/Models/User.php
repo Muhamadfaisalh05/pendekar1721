@@ -4,29 +4,39 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Enums\UserStatus;
+use App\Modules\Absensi\Models\Anak;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
  * @property string $name
  * @property string $email
- * @property \Illuminate\Support\Carbon|null $email_verified_at
- * @property string $password
+ * @property Carbon|null $email_verified_at
+ * @property string|null $password Boleh NULL untuk binaan yang belum diaktifkan
  * @property string $user_type
  * @property string|null $remember_token
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
  * @property UserStatus|null $status
+ * @property string|null $anak_id Tautan ke `semarak.anak` (FASE 2)
+ * @property Carbon|null $graduated_at Penanda resmi alumni (FASE 2)
  * @property bool $has_current_job
  * @property UserProfile $userProfile
- * @property \Illuminate\Database\Eloquent\Collection<int, MasterSkill> $userSkills
- * @property \Illuminate\Database\Eloquent\Collection<int, MasterTraining> $userTrainings
- * @property \Illuminate\Database\Eloquent\Collection<int, UserExperience> $userExperiences
- * @property \Illuminate\Database\Eloquent\Collection<int, MasterCity> $userWorkLocations
+ * @property Collection<int, MasterSkill> $userSkills
+ * @property Collection<int, MasterTraining> $userTrainings
+ * @property Collection<int, UserExperience> $userExperiences
+ * @property Collection<int, MasterCity> $userWorkLocations
  */
 class User extends Authenticatable implements FilamentUser
 {
@@ -52,6 +62,8 @@ class User extends Authenticatable implements FilamentUser
         'user_type',
         'status',
         'created_by',
+        'anak_id',
+        'graduated_at',
     ];
 
     /**
@@ -75,6 +87,7 @@ class User extends Authenticatable implements FilamentUser
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'status' => UserStatus::class,
+            'graduated_at' => 'datetime',
         ];
     }
 
@@ -83,11 +96,20 @@ class User extends Authenticatable implements FilamentUser
     /**
      * Determine if the user can access the given Filament panel.
      *
-     * @param Panel $panel The Filament panel instance
+     * Status akun diperiksa lebih dulu: akun `Draft` (belum diaktifkan) dan
+     * `Archived` (diarsipkan) tidak boleh membuka panel mana pun, termasuk
+     * bila `user_type`-nya cocok. Status `null` (data lama) tetap diizinkan
+     * agar akun yang belum pernah diisi statusnya tidak tiba-tiba terkunci.
+     *
+     * @param  Panel  $panel  The Filament panel instance
      * @return bool True if user can access the panel, false otherwise
      */
     public function canAccessPanel(Panel $panel): bool
     {
+        if ($this->status === UserStatus::Draft || $this->status === UserStatus::Archived) {
+            return false;
+        }
+
         return match ($panel->getId()) {
             'admin' => $this->isAdmin(),
             'client' => $this->isClient(),
@@ -108,6 +130,38 @@ class User extends Authenticatable implements FilamentUser
     public function isClient(): bool
     {
         return $this->user_type === self::ROLE_CLIENT;
+    }
+
+    /**
+     * Scope "alumni" — definisi resmi yang disetujui pemilik produk (12 Nov 2026):
+     *
+     *     user_type = 'client' AND status = 'published' AND graduated_at IS NOT NULL
+     *
+     * Klien lama yang belum punya `graduated_at` — termasuk klien yang
+     * `created_by`-nya NULL — TIDAK dihitung alumni. `created_by IS NULL`
+     * sengaja tidak dipakai sebagai penanda karena klien baru pun bisa
+     * bernilai NULL. Backfill `graduated_at` dijalankan terpisah setelah
+     * audit produksi selesai (lihat docs/AUDIT-PRODUKSI-USERS.md).
+     *
+     * @param  Builder<User>  $query
+     * @return Builder<User>
+     */
+    public function scopeAlumni(Builder $query): Builder
+    {
+        return $query
+            ->where('user_type', self::ROLE_CLIENT)
+            ->where('status', UserStatus::Published->value)
+            ->whereNotNull('graduated_at');
+    }
+
+    /**
+     * Apakah akun ini alumni menurut definisi resmi di {@see scopeAlumni()}.
+     */
+    public function isAlumni(): bool
+    {
+        return $this->user_type === self::ROLE_CLIENT
+            && $this->status === UserStatus::Published
+            && $this->graduated_at !== null;
     }
 
     /**
@@ -147,9 +201,9 @@ class User extends Authenticatable implements FilamentUser
     /**
      * Get the user's profile.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\HasOne<UserProfile>
+     * @return HasOne<UserProfile>
      */
-    public function userProfile(): \Illuminate\Database\Eloquent\Relations\HasOne
+    public function userProfile(): HasOne
     {
         return $this->hasOne(UserProfile::class)->withDefault();
     }
@@ -157,7 +211,7 @@ class User extends Authenticatable implements FilamentUser
     /**
      * Get the user's skills.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany<MasterSkill>
+     * @return BelongsToMany<MasterSkill>
      */
     public function userSkills()
     {
@@ -167,7 +221,7 @@ class User extends Authenticatable implements FilamentUser
     /**
      * Get the user's trainings.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany<MasterTraining>
+     * @return BelongsToMany<MasterTraining>
      */
     public function userTrainings()
     {
@@ -177,7 +231,7 @@ class User extends Authenticatable implements FilamentUser
     /**
      * Get the user's work experiences.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany<UserExperience>
+     * @return HasMany<UserExperience>
      */
     public function userExperiences()
     {
@@ -187,7 +241,7 @@ class User extends Authenticatable implements FilamentUser
     /**
      * Get the user's work locations.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany<MasterCity>
+     * @return BelongsToMany<MasterCity>
      */
     public function userWorkLocations()
     {
@@ -197,9 +251,9 @@ class User extends Authenticatable implements FilamentUser
     /**
      * Get the user (klien/admin) that registered this user.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo<User, $this>
+     * @return BelongsTo<User, $this>
      */
-    public function creator(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
     }
@@ -207,11 +261,25 @@ class User extends Authenticatable implements FilamentUser
     /**
      * Get the peserta registered by this user.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany<User, $this>
+     * @return HasMany<User, $this>
      */
-    public function createdUsers(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function createdUsers(): HasMany
     {
         return $this->hasMany(User::class, 'created_by');
+    }
+
+    /**
+     * Baris `semarak.anak` yang tertaut ke akun ini (FASE 2).
+     *
+     * Relasi lintas database: `anak` berada di koneksi `semarak`, jadi tidak
+     * ada foreign key — integritas dijaga oleh ImportBinaanService dan
+     * GraduationService.
+     *
+     * @return BelongsTo<Anak, $this>
+     */
+    public function anak(): BelongsTo
+    {
+        return $this->belongsTo(Anak::class, 'anak_id', 'id');
     }
 
     /**

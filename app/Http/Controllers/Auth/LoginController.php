@@ -75,7 +75,10 @@ class LoginController extends Controller
 
         /** @var User $user */
         // Tolak akun yang tidak berhak masuk ke dashboard mana pun.
+        // `Draft` = akun sudah dibuat tetapi belum diaktifkan (mis. binaan
+        // hasil import), sehingga belum boleh login sama sekali.
         $penolakan = match (true) {
+            $user->status === UserStatus::Draft => 'Akun Anda belum diaktifkan. Silakan hubungi administrator Pendekar 1721.',
             $user->status === UserStatus::Archived => 'Akun Anda sudah diarsipkan dan tidak dapat digunakan. Silakan hubungi administrator.',
             ! in_array($user->user_type, [
                 User::ROLE_ADMIN,
@@ -119,18 +122,27 @@ class LoginController extends Controller
      * Verifikasi kata sandi dengan waktu respons yang relatif konstan.
      * Hash tetap diperiksa walau email tidak ditemukan (dummy hash), dan
      * hash yang tidak dikenali (mis. data lama) dianggap tidak cocok.
+     *
+     * Akun tanpa kata sandi — binaan yang belum diaktifkan, lihat migrasi
+     * `make_users_email_and_password_nullable` — selalu gagal di sini. Hash
+     * dummy tetap dijalankan agar waktu respons tidak membocorkan bahwa akun
+     * tersebut memang belum punya kata sandi.
      */
     private function kredensialValid(string $password, ?User $user): bool
     {
-        $hash = $user?->password ?? self::TIMING_SAFE_HASH;
+        if ($user === null || blank($user->password)) {
+            Hash::check($password, self::TIMING_SAFE_HASH);
+
+            return false;
+        }
 
         try {
-            $cocok = Hash::check($password, $hash);
+            $cocok = Hash::check($password, $user->password);
         } catch (RuntimeException) {
             $cocok = false;
         }
 
-        return $user !== null && $cocok;
+        return $cocok;
     }
 
     /**

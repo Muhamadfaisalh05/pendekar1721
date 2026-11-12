@@ -5,6 +5,22 @@
 **Scope:** Dual panel Filament (`/admin`, `/klien`), Import Data (XLSX/CSV/DOCX), Profil Publik (`/profile/{slug}`)
 **Prinsip:** *no business-logic change* — semua patch di bawah bersifat menambah kontrol, bukan mengubah aturan bisnis.
 
+> ### ⚠️ CATATAN: SEBAGIAN DOKUMEN INI SUDAH USANG (12 Nov 2026)
+>
+> Dokumen ini ditulis **sebelum** refactor panel Klien. Bagian yang sudah tidak sesuai:
+>
+> - `PesertaResource`, `ImportPeserta`, dan `ClientPesertaScopingTest` **sudah dihapus** (Fase 1).
+>   Temuan "panel `/klien` tidak di-scope per pemilik" tidak lagi berlaku karena panel Klien kini
+>   read-only + self-service profil (tanpa CRUD peserta & tanpa import).
+> - Status akun kini ditegakkan: `Draft`/`Archived` ditolak `User::canAccessPanel()` **dan**
+>   `LoginController` (Fase 0, tes `AccountStatusLoginTest`).
+> - `users.password` (dan `users.email`) kini **nullable** untuk akun binaan; login menolak
+>   password NULL dengan pesan gagal yang sama seperti kredensial salah (Fase 2).
+> - Nomor "FASE" pada tabel ringkasan mengacu pada rencana lama. Rencana & catatan terkini:
+>   `docs/BACKUP-LOGIC-SEBELUM-REFACTOR.md` §10–§13 dan `docs/AUDIT-PRODUKSI-USERS.md`.
+>
+> Perapian menyeluruh dokumen ini dijadwalkan pada **Fase 4**.
+
 ---
 
 ## 0. Ringkasan Eksekutif

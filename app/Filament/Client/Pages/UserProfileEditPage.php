@@ -15,7 +15,6 @@ use Filament\Forms\Form;
 use Filament\Forms\Get;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 
 /**
@@ -35,15 +34,31 @@ class UserProfileEditPage extends Page implements HasForms
 
     public UserProfile $userProfile;
 
+    /**
+     * Halaman ini hanya untuk Klien dan hanya mengelola profil miliknya sendiri.
+     */
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->user_type === 'client';
+    }
+
     public function mount(): void
     {
-        $userProfile = auth()->user()->userProfile;
+        $user = auth()->user();
+
+        abort_if($user === null, 403);
+
+        $userProfile = $user->userProfile;
+
+        // Pengaman: jangan pernah memuat profil milik user lain, meskipun
+        // relasi suatu saat berubah.
+        abort_if($userProfile->exists && (int) $userProfile->user_id !== (int) $user->id, 403);
 
         $this->userProfile = $userProfile;
 
         $data = $userProfile->toArray();
 
-        $data['work_experiences'] = auth()->user()->userExperiences->toArray();
+        $data['work_experiences'] = $user->userExperiences->toArray();
 
         $this->form->fill($data);
     }
@@ -64,13 +79,13 @@ class UserProfileEditPage extends Page implements HasForms
                                             ->required()
                                             ->rows(3)
                                             ->maxLength(400),
-                                        Forms\Components\Grid::make(['default' => 1, 'xl' => 3])
+                                        Grid::make(['default' => 1, 'xl' => 3])
                                             ->schema([
                                                 Forms\Components\TextInput::make('birth_place')
                                                     ->label('Tempat Lahir')
                                                     ->required()
                                                     ->maxLength(255),
-                                                Forms\Components\Grid::make(['default' => 1, 'xl' => 3])
+                                                Grid::make(['default' => 1, 'xl' => 3])
                                                     ->columnSpan(['default' => 1, 'xl' => 2])
                                                     ->schema([
                                                         Forms\Components\Select::make('birth_date_day')
@@ -80,6 +95,7 @@ class UserProfileEditPage extends Page implements HasForms
                                                                 for ($n = 1; $n <= 31; $n++) {
                                                                     $day[$n] = $n;
                                                                 }
+
                                                                 return $day;
                                                             })
                                                             ->required(),
@@ -109,12 +125,13 @@ class UserProfileEditPage extends Page implements HasForms
                                                                 for ($n = 1990; $n <= now()->year - 14; $n++) {
                                                                     $day[$n] = $n;
                                                                 }
+
                                                                 return $day;
                                                             })
                                                             ->required(),
                                                     ]),
                                             ]),
-                                        Forms\Components\Grid::make(['default' => 1, 'xl' => 3])
+                                        Grid::make(['default' => 1, 'xl' => 3])
                                             ->schema([
                                                 Forms\Components\Select::make('gender')
                                                     ->label('Jenis Kelamin')
@@ -134,7 +151,7 @@ class UserProfileEditPage extends Page implements HasForms
                                                     ->required()
                                                     ->maxLength(255),
                                             ]),
-                                        Forms\Components\Grid::make(['default' => 1, 'xl' => 3])
+                                        Grid::make(['default' => 1, 'xl' => 3])
                                             ->schema([
                                                 Forms\Components\TextInput::make('ktp_address')
                                                     ->label('Alamat Sesuai KTP')
@@ -146,7 +163,7 @@ class UserProfileEditPage extends Page implements HasForms
                                                     ->relationship('ktpCity', 'title')
                                                     ->required(),
                                             ]),
-                                        Forms\Components\Grid::make(['default' => 1, 'xl' => 3])
+                                        Grid::make(['default' => 1, 'xl' => 3])
                                             ->schema([
                                                 Forms\Components\TextInput::make('domisili_address')
                                                     ->label('Alamat Tempat Tinggal Sesuai Domisili')
@@ -158,7 +175,7 @@ class UserProfileEditPage extends Page implements HasForms
                                                     ->relationship('ktpCity', 'title')
                                                     ->required(),
                                             ]),
-                                        Forms\Components\Grid::make(['default' => 1, 'xl' => 3])
+                                        Grid::make(['default' => 1, 'xl' => 3])
                                             ->schema([
                                                 Forms\Components\Select::make('education_degree_id')
                                                     ->label('Jenjang Pendidikan')
@@ -173,9 +190,9 @@ class UserProfileEditPage extends Page implements HasForms
                                                     ->relationship('ethnicGroup', 'title')
                                                     ->required(),
                                             ]),
-                                        Forms\Components\Checkbox::make('skck_status')
+                                        Checkbox::make('skck_status')
                                             ->label('Memiliki SKCK'),
-                                        Forms\Components\Checkbox::make('surat_kesehatan_status')
+                                        Checkbox::make('surat_kesehatan_status')
                                             ->label('Memiliki Surat Keterangan Sehat'),
                                     ]),
                                 Section::make('Data Pengalaman Bekerja')
@@ -205,9 +222,9 @@ class UserProfileEditPage extends Page implements HasForms
                                                             ->fixIndistinctState(function (Get $get) {
                                                                 return $get('is_current_job') === true;
                                                             }),
-                                                    ])
-                                            ])
-                                    ])
+                                                    ]),
+                                            ]),
+                                    ]),
                             ]),
                         Grid::make()
                             ->columnSpan(1)
@@ -234,9 +251,9 @@ class UserProfileEditPage extends Page implements HasForms
                                             ->imageResizeTargetHeight('900')
                                             ->openable()
                                             ->downloadable(),
-                                    ])
-                            ])
-                    ])
+                                    ]),
+                            ]),
+                    ]),
             ])
             ->statePath('data')
             ->model($this->userProfile);
@@ -253,6 +270,10 @@ class UserProfileEditPage extends Page implements HasForms
 
     public function save(): void
     {
+        $user = auth()->user();
+
+        abort_if($user === null, 403);
+
         $data = $this->form->getState();
 
         $data['birth_date'] = Carbon::createFromDate(year: $data['birth_date_year'], month: $data['birth_date_month'], day: $data['birth_date_day']);
@@ -266,21 +287,24 @@ class UserProfileEditPage extends Page implements HasForms
 
         // user_id bukan atribut mass-assignable. Ambil instance yang sudah ada
         // atau buat lewat relasi agar foreign key terisi tanpa mass assignment.
+        // Pengaman: profil yang tersimpan harus milik user yang sedang login.
         $userProfile = $this->userProfile;
 
+        abort_if($userProfile->exists && (int) $userProfile->user_id !== (int) $user->id, 403);
+
         if (! $userProfile->exists) {
-            $userProfile = auth()->user()->userProfile()->make();
+            $userProfile = $user->userProfile()->make();
         }
 
         $userProfile->fill($data)->save();
 
         UserExperience::query()
-            ->whereBelongsTo(auth()->user())
+            ->whereBelongsTo($user)
             ->delete();
 
         foreach ($userExperiences as $userExperience) {
-            $userExperienceModel = new UserExperience();
-            $userExperienceModel->user_id = auth()->user()->id;
+            $userExperienceModel = new UserExperience;
+            $userExperienceModel->user_id = $user->id;
             $userExperienceModel->experience_year = $userExperience['experience_year'];
             $userExperienceModel->experience_job_name = $userExperience['experience_job_name'];
             $userExperienceModel->experience_description = $userExperience['experience_description'];
