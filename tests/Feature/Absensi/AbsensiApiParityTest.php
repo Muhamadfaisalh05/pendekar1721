@@ -9,9 +9,19 @@ use Tests\Support\Absensi\AbsensiTestCase;
 /**
  * Uji karakterisasi: seluruh skenario oracle native harus menghasilkan
  * status + body yang identik dengan implementasi Laravel.
+ *
+ * DATE DRIFT: modul absensi sengaja memakai `date('Y-m-d')` (bukan `now()`)
+ * agar perilakunya sama persis dengan aplikasi native SEMARAK. Karena itu
+ * `Carbon::setTestNow()` TIDAK membekukan tanggal default di modul ini.
+ * Fixture oracle direkam pada 2026-11-11 (`manifest.json` → `generated_at`),
+ * jadi tanggal hari ini dinormalkan ke tanggal rekaman sebelum dibandingkan.
+ * Perbandingan lain (status, struktur, angka, urutan) tetap ketat.
  */
 class AbsensiApiParityTest extends AbsensiTestCase
 {
+    /** Tanggal saat fixture oracle direkam (periode default = hari itu). */
+    private const TANGGAL_FIXTURE = '2026-11-11';
+
     public function test_seluruh_skenario_oracle_identik(): void
     {
         $fixtureDir = base_path('tests/Fixtures/Absensi/oracle');
@@ -46,7 +56,7 @@ class AbsensiApiParityTest extends AbsensiTestCase
 
             $expectedStatus = (int) $fixture['response']['status'];
             $expectedBody = (string) $fixture['response']['body'];
-            $actualBody = (string) $response->getContent();
+            $actualBody = $this->normalkanTanggal((string) $response->getContent());
 
             if ($response->getStatusCode() !== $expectedStatus || $actualBody !== $expectedBody) {
                 $failures[] = sprintf(
@@ -80,6 +90,15 @@ class AbsensiApiParityTest extends AbsensiTestCase
         $this->actingAs($client)
             ->getJson('/absensi/api?action=anak')
             ->assertForbidden();
+    }
+
+    /**
+     * Ganti tanggal hari ini dengan tanggal rekaman fixture agar periode
+     * default ("hari ini") pada respons bisa dibandingkan dengan oracle.
+     */
+    private function normalkanTanggal(string $body): string
+    {
+        return str_replace(date('Y-m-d'), self::TANGGAL_FIXTURE, $body);
     }
 
     private function mapUri(string $uri): string
