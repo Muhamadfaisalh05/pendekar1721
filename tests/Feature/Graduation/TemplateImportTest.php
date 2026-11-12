@@ -15,6 +15,7 @@ use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Cell\DataValidation;
 use PhpOffice\PhpSpreadsheet\IOFactory as ExcelIOFactory;
+use PhpOffice\PhpSpreadsheet\Style\Protection;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpWord\Element\Cell;
@@ -221,6 +222,95 @@ class TemplateImportTest extends ImportTestCase
         );
         $this->assertSame('=ROW()-4', $data->getCell('A'.$awal)->getValue());
         $this->assertSame('=ROW()-4', $data->getCell('A'.$akhir)->getValue());
+    }
+
+    /**
+     * BUG REGRESI: sheet DATA diproteksi, tetapi area isian (termasuk baris
+     * CONTOH) lupa di-unlock. Excel lalu menolak setiap perubahan dengan
+     * "The cell or chart you're trying to change is on a protected sheet".
+     *
+     * Template berlaku untuk mode Remaja Binaan DAN Klien Umum (satu berkas,
+     * kolom wajib ditandai *), jadi aturan di bawah ini berlaku untuk keduanya.
+     */
+    public function test_area_isian_sheet_data_terbuka_dan_izin_aksi_lengkap(): void
+    {
+        $path = $this->layananTemplate()->buatExcel();
+
+        $spreadsheet = ExcelIOFactory::load($path);
+        $data = $spreadsheet->getSheetByName('DATA');
+
+        // (c) Sheet PETUNJUK & DAFTAR tetap terproteksi (tidak diubah operator).
+        $this->assertTrue($spreadsheet->getSheetByName('PETUNJUK')->getProtection()->getSheet());
+        $this->assertTrue($spreadsheet->getSheetByName('DAFTAR')->getProtection()->getSheet());
+
+        // (a) Baris CONTOH wajib bisa diedit/dihapus.
+        $this->assertSame(
+            Protection::PROTECTION_UNPROTECTED,
+            $data->getStyle('B'.TemplateExcel::BARIS_CONTOH)->getProtection()->getLocked(),
+            'Baris CONTOH harus UNPROTECTED supaya operator bisa menghapusnya.'
+        );
+
+        // Seluruh kolom data (kecuali No) pada semua baris siap isi terbuka.
+        $hurufAkhir = Coordinate::stringFromColumnIndex(count(SpesifikasiKolomImport::header()));
+        $barisAkhir = TemplateExcel::BARIS_AWAL_DATA + TemplateExcel::JUMLAH_BARIS_KOSONG - 1;
+
+        foreach (['B5', 'C5', 'K204', $hurufAkhir.'204', $hurufAkhir.$barisAkhir] as $sel) {
+            $this->assertSame(
+                Protection::PROTECTION_UNPROTECTED,
+                $data->getStyle($sel)->getProtection()->getLocked(),
+                $sel.' harus UNPROTECTED agar bisa diisi operator.'
+            );
+        }
+
+        // (b) Header dan kolom No (rumus) tetap terkunci selama sheet diproteksi.
+        $this->assertTrue($data->getProtection()->getSheet(), 'Sheet DATA tetap diproteksi.');
+        $this->assertSame(
+            Protection::PROTECTION_PROTECTED,
+            $data->getStyle('B'.TemplateExcel::BARIS_HEADER)->getProtection()->getLocked(),
+            'Header kolom harus terkunci.'
+        );
+        $this->assertSame(Protection::PROTECTION_PROTECTED, $data->getStyle('A5')->getProtection()->getLocked());
+        $this->assertSame(Protection::PROTECTION_PROTECTED, $data->getStyle('A'.$barisAkhir)->getProtection()->getLocked());
+
+        // Izin aksi pada sheet yang diproteksi (false = diizinkan).
+        $proteksi = $data->getProtection();
+
+        foreach ([
+            'autoFilter' => $proteksi->getAutoFilter(),
+            'sort' => $proteksi->getSort(),
+            'formatColumns' => $proteksi->getFormatColumns(),
+            'formatRows' => $proteksi->getFormatRows(),
+            'insertRows' => $proteksi->getInsertRows(),
+            'deleteRows' => $proteksi->getDeleteRows(),
+            'selectLockedCells' => $proteksi->getSelectLockedCells(),
+            'selectUnlockedCells' => $proteksi->getSelectUnlockedCells(),
+        ] as $aksi => $terkunci) {
+            $this->assertFalse($terkunci, 'Aksi "'.$aksi.'" harus diizinkan pada sheet DATA.');
+        }
+
+        // Validasi data (dropdown & aturan) tidak boleh hilang karena perubahan proteksi.
+        $this->assertNotEmpty($data->getDataValidationCollection(), 'Validasi/dropdown harus tetap terpasang.');
+        $this->assertNotNull($data->getAutoFilter(), 'Autofilter harus tetap aktif.');
+    }
+
+    /**
+     * Template Word tidak boleh memakai proteksi dokumen (tidak ada padanan
+     * "protected sheet" di Word; kalau proteksi dipasang, operator tidak bisa
+     * mengisi tabel DATA). Dicek langsung pada XML .docx.
+     */
+    public function test_template_word_tidak_memakai_proteksi_dokumen(): void
+    {
+        $path = $this->layananTemplate()->buatWord();
+
+        $zip = new \ZipArchive;
+        $this->assertTrue($zip->open($path) === true);
+
+        $settings = (string) $zip->getFromName('word/settings.xml');
+        $document = (string) $zip->getFromName('word/document.xml');
+        $zip->close();
+
+        $this->assertStringNotContainsString('documentProtection', $settings, 'Word tidak boleh diproteksi.');
+        $this->assertStringNotContainsString('w:documentProtection', $document);
     }
 
     public function test_baris_contoh_excel_yang_lupa_dihapus_ditolak(): void

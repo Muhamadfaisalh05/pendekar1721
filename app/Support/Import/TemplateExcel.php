@@ -374,6 +374,11 @@ final class TemplateExcel
         }
         $sheet->getRowDimension(self::BARIS_HEADER)->setRowHeight(38);
 
+        // Header eksplisit dikunci (bukan hanya mewarisi default gaya sel)
+        // supaya nama/urutan kolom yang dibaca parser tidak bisa tertimpa.
+        $sheet->getStyle('A'.self::BARIS_HEADER.":{$hurufAkhir}".self::BARIS_HEADER)
+            ->getProtection()->setLocked(Protection::PROTECTION_PROTECTED);
+
         // Baris 4: baris CONTOH (data fiktif, wajib dihapus operator).
         $contoh = SpesifikasiKolomImport::barisContoh([
             'wilayah' => $this->referensi['wilayah'][0] ?? '',
@@ -422,7 +427,22 @@ final class TemplateExcel
             };
 
             $sheet->getStyle($rentang)->getNumberFormat()->setFormatCode($format);
-            $sheet->getStyle($rentang)->getProtection()->setLocked(Protection::PROTECTION_UNPROTECTED);
+
+            if ($kolom['kunci'] === SpesifikasiKolomImport::KUNCI_NOMOR) {
+                // Kolom No berisi rumus; sengaja tetap terkunci supaya nomor
+                // urut tidak tertimpa saat operator mengisi data.
+                $sheet->getStyle($huruf.self::BARIS_CONTOH.':'.$huruf.$barisAkhir)
+                    ->getProtection()->setLocked(Protection::PROTECTION_PROTECTED);
+
+                continue;
+            }
+
+            // PENTING: baris CONTOH ikut di-unlock. Tanpa ini operator tidak
+            // bisa menghapus/mengubah baris CONTOH pada sheet yang diproteksi
+            // (Excel menampilkan "The cell or chart you're trying to change is
+            // on a protected sheet") — dan file tidak akan pernah bisa diimpor.
+            $sheet->getStyle($huruf.self::BARIS_CONTOH.':'.$huruf.$barisAkhir)
+                ->getProtection()->setLocked(Protection::PROTECTION_UNPROTECTED);
         }
 
         // Zebra row halus untuk baris yang sudah berisi data.
@@ -601,8 +621,22 @@ final class TemplateExcel
         );
         $headerFooter->setOddFooter('&L Template Import Data Remaja Binaan &C Halaman &P dari &N &R Dicetak '.date('d/m/Y'));
 
-        // Header terkunci, area data (sudah di-unlock per sel) tetap bisa diisi.
-        $sheet->getProtection()->setSheet(true);
+        // Sheet DATA tetap diproteksi (header, judul, kolom No) TETAPI semua
+        // area isian sudah di-unlock per sel. Izin di bawah ini wajib diberikan
+        // supaya operator bisa bekerja normal di sheet yang diproteksi:
+        // filter, urutkan, ubah lebar kolom/baris, sisip/hapus baris, dan
+        // memilih sel. Tanpa izin ini Excel menolak aksi tersebut dengan pesan
+        // "The cell or chart you're trying to change is on a protected sheet".
+        $proteksi = $sheet->getProtection();
+        $proteksi->setSheet(true);
+        $proteksi->setAutoFilter(false);
+        $proteksi->setSort(false);
+        $proteksi->setFormatColumns(false);
+        $proteksi->setFormatRows(false);
+        $proteksi->setInsertRows(false);
+        $proteksi->setDeleteRows(false);
+        $proteksi->setSelectLockedCells(false);
+        $proteksi->setSelectUnlockedCells(false);
     }
 
     /**
