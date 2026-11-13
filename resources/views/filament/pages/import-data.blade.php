@@ -7,6 +7,10 @@
         <x-filament::button wire:click="downloadWordTemplate" color="info" icon="heroicon-o-document-text">
             Download Template Word
         </x-filament::button>
+
+        <x-filament::button wire:click="downloadFormulirWordTemplate" color="warning" icon="heroicon-o-identification">
+            Download Formulir Word (per anak)
+        </x-filament::button>
     </div>
 
     <form wire:submit.prevent="processPreview">
@@ -58,7 +62,7 @@
                         <table class="w-full text-sm text-left">
                             <thead class="text-xs text-gray-700 bg-gray-50">
                                 <tr>
-                                    <th class="px-4 py-3">Baris</th>
+                                    <th class="px-4 py-3">Baris / Blok</th>
                                     <th class="px-4 py-3">Nama</th>
                                     <th class="px-4 py-3">Kolom</th>
                                     <th class="px-4 py-3">Data</th>
@@ -68,7 +72,7 @@
                             <tbody>
                                 @foreach($previewData['errors'] as $error)
                                     <tr class="border-b">
-                                        <td class="px-4 py-3 font-medium">{{ $error['row'] }}</td>
+                                        <td class="px-4 py-3 font-medium">{{ ! empty($error['blok']) ? 'Blok '.$error['blok'] : $error['row'] }}</td>
                                         <td class="px-4 py-3">{{ $error['name'] ?: '-' }}</td>
                                         <td class="px-4 py-3">{{ $error['col'] }}</td>
                                         <td class="px-4 py-3 text-danger-600">{{ $error['val'] ?: '(kosong)' }}</td>
@@ -94,7 +98,7 @@
                         <table class="w-full text-sm text-left">
                             <thead class="text-xs text-gray-700 bg-gray-50">
                                 <tr>
-                                    <th class="px-4 py-3">Baris</th>
+                                    <th class="px-4 py-3">Baris / Blok</th>
                                     <th class="px-4 py-3">Nama</th>
                                     <th class="px-4 py-3">Email</th>
                                     <th class="px-4 py-3">Status</th>
@@ -103,7 +107,7 @@
                             <tbody>
                                 @foreach($previewData['duplicates'] as $dup)
                                     <tr class="border-b">
-                                        <td class="px-4 py-3 font-medium">{{ $dup['row'] }}</td>
+                                        <td class="px-4 py-3 font-medium">{{ ! empty($dup['blok']) ? 'Blok '.$dup['blok'] : $dup['row'] }}</td>
                                         <td class="px-4 py-3">{{ $dup['name'] }}</td>
                                         <td class="px-4 py-3">{{ $dup['email'] }}</td>
                                         <td class="px-4 py-3 text-warning-600">Data sudah ada</td>
@@ -352,7 +356,7 @@
                             <table class="w-full text-sm text-left">
                                 <thead class="text-xs text-gray-700 bg-gray-50">
                                     <tr>
-                                        <th class="px-4 py-3">Baris</th>
+                                        <th class="px-4 py-3">Baris / Blok</th>
                                         <th class="px-4 py-3">Nama</th>
                                         <th class="px-4 py-3">Alasan Gagal</th>
                                     </tr>
@@ -360,7 +364,7 @@
                                 <tbody>
                                     @foreach($hasilImport['gagal_detail'] as $gagal)
                                         <tr class="border-b">
-                                            <td class="px-4 py-3">{{ $gagal['row'] ?? '-' }}</td>
+                                            <td class="px-4 py-3">{{ ! empty($gagal['blok']) ? 'Blok '.$gagal['blok'] : ($gagal['row'] ?? '-') }}</td>
                                             <td class="px-4 py-3 font-medium">{{ $gagal['nama'] ?? '-' }}</td>
                                             <td class="px-4 py-3 text-danger-600">{{ $gagal['alasan'] ?? '-' }}</td>
                                         </tr>

@@ -194,6 +194,19 @@ class ImportData extends Page implements HasForms
             ->deleteFileAfterSend(true);
     }
 
+    /**
+     * Unduh formulir Word resmi (.docx): satu blok per anak, A4 portrait.
+     */
+    public function downloadFormulirWordTemplate()
+    {
+        $layanan = new ImportTemplateService;
+        $path = $layanan->buatFormulirWord();
+
+        return response()
+            ->download($path, $layanan->namaBerkasFormulir())
+            ->deleteFileAfterSend(true);
+    }
+
     public function processPreview()
     {
         $data = $this->form->getState();

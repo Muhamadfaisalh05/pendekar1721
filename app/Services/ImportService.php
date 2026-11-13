@@ -9,6 +9,7 @@ use App\Models\MasterTraining;
 use App\Models\User;
 use App\Modules\Absensi\Models\Anak;
 use App\Support\Import\SpesifikasiKolomImport;
+use App\Support\Import\TemplateFormulirWord;
 use App\Support\SchemaGuard;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -178,34 +179,158 @@ class ImportService
     }
 
     /**
-     * Baca tabel pertama yang punya baris header pada dokumen Word.
+     * Baca dokumen Word dan kenali SALAH SATU dari dua format yang didukung:
      *
-     * Template baru memuat tabel "Keterangan Kolom" sebelum tabel DATA, maka
-     * pencarian tidak boleh berhenti di tabel pertama saja. Tabel keterangan
-     * tidak pernah dianggap tabel data karena header-nya tidak memuat kolom
-     * "Nama" (hanya "Nama Kolom").
+     * 1. Tabel horizontal lama / template {@see SpesifikasiKolomImport} Word:
+     *    satu tabel dengan baris header kolom (Nama, Jenis Kelamin, dst.).
+     *    Tabel keterangan tidak pernah dianggap tabel data karena header-nya
+     *    tidak memuat kolom "Nama" (hanya "Nama Kolom").
+     * 2. Formulir per anak ({@see TemplateFormulirWord}):
+     *    banyak tabel dua kolom `Label | Isian`, satu tabel per blok/halaman.
+     *    Nomor blok diambil dari judul "BLOK n" sebelum tabel (fallback:
+     *    urutan blok). Tabel yang seluruh isiannya kosong diabaikan sehingga
+     *    blok kosong pada template tidak pernah menjadi baris data.
      *
      * @return array<int, array<string, mixed>>
      */
     protected function parseWord($filePath)
     {
         $phpWord = WordIOFactory::load($filePath);
+        $barisFormulir = [];
+        $blokKe = 0;
 
         foreach ($phpWord->getSections() as $section) {
+            $judulBlok = null;
+
             foreach ($section->getElements() as $element) {
                 if (! $element instanceof Table) {
+                    $teks = $this->teksElemen($element);
+
+                    if ($teks !== '' && preg_match('/BLOK\s+(\d+)/i', $teks, $cocok) === 1) {
+                        $judulBlok = (int) $cocok[1];
+                    }
+
                     continue;
                 }
 
                 $matriks = $this->matriksTabel($element);
 
+                // Format lama: tabel horizontal dengan baris header kolom.
                 if ($this->cariBarisHeader($matriks) !== null) {
                     return $this->petakanBaris($matriks);
                 }
+
+                $blok = $this->petakanBlokFormulir($matriks);
+
+                if ($blok === null) {
+                    continue;
+                }
+
+                $blokKe++;
+                $nomorBlok = $judulBlok ?? $blokKe;
+                $judulBlok = null;
+
+                // Tabel kosong (blok yang belum diisi) bukan data dan bukan
+                // error; abaikan sepenuhnya.
+                if (! $this->barisBerisiData($blok)) {
+                    continue;
+                }
+
+                $blok['_row_number'] = $nomorBlok;
+                $blok['_blok'] = $nomorBlok;
+
+                if ($this->mengandungPenandaContoh(array_values($blok))) {
+                    $blok['_contoh'] = true;
+                }
+
+                $barisFormulir[] = $blok;
             }
         }
 
-        return [];
+        return $barisFormulir;
+    }
+
+    /**
+     * Petakan tabel dua kolom `Label | Isian` menjadi satu baris data.
+     *
+     * Mengembalikan null bila tabel bukan blok formulir: setiap baris harus
+     * tepat dua kolom, dan minimal dua label dikenali (salah satunya "Nama").
+     * Baris yang labelnya tidak dikenal (mis. header "Label"/"Isian") dilewati.
+     *
+     * @param  array<int, array<int, string>>  $matriks
+     * @return array<string, mixed>|null
+     */
+    protected function petakanBlokFormulir(array $matriks): ?array
+    {
+        $labelDikenal = $this->labelFormulirDikenal();
+        $hasil = [];
+        $jumlahLabel = 0;
+
+        foreach ($matriks as $sel) {
+            if (count($sel) !== 2) {
+                return null;
+            }
+
+            $label = strtolower(trim(str_replace('*', '', (string) ($sel[0] ?? ''))));
+            $label = (string) preg_replace('/\s+/', ' ', $label);
+
+            if ($label === '' || ! isset($labelDikenal[$label])) {
+                continue;
+            }
+
+            $jumlahLabel++;
+            $hasil[$label] = trim((string) ($sel[1] ?? ''));
+        }
+
+        if ($jumlahLabel < 2 || ! array_key_exists('nama', $hasil)) {
+            return null;
+        }
+
+        return $hasil;
+    }
+
+    /**
+     * Daftar label kolom (huruf kecil, tanpa `*`) yang dikenali pada formulir.
+     *
+     * @return array<string, true>
+     */
+    protected function labelFormulirDikenal(): array
+    {
+        $label = [];
+
+        foreach (SpesifikasiKolomImport::kolom() as $kolom) {
+            if ($kolom['kunci'] === SpesifikasiKolomImport::KUNCI_NOMOR) {
+                continue;
+            }
+
+            $label[strtolower($kolom['header'])] = true;
+        }
+
+        return $label;
+    }
+
+    /**
+     * Ambil teks dari elemen paragraf Word (Text/TextRun/ListItemRun).
+     */
+    protected function teksElemen($element): string
+    {
+        if ($element instanceof Text) {
+            return $element->getText();
+        }
+
+        if ($element instanceof TextRun || $element instanceof ListItemRun) {
+            $teks = '';
+
+            foreach ($element->getElements() as $anak) {
+                if ($anak instanceof Text) {
+                    $teks .= $anak->getText();
+                }
+            }
+
+            return $teks;
+        }
+
+        return '';
     }
 
     /**
@@ -355,15 +480,21 @@ class ImportService
     /**
      * Baris dianggap berisi data hanya bila salah satu kolom data terisi.
      *
-     * Kolom nomor urut ("No") berisi rumus pada 200 baris pra-format, sehingga
+     * Kunci `$mapped` mengikuti HEADER (huruf kecil, tanpa `*`), bukan kunci
+     * internal snake_case, jadi pemeriksaan harus memakai header yang sama.
+     * Kolom nomor urut ("No") berisi rumus pada 200 baris pra-format sehingga
      * TIDAK boleh dipakai sebagai penanda "baris berisi data".
      *
      * @param  array<string, mixed>  $mapped
      */
     protected function barisBerisiData(array $mapped): bool
     {
-        foreach (SpesifikasiKolomImport::kunciData() as $kunci) {
-            $nilai = trim((string) ($mapped[$kunci] ?? ''));
+        foreach (SpesifikasiKolomImport::kolom() as $kolom) {
+            if ($kolom['kunci'] === SpesifikasiKolomImport::KUNCI_NOMOR) {
+                continue;
+            }
+
+            $nilai = trim((string) ($mapped[strtolower($kolom['header'])] ?? ''));
 
             if ($nilai !== '') {
                 return true;
@@ -459,6 +590,7 @@ class ImportService
                 if (in_array($kunciEmail, $existingEmails, true) || isset($emailDalamFile[$kunciEmail])) {
                     $results['duplicates'][] = [
                         'row' => $rowNum,
+                        'blok' => $row['_blok'] ?? null,
                         'name' => $nama,
                         'email' => $email,
                     ];
@@ -643,6 +775,7 @@ class ImportService
                 foreach ($errors as $err) {
                     $results['errors'][] = [
                         'row' => $rowNum,
+                        'blok' => $row['_blok'] ?? null,
                         'name' => $nama,
                         'col' => $err['col'],
                         'val' => $err['val'],
@@ -651,6 +784,7 @@ class ImportService
                 }
             } else {
                 $parsedData['_row_number'] = $rowNum;
+                $parsedData['_blok'] = $row['_blok'] ?? null;
                 $results['valid'][] = $parsedData;
             }
         }
@@ -940,6 +1074,7 @@ class ImportService
                 $ringkasan['gagal']++;
                 $ringkasan['gagal_detail'][] = [
                     'row' => $row,
+                    'blok' => $data['_blok'] ?? null,
                     'nama' => $nama,
                     'alasan' => $e->getMessage(),
                 ];
@@ -1010,6 +1145,7 @@ class ImportService
                 $ringkasan['gagal']++;
                 $ringkasan['gagal_detail'][] = [
                     'row' => $row,
+                    'blok' => $data['_blok'] ?? null,
                     'nama' => (string) ($data['name'] ?? ''),
                     'alasan' => $e->getMessage(),
                 ];

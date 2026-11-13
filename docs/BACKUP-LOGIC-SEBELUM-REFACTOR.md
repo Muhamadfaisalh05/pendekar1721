@@ -1282,3 +1282,45 @@ Catatan: dashboard modul Absensi (`/absensi`), `routes/absensi.php`, `ApiControl
 `database/migrations/semarak/*`, serta aset self-host font/WIP absensi **tidak disentuh** sama sekali oleh Pekerjaan 1
 maupun Pekerjaan 2.
 
+---
+
+## 20. Formulir Word per anak (Pekerjaan 3)
+
+Formulir A4 portrait berisi **satu blok per halaman** (tabel dua kolom `Label | Isian`) untuk pendataan remaja
+binaan. Berbeda dari template Word horizontal (bagian 18) yang memuat banyak baris pada satu tabel landscape; keduanya
+tetap didukung parser.
+
+### 20.1 Berkas
+
+| Berkas | Perubahan |
+|---|---|
+| `app/Support/Import/TemplateFormulirWord.php` (baru) | Pembuat formulir: halaman 1 PETUNJUK (langkah, aturan, label wajib, privasi), blok CONTOH, 5 blok kosong; A4 portrait; header instansi + judul, footer "Halaman X dari Y" + catatan privasi; font isian Arial 10 |
+| `app/Support/Import/SpesifikasiKolomImport.php` | Sumber tunggal `judulFormulir()`, `subjudulFormulir()`, `langkahPengisianFormulir()`, `aturanUmumFormulir()`; label & urutan kolom tetap dari `kolom()`/`header()` |
+| `app/Services/ImportService.php` | `parseWord()` mengenali **dua format**: tabel horizontal lama (baris header kolom) dan formulir dua kolom; nomor blok dari judul `BLOK n` (fallback urutan); tabel kosong diabaikan; `barisBerisiData()` memakai header (bukan kunci snake_case); galat/duplikat membawa `blok` |
+| `app/Services/ImportTemplateService.php` | `namaBerkasFormulir()` = `template-formulir-remaja-binaan-YYYYMMDD.docx`, `buatFormulirWord()` |
+| `app/Filament/Pages/ImportData.php` + `resources/views/filament/pages/import-data.blade.php` | Tombol **Download Formulir Word (per anak)**; tabel Preview menampilkan **Blok n** (bukan nomor baris) untuk file formulir |
+| `tests/Feature/Graduation/FormulirWordTest.php` (baru) | 6 tes: struktur, round-trip 2 blok, CONTOH ditolak, label wajib kosong, template lama 2 kolom, mode klien |
+
+### 20.2 Keputusan penting
+
+- **Blok CONTOH** (`BLOK 1 - CONTOH`) memakai `SpesifikasiKolomImport::barisContoh()`; isian Nama berisi
+  `CONTOH - HAPUS SEBELUM IMPORT`, sehingga file yang lupa dikosongkan ditolak dengan penanda yang sama seperti Excel.
+- **Blok kosong diabaikan**: tabel yang seluruh isiannya kosong tidak menjadi baris data dan tidak menghasilkan galat.
+  Hanya blok yang berisi minimal satu kolom data yang divalidasi (label wajib kosong -> galat).
+- **Nomor blok**: parser membaca judul paragraf `BLOK n` (bukan urutan tabel), sehingga Preview menyebut "Blok 3"
+  pada file formulir dan tetap nomor baris pada file tabel.
+- **Kompatibilitas**: tabel horizontal lama (termasuk yang hanya dua kolom, mis. Nama + Email) dideteksi lebih dulu;
+  template Excel, template Word horizontal, dan perilaku mode Klien Umum tidak berubah.
+- **Font**: seluruh isian Arial 10 (label 9pt tebal). Dokumen tidak diproteksi (Word tidak punya padanan protected sheet).
+
+### 20.3 Tes & verifikasi
+
+| Verifikasi | Hasil |
+|---|---|
+| `php artisan test` (seluruh suite) | **169 passed (1016 assertions)**, 0 gagal (163 tes sebelumnya + 6 tes formulir) |
+| `vendor/bin/pint --test` pada 6 berkas yang diubah/dibuat | **PASS** |
+| Render PDF | **Tidak dilakukan**: LibreOffice tidak terpasang di mesin ini. Alternatif Microsoft Word COM dicoba tetapi tidak selesai (proses otomatis dihentikan), sehingga verifikasi visual memakai struktur XML `.docx` (A4 portrait, header/footer, jumlah tabel, Arial 10) |
+
+Catatan: formulir ini ditujukan untuk **mode Remaja Binaan**; mode Klien Umum tetap memakai template Excel/Word biasa
+(aturan email wajib tidak berubah).
+

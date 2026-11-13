@@ -333,6 +333,61 @@ final class SpesifikasiKolomImport
     }
 
     /**
+     * Langkah pengisian FORMULIR (satu blok = satu remaja binaan).
+     *
+     * Dipakai halaman PETUNJUK pada template formulir Word; berbeda dari
+     * {@see langkahPengisian()} yang berbicara tentang sheet/tabel DATA.
+     *
+     * @return array<int, string>
+     */
+    public static function langkahPengisianFormulir(): array
+    {
+        return [
+            'Unduh formulir ini, lalu buka pada aplikasi pengolah dokumen (Microsoft Word atau LibreOffice Writer).',
+            'Setiap halaman blok adalah SATU remaja binaan: isi kolom Isian di sebelah kanan label.',
+            'Kosongkan atau hapus seluruh halaman BLOK 1 (CONTOH) sebelum mengunggah; jangan mengosongkan sebagian saja.',
+            'Label bertanda (*) wajib diisi; label tanpa tanda boleh dikosongkan.',
+            'Tulis tanggal lahir dengan format DD/MM/YYYY (contoh 17/08/2008), atau isi Umur dengan angka 5-30.',
+            'Tulis jenis kelamin dengan kode L (laki-laki) atau P (perempuan).',
+            'Bila lebih dari satu pelatihan/wilayah, pisahkan dengan koma (contoh: Menjahit, Tata Boga).',
+            'Blok yang seluruh isiannya kosong diabaikan. Simpan sebagai .docx, lalu unggah pada menu Import Data.',
+        ];
+    }
+
+    /**
+     * Aturan umum khusus formulir per anak.
+     *
+     * @return array<int, string>
+     */
+    public static function aturanUmumFormulir(): array
+    {
+        return [
+            'Jangan mengubah teks label di kolom kiri; parser mengenali label tersebut.',
+            'Jangan menggabungkan sel, menambah baris label baru, atau memindahkan tabel ke halaman lain.',
+            'Satu blok = satu anak; jangan menaruh dua anak dalam satu tabel.',
+            'Judul "BLOK n" dipakai sebagai nomor blok pada pesan galat Preview; jangan menghapusnya.',
+            'Jumlah blok maksimum per file mengikuti batas server ('.(int) config('pendekar.import.max_rows', 2000).' blok).',
+            'Gunakan satu file untuk satu kali import. Simpan berkas asli sebagai arsip bila diperlukan.',
+        ];
+    }
+
+    /**
+     * Judul resmi formulir per anak.
+     */
+    public static function judulFormulir(): string
+    {
+        return 'FORMULIR DATA REMAJA BINAAN';
+    }
+
+    /**
+     * Subjudul formulir per anak.
+     */
+    public static function subjudulFormulir(): string
+    {
+        return 'Satu blok untuk satu remaja binaan';
+    }
+
+    /**
      * Catatan privasi yang wajib tampil di kedua template.
      */
     public static function catatanPrivasi(): string

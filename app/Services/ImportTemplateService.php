@@ -8,6 +8,7 @@ use App\Models\MasterReligion;
 use App\Models\MasterTraining;
 use App\Modules\Absensi\Models\Anak;
 use App\Support\Import\TemplateExcel;
+use App\Support\Import\TemplateFormulirWord;
 use App\Support\Import\TemplateWord;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
@@ -50,6 +51,26 @@ class ImportTemplateService
         $path = $this->pathSementara($this->namaBerkas('docx'));
 
         (new TemplateWord($this->referensi()))->simpan($path);
+
+        return $path;
+    }
+
+    /**
+     * Nama berkas FORMULIR per anak: template-formulir-remaja-binaan-YYYYMMDD.docx.
+     */
+    public function namaBerkasFormulir(string $ekstensi = 'docx'): string
+    {
+        return 'template-formulir-remaja-binaan-'.now()->format('Ymd').'.'.strtolower($ekstensi);
+    }
+
+    /**
+     * Buat formulir Word (.docx, satu blok per anak) dan kembalikan path sementaranya.
+     */
+    public function buatFormulirWord(): string
+    {
+        $path = $this->pathSementara($this->namaBerkasFormulir());
+
+        (new TemplateFormulirWord($this->referensi()))->simpan($path);
 
         return $path;
     }
