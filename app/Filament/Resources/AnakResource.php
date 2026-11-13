@@ -113,11 +113,31 @@ class AnakResource extends Resource
                 ? 'Belum ada akun klien tertaut. Gunakan aksi "Luluskan & Aktifkan Akun Klien".'
                 : 'Akun #'.$record->akunKlien->getKey().' — '.static::labelAkunKlien($record));
 
+        // Alamat KTP diambil dari profil akun klien yang tertaut. Nama anak
+        // sekarang boleh sama (identitas = nama + alamat KTP + tanggal lahir +
+        // asal + angkatan), sehingga alamat menjadi pembeda utama di tabel.
+        $kolomAlamat = Tables\Columns\TextColumn::make('alamat_ktp')
+            ->label('Alamat (KTP)')
+            ->state(fn (Anak $record): ?string => static::alamatKtp($record))
+            ->placeholder('Belum ada')
+            ->wrap()
+            ->limit(80)
+            ->toggleable()
+            ->searchable(
+                query: fn (Builder $query, string $search): Builder => $query->whereIn(
+                    'id',
+                    static::idAnakDenganAlamat($search),
+                ),
+                isIndividual: true,
+                isGlobal: true,
+            );
+
         return $table
-            // Eager load akun klien lintas koneksi: satu query tambahan untuk
-            // seluruh halaman tabel, bukan satu query per baris (N+1).
+            // Eager load akun klien + profilnya lintas koneksi: satu query
+            // tambahan untuk seluruh halaman tabel, bukan satu query per baris
+            // (N+1) saat menampilkan alamat KTP.
             ->modifyQueryUsing(fn (Builder $query): Builder => $punyaTautanAnak
-                ? $query->with('akunKlien')
+                ? $query->with('akunKlien.userProfile')
                 : $query)
             ->defaultSort('nama')
             ->columns([
@@ -138,6 +158,10 @@ class AnakResource extends Resource
                     ->label('Asal Daerah')
                     ->searchable(isIndividual: true)
                     ->toggleable(),
+
+                // Alamat KTP dari profil akun klien (hanya bila `users.anak_id`
+                // sudah dimigrasikan, karena sumbernya relasi tersebut).
+                ...($punyaTautanAnak ? [$kolomAlamat] : []),
 
                 Tables\Columns\TextColumn::make('umur')
                     ->sortable(),
@@ -202,6 +226,12 @@ class AnakResource extends Resource
                     ->modalDescription(fn (Anak $record): string => static::deskripsiKelulusan($record))
                     ->modalSubmitActionLabel('Luluskan & Aktifkan')
                     ->form([
+                        // Identitas lengkap: nama anak boleh sama, jadi alamat
+                        // KTP + angkatan ikut ditampilkan sebelum akun diaktifkan.
+                        Forms\Components\Placeholder::make('identitas_anak')
+                            ->label('Identitas Anak')
+                            ->content(fn (Anak $record): string => static::ringkasanIdentitas($record)),
+
                         Forms\Components\TextInput::make('email')
                             ->label('Email Akun Klien')
                             ->email()
@@ -285,6 +315,61 @@ class AnakResource extends Resource
         return $aktor !== null
             && $aktor->isAdmin()
             && $anak->status !== Anak::STATUS_LULUS;
+    }
+
+    /**
+     * Alamat KTP dari profil akun klien yang tertaut ke anak.
+     *
+     * Anak sendiri tidak menyimpan alamat; sumbernya `users.user_profiles`.
+     * Null bila migrasi Fase 2 belum ada atau anak belum punya akun.
+     */
+    public static function alamatKtp(Anak $anak): ?string
+    {
+        if (! SchemaGuard::usersPunyaTautanAnak()) {
+            return null;
+        }
+
+        $alamat = trim((string) ($anak->akunKlien?->userProfile?->ktp_address ?? ''));
+
+        return $alamat === '' ? null : $alamat;
+    }
+
+    /**
+     * ID anak yang alamat KTP akun tertautnya mengandung kata kunci.
+     *
+     * Dipakai kolom Alamat untuk pencarian tabel. Sengaja memakai query
+     * terpisah (bukan `whereHas`) karena `users` dan `anak` berada di koneksi
+     * berbeda, sehingga subquery lintas koneksi tidak dapat diandalkan.
+     *
+     * @return array<int, string>
+     */
+    protected static function idAnakDenganAlamat(string $search): array
+    {
+        $kata = trim($search);
+
+        if ($kata === '' || ! SchemaGuard::usersPunyaTautanAnak()) {
+            return [];
+        }
+
+        return User::query()
+            ->whereNotNull('anak_id')
+            ->whereHas('userProfile', fn (Builder $query): Builder => $query
+                ->where('ktp_address', 'like', '%'.$kata.'%'))
+            ->pluck('anak_id')
+            ->map(fn ($id): string => (string) $id)
+            ->all();
+    }
+
+    /**
+     * Ringkasan identitas anak untuk modal kelulusan: nama, angkatan, dan
+     * alamat KTP. Nama anak boleh sama, sehingga angkatan/alamat ikut
+     * ditampilkan agar operator mengaktifkan akun orang yang benar.
+     */
+    public static function ringkasanIdentitas(Anak $anak): string
+    {
+        $alamat = static::alamatKtp($anak);
+
+        return $anak->nama.' · '.$anak->angkatan.' · '.($alamat ?? 'alamat KTP belum ada');
     }
 
     /**

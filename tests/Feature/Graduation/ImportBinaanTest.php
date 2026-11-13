@@ -237,7 +237,7 @@ class ImportBinaanTest extends ImportTestCase
         $this->assertSame(Anak::STATUS_AKTIF, $baru->anak?->status);
     }
 
-    public function test_mode_tautkan_tidak_menautkan_nama_kembar_atau_identitas_berbeda(): void
+    public function test_mode_tautkan_tidak_menautkan_nama_kembar_tanpa_alamat_pembeda(): void
     {
         $this->tambahAnak('AN-910', 'Cece', 'Bandung', 'Angkatan III');
         $this->tambahAnak('AN-911', 'Cece', 'Garut', 'Angkatan III');
@@ -259,11 +259,14 @@ class ImportBinaanTest extends ImportTestCase
             ]),
         ], true);
 
-        $this->assertSame([], $hasil['akan'], 'Nama kembar/identitas berbeda tidak boleh ditautkan.');
+        $this->assertSame([], $hasil['akan'], 'Nama kembar tanpa alamat KTP tidak boleh ditautkan.');
         $this->assertSame([], $hasil['peta']);
 
         $alasan = array_column($hasil['tidak'], 'alasan');
-        $this->assertContains('Nama kembar: 3 anak memakai nama ini', $alasan);
+        $this->assertContains(
+            'Nama kembar: 3 anak memakai nama ini; alamat/tanggal lahir tidak dapat dipastikan',
+            $alasan
+        );
         $this->assertContains('Asal daerah berbeda dengan data anak AN-002', $alasan);
 
         $this->assertSame(['anak_baru', 'anak_baru'], array_column($hasil['rencana'], 'aksi'));
@@ -472,42 +475,135 @@ class ImportBinaanTest extends ImportTestCase
                         ],
                     ],
                 ],
-                'kemungkinan_duplikat' => [[
-                    'row' => 2,
-                    'nama' => 'Fajar',
-                    'email' => 'fajar@example.test',
-                    'jenis' => 'Data anak',
-                    'keyakinan' => 'Tinggi',
-                    'keterangan' => 'Nama sama dengan anak AN-920.',
-                ]],
+                'duplikat' => [
+                    'pasti' => [[
+                        'row' => 2,
+                        'nama' => 'Fajar',
+                        'alamat' => 'Jl. Merdeka No. 10',
+                        'sumber' => 'Data lama',
+                        'anak_id' => 'AN-920',
+                        'keterangan' => 'Nama, alamat, dan angkatan sama dengan anak AN-920 (Data lama) sehingga kemungkinan data ganda.',
+                    ]],
+                    'kemungkinan' => [[
+                        'row' => 3,
+                        'nama' => 'Fiktif',
+                        'alamat' => null,
+                        'jenis' => 'Peringatan',
+                        'sumber' => 'Di dalam file',
+                        'anak_id' => null,
+                        'keterangan' => 'Nama, asal daerah, dan angkatan sama dengan baris 2 (Di dalam file), tetapi alamat KTP kosong.',
+                    ]],
+                    'dilewati' => [2],
+                ],
+                'impor_ganda' => false,
             ])
             ->assertSee('Rencana Import per Baris')
             ->assertSee('Tautkan ke AN-920')
             ->assertSee('Anak baru + akun Draft')
-            ->assertSee('Kemungkinan Duplikat');
+            ->assertSee('Duplikat & Nama Sama')
+            ->assertSee('Ganda pasti (1)')
+            ->assertSee('Nama sama, identitas belum pasti (1)')
+            ->assertSee('tidak akan diimpor');
     }
 
-    public function test_kemungkinan_duplikat_dilaporkan_berdasarkan_nama_asal_dan_angkatan(): void
+    public function test_analisis_duplikat_binaan_memakai_identitas_lengkap(): void
     {
-        $hasil = (new ImportService)->deteksiKemungkinanDuplikat([
-            // Dua baris identik (nama + asal + angkatan) di dalam file.
-            $this->barisBinaan(['name' => 'Sari', 'email' => 'sari.satu@example.test', 'asal_daerah' => 'Bandung', 'angkatan' => 'Angkatan III', '_row_number' => 2]),
-            $this->barisBinaan(['name' => 'Sari', 'email' => 'sari.dua@example.test', 'asal_daerah' => 'Bandung', 'angkatan' => 'Angkatan III', '_row_number' => 3]),
-            // Nama sama dengan anak AN-002 (Bogor · Angkatan II) — beda kapital.
+        $hasil = (new ImportService)->analisisDuplikatBinaan([
+            // Dua baris dengan identitas lengkap sama → baris kedua ganda pasti.
+            $this->barisBinaan(['name' => 'Sari', 'email' => 'sari.satu@example.test', 'asal_daerah' => 'Bandung', 'angkatan' => 'Angkatan III', 'ktp_address' => 'Jl. Merdeka No. 10', '_row_number' => 2]),
+            $this->barisBinaan(['name' => 'Sari', 'email' => 'sari.dua@example.test', 'asal_daerah' => 'bandung', 'angkatan' => 'angkatan iii', 'ktp_address' => 'jl.  merdeka no. 10', '_row_number' => 3]),
+            // Nama sama dengan anak AN-002 (Bogor · Angkatan II) tetapi anak itu
+            // belum punya akun/alamat KTP → hanya peringatan, bukan ganda pasti.
             $this->barisBinaan(['name' => 'Doddy', 'email' => 'doddy.dup@example.test', 'asal_daerah' => 'bogor', 'angkatan' => 'angkatan ii', '_row_number' => 4]),
-            // Nama sama, tetapi asal daerah berbeda → dianggap orang lain.
+            // Nama sama, asal daerah & angkatan berbeda → dianggap orang lain.
             $this->barisBinaan(['name' => 'Doddy', 'email' => 'doddy.lain@example.test', 'asal_daerah' => 'Jakarta', 'angkatan' => 'Angkatan I', '_row_number' => 5]),
         ]);
 
-        $dalamFile = array_values(array_filter($hasil, fn (array $d) => $d['jenis'] === 'Di dalam file'));
-        $this->assertCount(2, $dalamFile);
-        $this->assertSame([2, 3], array_column($dalamFile, 'row'));
-        $this->assertSame('Tinggi', $dalamFile[0]['keyakinan']);
+        $this->assertSame([3], array_column($hasil['pasti'], 'row'));
+        $this->assertSame('Di dalam file', $hasil['pasti'][0]['sumber']);
+        $this->assertSame('jl.  merdeka no. 10', $hasil['pasti'][0]['alamat']);
 
-        $terhadapAnak = array_values(array_filter($hasil, fn (array $d) => $d['jenis'] === 'Data anak'));
-        $this->assertCount(1, $terhadapAnak);
-        $this->assertSame(4, $terhadapAnak[0]['row']);
-        $this->assertStringContainsString('AN-002', (string) $terhadapAnak[0]['keterangan']);
+        $this->assertSame([4], array_column($hasil['kemungkinan'], 'row'));
+        $this->assertSame('Peringatan', $hasil['kemungkinan'][0]['jenis']);
+        $this->assertSame('AN-002', $hasil['kemungkinan'][0]['anak_id']);
+
+        $this->assertSame([3], $hasil['dilewati']);
+    }
+
+    public function test_duplikat_dicek_terhadap_akun_klien_lama_lewat_alamat_ktp(): void
+    {
+        $lama = User::create([
+            'name' => 'Sari Lama',
+            'email' => 'sari.lama@example.test',
+            'password' => 'Rahasia#12345',
+            'user_type' => User::ROLE_CLIENT,
+            'status' => UserStatus::Published,
+        ]);
+        $lama->userProfile()->create([
+            'ktp_address' => 'Jl. Merdeka No. 10',
+            'birth_date' => '2008-02-03',
+        ]);
+
+        $hasil = (new ImportService)->analisisDuplikatBinaan([
+            // Nama + alamat + tanggal lahir sama dengan akun lama → ganda pasti.
+            $this->barisBinaan(['name' => 'sari lama', 'email' => 'sari.baru@example.test', 'ktp_address' => 'Jl. Merdeka No. 10', 'birth_date' => '2008-02-03', '_row_number' => 2]),
+            // Nama sama, alamat & tanggal lahir berbeda → orang lain, tidak dilaporkan.
+            $this->barisBinaan(['name' => 'Sari Lama', 'email' => 'sari.lain@example.test', 'ktp_address' => 'Jl. Cihampelas No. 22', 'birth_date' => '2009-05-06', '_row_number' => 3]),
+        ]);
+
+        $this->assertSame([2], array_column($hasil['pasti'], 'row'));
+        $this->assertSame('Akun', $hasil['pasti'][0]['sumber']);
+        $this->assertNull($hasil['pasti'][0]['anak_id'], 'Akun lama belum tertaut ke data anak.');
+        $this->assertSame([], $hasil['kemungkinan'], 'Alamat/tanggal lahir berbeda berarti orang lain.');
+        $this->assertSame([2], $hasil['dilewati']);
+    }
+
+    public function test_nama_sama_alamat_berbeda_tetap_diimpor_sebagai_anak_berbeda(): void
+    {
+        $ringkasan = (new ImportService)->importData([
+            $this->barisBinaan(['name' => 'Sari', 'email' => 'sari.satu@example.test', 'ktp_address' => 'Jl. Merdeka No. 10', '_row_number' => 2]),
+            $this->barisBinaan(['name' => 'Sari', 'email' => 'sari.dua@example.test', 'ktp_address' => 'Jl. Cihampelas No. 22', '_row_number' => 3]),
+        ], [], null, null, ImportService::MODE_BINAAN);
+
+        $this->assertSame(2, $ringkasan['anak_baru'], 'Nama sama dengan alamat berbeda bukan duplikat.');
+        $this->assertSame(0, $ringkasan['dilewati']);
+        $this->assertSame(2, Anak::query()->where('nama', 'Sari')->count());
+    }
+
+    public function test_import_melewati_ganda_pasti_dan_bisa_dipaksa_dengan_opsi_impor_ganda(): void
+    {
+        $admin = $this->admin();
+        $baris = [
+            $this->barisBinaan(['name' => 'Sari', 'email' => 'sari.satu@example.test', 'ktp_address' => 'Jl. Merdeka No. 10', '_row_number' => 2]),
+            $this->barisBinaan(['name' => 'Sari', 'email' => 'sari.dua@example.test', 'ktp_address' => 'Jl. Merdeka No. 10', '_row_number' => 3]),
+        ];
+
+        $ringkasan = (new ImportService)->importData($baris, [], $admin->id, null, ImportService::MODE_BINAAN);
+
+        $this->assertSame(1, $ringkasan['anak_baru'], 'Baris ganda pasti harus dilewati.');
+        $this->assertSame(1, $ringkasan['dilewati']);
+        $this->assertSame([3], array_column($ringkasan['dilewati_detail'], 'row'));
+        $this->assertSame(1, Anak::query()->where('nama', 'Sari')->count());
+
+        // Opsi "Impor baris ganda" memaksa semua baris masuk. Email harus baru
+        // karena email pada impor pertama sudah terpakai (unique).
+        $paksa = (new ImportService)->importData(
+            [
+                array_merge($baris[0], ['email' => 'sari.tiga@example.test']),
+                array_merge($baris[1], ['email' => 'sari.empat@example.test']),
+            ],
+            [],
+            $admin->id,
+            null,
+            ImportService::MODE_BINAAN,
+            false,
+            true,
+        );
+
+        $this->assertSame(2, $paksa['anak_baru']);
+        $this->assertSame(0, $paksa['gagal']);
+        $this->assertSame(0, $paksa['dilewati']);
+        $this->assertSame(3, Anak::query()->where('nama', 'Sari')->count());
     }
 
     public function test_import_semua_binaan_melaporkan_ringkasan_per_anak(): void

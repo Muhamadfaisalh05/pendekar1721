@@ -71,6 +71,13 @@ class ImportData extends Page implements HasForms
      */
     public $tautkan_anak = false;
 
+    /**
+     * Opsi memaksa impor baris yang terdeteksi GANDA (nama + alamat KTP +
+     * tanggal lahir + asal daerah + angkatan sama). Default MATI: baris ganda
+     * dilewati agar data tidak tercatat dua kali.
+     */
+    public $impor_ganda = false;
+
     public static function canAccess(): bool
     {
         return auth()->user()?->user_type === 'admin';
@@ -101,8 +108,17 @@ class ImportData extends Page implements HasForms
                         ->visible(fn (Forms\Get $get): bool => $get('mode') === ImportService::MODE_BINAAN)
                         ->helperText('Opsional dan hanya berlaku untuk mode "Remaja Binaan". Bila dicentang, baris yang '
                             .'namanya cocok dengan SATU data anak yang belum punya akun hanya dibuatkan akun Draft yang '
-                            .'ditautkan (tanpa anak baru); baris lain tetap membuat anak baru. Nama kembar tidak pernah '
-                            .'ditautkan. Centang sebelum menekan "Preview Data" agar rencana per baris ikut diperbarui.'),
+                            .'ditautkan (tanpa anak baru); baris lain tetap membuat anak baru. Nama kembar hanya ditautkan '
+                            .'bila alamat KTP/tanggal lahirnya cocok dengan tepat satu anak. Centang sebelum menekan '
+                            .'"Preview Data" agar rencana per baris ikut diperbarui.'),
+
+                    Forms\Components\Checkbox::make('impor_ganda')
+                        ->label('Impor tetap baris yang terdeteksi ganda')
+                        ->default(false)
+                        ->visible(fn (Forms\Get $get): bool => $get('mode') === ImportService::MODE_BINAAN)
+                        ->helperText('Default MATI: baris dengan identitas sama persis (nama + alamat KTP + tanggal lahir + '
+                            .'asal daerah + angkatan) dilewati agar tidak tercatat dua kali. Centang hanya bila Anda yakin '
+                            .'baris tersebut memang orang yang berbeda.'),
                 ]),
 
             Forms\Components\Section::make('Upload File Import & Foto')
@@ -163,6 +179,7 @@ class ImportData extends Page implements HasForms
         $this->form->fill([
             'mode' => ImportService::MODE_BINAAN,
             'tautkan_anak' => false,
+            'impor_ganda' => false,
         ]);
     }
 
@@ -237,11 +254,12 @@ class ImportData extends Page implements HasForms
             // yang ditampilkan, jadi nilainya ikut dibaca di sini.
             $mode = $data['mode'] ?? ImportService::MODE_BINAAN;
             $tautkanAnak = $mode === ImportService::MODE_BINAAN && (bool) ($data['tautkan_anak'] ?? false);
+            $imporGanda = $mode === ImportService::MODE_BINAAN && (bool) ($data['impor_ganda'] ?? false);
 
             $this->hasilImport = null;
 
             $service = new ImportService;
-            $this->previewData = $service->parseAndValidate($filePath, $extension, $mode, $tautkanAnak);
+            $this->previewData = $service->parseAndValidate($filePath, $extension, $mode, $tautkanAnak, $imporGanda);
 
             Notification::make()->title('File berhasil diproses untuk preview.')->success()->send();
         } catch (\Exception $e) {
@@ -276,6 +294,7 @@ class ImportData extends Page implements HasForms
             // bila operator mencentang opsinya. Nilai ini menentukan apakah
             // akun hasil import dikaitkan ke `semarak.anak`.
             $tautkanAnak = $mode === ImportService::MODE_BINAAN && (bool) ($data['tautkan_anak'] ?? false);
+            $imporGanda = $mode === ImportService::MODE_BINAAN && (bool) ($data['impor_ganda'] ?? false);
 
             // SECURITY (FASE 3): kata sandi awal harus cocok dengan hash
             // yang tersimpan di server (IMPORT_PASSWORD_HASH). Mode binaan
@@ -297,11 +316,12 @@ class ImportData extends Page implements HasForms
                 $mode === ImportService::MODE_BINAAN ? null : $importPassword,
                 $mode,
                 $tautkanAnak,
+                $imporGanda,
             );
 
             $this->hasilImport = $ringkasan;
 
-            $totalDuplikat = count($this->previewData['duplicates']);
+            $totalDuplikat = (int) ($ringkasan['dilewati'] ?? 0);
 
             $pesan = $mode === ImportService::MODE_BINAAN
                 ? "{$ringkasan['akun_dibuat']} akun Draft dibuat: {$ringkasan['anak_baru']} anak baru, "
@@ -315,10 +335,11 @@ class ImportData extends Page implements HasForms
                 ->send();
 
             // Reset form (mode kembali ke pilihan awal "Remaja Binaan" dan
-            // opsi penautan kembali MATI).
+            // opsi penautan/ganda kembali MATI).
             $this->form->fill([
                 'mode' => ImportService::MODE_BINAAN,
                 'tautkan_anak' => false,
+                'impor_ganda' => false,
             ]);
             $this->previewData = null;
 

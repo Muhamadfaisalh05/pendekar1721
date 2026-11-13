@@ -355,4 +355,34 @@ class GraduationOnboardingTest extends AbsensiTestCase
         $this->assertTrue($this->anak('AN-004')->akunKlien->is($aktif));
         $this->assertNull($this->anak('AN-003')->akunKlien);
     }
+
+    /**
+     * Kolom "Alamat (KTP)" membaca profil akun klien tertaut dan bisa dicari.
+     */
+    public function test_kolom_alamat_ktp_menampilkan_dan_mencari_alamat_akun_tertaut(): void
+    {
+        $admin = $this->admin();
+
+        $draft = app(ImportBinaanService::class)->pastikanAkunBinaan($this->anak('AN-002'), $admin->id)['user'];
+        $draft->userProfile()->update(['ktp_address' => 'Jl. Merdeka No. 10']);
+
+        $this->actingAs($admin);
+
+        Livewire::test(ManageAnak::class)
+            ->assertSee('Alamat (KTP)')
+            ->assertSee('Jl. Merdeka No. 10')
+            ->searchTable('merdeka')
+            ->assertCanSeeTableRecords([$this->anak('AN-002')])
+            ->assertCanNotSeeTableRecords([$this->anak('AN-003')]);
+
+        $this->assertSame('Jl. Merdeka No. 10', AnakResource::alamatKtp($this->anak('AN-002')));
+        $this->assertNull(
+            AnakResource::alamatKtp($this->anak('AN-003')),
+            'Anak tanpa akun tertaut belum punya alamat KTP.'
+        );
+        $this->assertStringContainsString(
+            'Jl. Merdeka No. 10',
+            AnakResource::ringkasanIdentitas($this->anak('AN-002'))
+        );
+    }
 }

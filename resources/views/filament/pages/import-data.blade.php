@@ -215,8 +215,9 @@
                     <p class="text-sm text-gray-600 mb-4">
                         Daftar ini menunjukkan baris yang akan ditautkan ke data anak binaan <strong>bila</strong> opsi
                         <strong>&quot;Tautkan ke anak yang sudah ada (jangan buat anak baru)&quot;</strong> Anda centang.
-                        Hanya nama yang unik, anak belum punya akun, dan asal daerah/angkatan tidak bertentangan yang
-                        ditautkan &mdash; nama kembar tidak pernah ditautkan otomatis.
+                        Hanya baris yang identitasnya (nama + alamat KTP + tanggal lahir + asal daerah + angkatan)
+                        tidak bertentangan dan menunjuk satu anak yang belum punya akun yang ditautkan &mdash; nama
+                        sama tanpa alamat KTP pembeda tidak pernah ditautkan otomatis.
                     </p>
 
                     @if(count($previewData['tautan']['akan'] ?? []) > 0)
@@ -283,44 +284,96 @@
                 </x-filament::card>
             @endif
 
-            {{-- Kemungkinan Duplikat (nama + asal daerah + angkatan) --}}
-            @if(count($previewData['kemungkinan_duplikat'] ?? []) > 0)
+            {{-- Identitas & Duplikat (mode binaan) --}}
+            @php($duplikatBinaan = $previewData['duplikat'] ?? ['pasti' => [], 'kemungkinan' => []])
+
+            @if(count($duplikatBinaan['pasti'] ?? []) > 0 || count($duplikatBinaan['kemungkinan'] ?? []) > 0)
                 <x-filament::card>
                     <div class="flex items-center gap-2 text-warning-600 mb-4">
                         <x-filament::icon icon="heroicon-o-exclamation-triangle" class="w-6 h-6" />
-                        <h3 class="text-lg font-bold">Kemungkinan Duplikat</h3>
+                        <h3 class="text-lg font-bold">Duplikat &amp; Nama Sama</h3>
                     </div>
                     <p class="text-sm text-gray-600 mb-4">
-                        Baris berikut mirip data yang sudah ada atau mirip baris lain di file (nama + asal daerah +
-                        angkatan). Ini <strong>hanya peringatan</strong>: datanya tetap diimpor. Periksa kembali sebelum
-                        menekan tombol Import.
+                        Identitas dihitung dari <strong>nama + alamat KTP + tanggal lahir + asal daerah + angkatan</strong>.
+                        Nama sama saja <strong>tidak</strong> dianggap duplikat, sehingga dua anak bernama sama tetap dapat
+                        diimpor selama alamat/tanggal lahirnya berbeda.
                     </p>
-                    <div class="overflow-x-auto max-h-72">
-                        <table class="w-full text-sm text-left">
-                            <thead class="text-xs text-gray-700 bg-gray-50 sticky top-0">
-                                <tr>
-                                    <th class="px-4 py-3">Baris</th>
-                                    <th class="px-4 py-3">Nama</th>
-                                    <th class="px-4 py-3">Email</th>
-                                    <th class="px-4 py-3">Sumber</th>
-                                    <th class="px-4 py-3">Keyakinan</th>
-                                    <th class="px-4 py-3">Keterangan</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach($previewData['kemungkinan_duplikat'] as $duplikat)
-                                    <tr class="border-b">
-                                        <td class="px-4 py-3">{{ $duplikat['row'] ?? '-' }}</td>
-                                        <td class="px-4 py-3 font-medium">{{ $duplikat['nama'] ?? '-' }}</td>
-                                        <td class="px-4 py-3">{{ $duplikat['email'] ?? '-' }}</td>
-                                        <td class="px-4 py-3">{{ $duplikat['jenis'] ?? '-' }}</td>
-                                        <td class="px-4 py-3">{{ $duplikat['keyakinan'] ?? '-' }}</td>
-                                        <td class="px-4 py-3 text-gray-600">{{ $duplikat['keterangan'] ?? '-' }}</td>
+
+                    @if(count($duplikatBinaan['pasti'] ?? []) > 0)
+                        <div class="text-sm font-semibold text-danger-600 mb-2">
+                            Ganda pasti ({{ count($duplikatBinaan['pasti']) }})
+                        </div>
+                        <p class="text-sm text-gray-600 mb-2">
+                            @if($previewData['impor_ganda'] ?? false)
+                                Opsi <strong>&quot;Impor tetap baris yang terdeteksi ganda&quot;</strong> aktif, jadi baris
+                                berikut tetap diimpor.
+                            @else
+                                Baris berikut <strong>tidak akan diimpor</strong>. Centang
+                                <strong>&quot;Impor tetap baris yang terdeteksi ganda&quot;</strong> lalu tekan Preview ulang
+                                bila Anda yakin baris tersebut orang yang berbeda.
+                            @endif
+                        </p>
+                        <div class="overflow-x-auto max-h-72 mb-6">
+                            <table class="w-full text-sm text-left">
+                                <thead class="text-xs text-gray-700 bg-gray-50 sticky top-0">
+                                    <tr>
+                                        <th class="px-4 py-3">Baris</th>
+                                        <th class="px-4 py-3">Nama</th>
+                                        <th class="px-4 py-3">Alamat KTP (file)</th>
+                                        <th class="px-4 py-3">Sumber</th>
+                                        <th class="px-4 py-3">Keterangan</th>
                                     </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
+                                </thead>
+                                <tbody>
+                                    @foreach($duplikatBinaan['pasti'] as $duplikat)
+                                        <tr class="border-b">
+                                            <td class="px-4 py-3">{{ $duplikat['row'] ?? '-' }}</td>
+                                            <td class="px-4 py-3 font-medium">{{ $duplikat['nama'] ?? '-' }}</td>
+                                            <td class="px-4 py-3">{{ ($duplikat['alamat'] ?? null) ?: '-' }}</td>
+                                            <td class="px-4 py-3">{{ $duplikat['sumber'] ?? '-' }}</td>
+                                            <td class="px-4 py-3 text-gray-600">{{ $duplikat['keterangan'] ?? '-' }}</td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @endif
+
+                    @if(count($duplikatBinaan['kemungkinan'] ?? []) > 0)
+                        <div class="text-sm font-semibold text-warning-600 mb-2">
+                            Nama sama, identitas belum pasti ({{ count($duplikatBinaan['kemungkinan']) }})
+                        </div>
+                        <p class="text-sm text-gray-600 mb-2">
+                            Ini <strong>hanya peringatan</strong>: baris tetap diimpor. Periksa manual bila alamat KTP atau
+                            tanggal lahirnya ternyata sama.
+                        </p>
+                        <div class="overflow-x-auto max-h-72">
+                            <table class="w-full text-sm text-left">
+                                <thead class="text-xs text-gray-700 bg-gray-50 sticky top-0">
+                                    <tr>
+                                        <th class="px-4 py-3">Baris</th>
+                                        <th class="px-4 py-3">Nama</th>
+                                        <th class="px-4 py-3">Alamat KTP (file)</th>
+                                        <th class="px-4 py-3">Jenis</th>
+                                        <th class="px-4 py-3">Sumber</th>
+                                        <th class="px-4 py-3">Keterangan</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($duplikatBinaan['kemungkinan'] as $duplikat)
+                                        <tr class="border-b">
+                                            <td class="px-4 py-3">{{ $duplikat['row'] ?? '-' }}</td>
+                                            <td class="px-4 py-3 font-medium">{{ $duplikat['nama'] ?? '-' }}</td>
+                                            <td class="px-4 py-3">{{ ($duplikat['alamat'] ?? null) ?: '-' }}</td>
+                                            <td class="px-4 py-3">{{ $duplikat['jenis'] ?? '-' }}</td>
+                                            <td class="px-4 py-3">{{ $duplikat['sumber'] ?? '-' }}</td>
+                                            <td class="px-4 py-3 text-gray-600">{{ $duplikat['keterangan'] ?? '-' }}</td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @endif
                 </x-filament::card>
             @endif
 

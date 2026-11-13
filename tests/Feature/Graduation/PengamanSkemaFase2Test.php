@@ -88,6 +88,7 @@ class PengamanSkemaFase2Test extends AbsensiTestCase
         $kolom = Livewire::test(ManageAnak::class)->instance()->getTable()->getColumns();
 
         $this->assertArrayNotHasKey('akun_klien', $kolom, 'Kolom Akun Klien tidak boleh dipasang.');
+        $this->assertArrayNotHasKey('alamat_ktp', $kolom, 'Kolom Alamat hanya ada bila tautan akun tersedia.');
     }
 
     public function test_aksi_luluskan_dinonaktifkan_dengan_peringatan_migrasi(): void

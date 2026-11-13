@@ -94,9 +94,10 @@ class ImportService
      * @param  string  $extension  xlsx/xls/csv/docx.
      * @param  string  $mode  `binaan` atau `klien`; menentukan kolom wajib.
      * @param  bool  $tautkanAnak  Keadaan checkbox "Tautkan ke anak yang sudah ada".
+     * @param  bool  $imporGanda  Keadaan checkbox "Impor tetap baris ganda".
      * @return array<string, mixed>
      */
-    public function parseAndValidate($filePath, $extension, string $mode = self::MODE_KLIEN, bool $tautkanAnak = false)
+    public function parseAndValidate($filePath, $extension, string $mode = self::MODE_KLIEN, bool $tautkanAnak = false, bool $imporGanda = false)
     {
         $rows = [];
 
@@ -121,13 +122,16 @@ class ImportService
         $validasi = $this->validateRows($rows, $mode);
         $validasi['mode'] = $mode;
         $validasi['tautkan_anak'] = $mode === self::MODE_BINAAN && $tautkanAnak;
+        $validasi['impor_ganda'] = $mode === self::MODE_BINAAN && $imporGanda;
 
         // FASE 3 (revisi review): dua laporan tambahan untuk langkah Preview.
-        // Keduanya INFORMASI, bukan penolakan: baris tetap masuk `valid` dan
-        // tetap diimpor. Keputusan penautan ada di tangan operator (checkbox),
-        // sedangkan laporan duplikat hanya meminta operator memeriksa.
+        // Penautan hanya sebagai rencana (checkbox operator). Analisis duplikat
+        // pada mode binaan memakai identitas lengkap: nama + alamat KTP +
+        // tanggal lahir + asal daerah + angkatan (lihat analisisDuplikatBinaan).
         $validasi['tautan'] = $this->petaTautanAnak($validasi['valid'], $validasi['tautkan_anak']);
-        $validasi['kemungkinan_duplikat'] = $this->deteksiKemungkinanDuplikat($validasi['valid']);
+        $validasi['duplikat'] = $mode === self::MODE_BINAAN
+            ? $this->analisisDuplikatBinaan($validasi['valid'])
+            : ['pasti' => [], 'kemungkinan' => [], 'dilewati' => []];
 
         return $validasi;
     }
@@ -890,15 +894,47 @@ class ImportService
      * @param  string|null  $initialPassword  Kata sandi awal opsional (mode klien).
      * @param  string  $mode  `binaan` (anak + akun Draft) atau `klien` (akun aktif).
      * @param  bool  $tautkanAnak  Hanya mode binaan: tautkan ke anak yang sudah ada.
-     * @return array{mode: string, anak_baru: int, ditautkan: int, akun_dibuat: int, gagal: int, gagal_detail: array<int, array<string, mixed>>}
+     * @param  bool  $imporGanda  Hanya mode binaan: tetap impor baris yang terdeteksi ganda.
+     * @return array{mode: string, anak_baru: int, ditautkan: int, akun_dibuat: int, gagal: int, gagal_detail: array<int, array<string, mixed>>, dilewati: int, dilewati_detail: array<int, array<string, mixed>>}
      */
-    public function importData(array $validData, array $uploadedPhotos = [], ?int $createdBy = null, ?string $initialPassword = null, string $mode = self::MODE_KLIEN, bool $tautkanAnak = false): array
+    public function importData(array $validData, array $uploadedPhotos = [], ?int $createdBy = null, ?string $initialPassword = null, string $mode = self::MODE_KLIEN, bool $tautkanAnak = false, bool $imporGanda = false): array
     {
-        if ($mode === self::MODE_BINAAN) {
-            return $this->importBinaan($validData, $uploadedPhotos, $createdBy, $tautkanAnak);
+        $ganda = [];
+
+        // Baris dengan identitas yang SAMA PERSIS (nama + alamat KTP + tanggal
+        // lahir + asal daerah + angkatan) dilewati agar data tidak tercatat dua
+        // kali. Operator dapat memaksa impor lewat checkbox "Impor baris ganda".
+        if ($mode === self::MODE_BINAAN && $validData !== []) {
+            $analisis = $this->analisisDuplikatBinaan($validData);
+            $ganda = $analisis['pasti'];
+
+            if (! $imporGanda && $ganda !== []) {
+                $nomor = array_flip(array_map(
+                    fn (array $entri) => (string) $entri['row'],
+                    $ganda
+                ));
+
+                $validData = array_values(array_filter(
+                    $validData,
+                    fn (array $baris) => ! isset($nomor[(string) ($baris['_row_number'] ?? '')])
+                ));
+            }
+
+            Log::warning('import.binaan.duplikat_identitas', [
+                'created_by' => $createdBy,
+                'jumlah' => count($ganda),
+                'dilewati' => $imporGanda ? 0 : count($ganda),
+            ]);
         }
 
-        return $this->importKlien($validData, $uploadedPhotos, $createdBy, $initialPassword);
+        $ringkasan = $mode === self::MODE_BINAAN
+            ? $this->importBinaan($validData, $uploadedPhotos, $createdBy, $tautkanAnak)
+            : $this->importKlien($validData, $uploadedPhotos, $createdBy, $initialPassword);
+
+        $ringkasan['dilewati'] = $imporGanda ? 0 : count($ganda);
+        $ringkasan['dilewati_detail'] = $imporGanda ? [] : $ganda;
+
+        return $ringkasan;
     }
 
     /**
@@ -1171,7 +1207,7 @@ class ImportService
     /**
      * Struktur ringkasan hasil import.
      *
-     * @return array{mode: string, anak_baru: int, ditautkan: int, akun_dibuat: int, gagal: int, gagal_detail: array<int, array<string, mixed>>}
+     * @return array{mode: string, anak_baru: int, ditautkan: int, akun_dibuat: int, gagal: int, gagal_detail: array<int, array<string, mixed>>, dilewati: int, dilewati_detail: array<int, array<string, mixed>>}
      */
     protected function ringkasanKosong(string $mode): array
     {
@@ -1182,6 +1218,8 @@ class ImportService
             'akun_dibuat' => 0,
             'gagal' => 0,
             'gagal_detail' => [],
+            'dilewati' => 0,
+            'dilewati_detail' => [],
         ];
     }
 
@@ -1323,18 +1361,13 @@ class ImportService
         }
 
         $kemunculan = array_count_values($namaBaris);
-        $kandidat = $this->kandidatAnak(array_keys($kemunculan));
+        $kandidat = $this->kandidatTautan(array_keys($kemunculan));
         $sudahBerakun = [];
 
-        if ($kandidat->isNotEmpty()) {
-            // collapse(): `$kandidat` adalah koleksi hasil groupBy, jadi id anak
-            // diambil setelah lapisan grup dirata-kan. Dipecah per 500 id agar
-            // batas parameter query tidak terlampaui pada file besar.
-            $idKandidat = $kandidat->collapse()->pluck('id')->all();
-
-            foreach (array_chunk($idKandidat, 500) as $potongan) {
-                foreach (User::query()->whereIn('anak_id', $potongan)->pluck('anak_id') as $anakId) {
-                    $sudahBerakun[(string) $anakId] = true;
+        foreach ($kandidat as $grup) {
+            foreach ($grup as $calon) {
+                if ($calon['akun_id'] !== null) {
+                    $sudahBerakun[(string) $calon['id']] = true;
                 }
             }
         }
@@ -1351,30 +1384,50 @@ class ImportService
 
             $calon = $kandidat->get($kunci, collect());
             $alasan = null;
+            $anak = null;
 
             if (($kemunculan[$kunci] ?? 0) > 1) {
                 $alasan = 'Nama ini muncul lebih dari sekali di file';
             } elseif ($calon->isEmpty()) {
                 $alasan = 'Tidak ada data anak dengan nama ini';
             } elseif ($calon->count() > 1) {
-                $alasan = 'Nama kembar: '.$calon->count().' anak memakai nama ini';
-            } else {
-                /** @var Anak $anak */
-                $anak = $calon->first();
+                // Nama kembar: hanya ditautkan bila identitas lengkap menunjuk
+                // TEPAT SATU anak (alamat KTP + tanggal lahir + asal + angkatan).
+                $cocok = $calon->filter(fn (array $k) => $this->identitasCocok($baris, $k))->values();
 
-                if (isset($sudahBerakun[(string) $anak->id])) {
-                    $alasan = 'Anak '.$anak->id.' sudah punya akun klien';
+                if ($cocok->count() === 1) {
+                    /** @var array<string, mixed> $terpilih */
+                    $terpilih = $cocok->first();
+
+                    if (isset($sudahBerakun[(string) $terpilih['id']])) {
+                        $alasan = 'Anak '.$terpilih['id'].' sudah punya akun klien';
+                    } else {
+                        $anak = $terpilih;
+                    }
                 } else {
-                    $alasan = $this->konflikIdentitas($baris, $anak);
+                    $alasan = 'Nama kembar: '.$calon->count().' anak memakai nama ini'
+                        .($cocok->isEmpty()
+                            ? '; alamat/tanggal lahir tidak dapat dipastikan'
+                            : '; alamat/tanggal lahir tidak menunjuk tepat satu anak');
+                }
+            } else {
+                /** @var array<string, mixed> $terpilih */
+                $terpilih = $calon->first();
+
+                if (isset($sudahBerakun[(string) $terpilih['id']])) {
+                    $alasan = 'Anak '.$terpilih['id'].' sudah punya akun klien';
+                } else {
+                    $alasan = $this->konflikIdentitasKandidat($baris, $terpilih);
+                    $anak = $alasan === null ? $terpilih : null;
                 }
             }
 
-            if ($alasan !== null) {
+            if ($anak === null) {
                 $hasil['tidak'][] = [
                     'row' => $row,
                     'nama' => $nama,
                     'email' => $email,
-                    'alasan' => $alasan,
+                    'alasan' => (string) $alasan,
                 ];
                 $hasil['rencana'][] = [
                     'row' => $row,
@@ -1382,32 +1435,29 @@ class ImportService
                     'email' => $email,
                     'aksi' => 'anak_baru',
                     'anak_id' => null,
-                    'keterangan' => 'Anak baru + akun Draft ('.$alasan.')',
+                    'keterangan' => 'Anak baru + akun Draft ('.(string) $alasan.')',
                 ];
 
                 continue;
             }
 
-            /** @var Anak $anak */
-            $anak = $calon->first();
-
             $hasil['akan'][] = [
                 'row' => $row,
                 'nama' => $nama,
                 'email' => $email,
-                'anak_id' => (string) $anak->id,
-                'asal_daerah' => $anak->asal_daerah,
-                'angkatan' => $anak->angkatan,
-                'status' => $anak->status,
+                'anak_id' => (string) $anak['id'],
+                'asal_daerah' => $anak['asal'],
+                'angkatan' => $anak['angkatan'],
+                'status' => $anak['status'],
             ];
-            $hasil['peta'][(string) $row] = (string) $anak->id;
+            $hasil['peta'][(string) $row] = (string) $anak['id'];
             $hasil['rencana'][] = [
                 'row' => $row,
                 'nama' => $nama,
                 'email' => $email,
                 'aksi' => 'tautkan',
-                'anak_id' => (string) $anak->id,
-                'keterangan' => 'Tautkan ke '.$anak->id.' (akun Draft, tanpa anak baru)',
+                'anak_id' => (string) $anak['id'],
+                'keterangan' => 'Tautkan ke '.$anak['id'].' (akun Draft, tanpa anak baru)',
             ];
         }
 
@@ -1415,183 +1465,311 @@ class ImportService
     }
 
     /**
-     * Asal daerah/angkatan di file bertentangan dengan data anak?
+     * Identitas di file (alamat KTP/tanggal lahir/asal/angkatan) bertentangan
+     * dengan kandidat anak yang namanya tunggal? Bila ya, jangan tautkan:
+     * kemungkinan besar orang lain yang kebetulan bernama sama.
      *
      * @param  array<string, mixed>  $baris
+     * @param  array<string, mixed>  $calon
      */
-    protected function konflikIdentitas(array $baris, Anak $anak): ?string
+    protected function konflikIdentitasKandidat(array $baris, array $calon): ?string
     {
+        $label = (string) ($calon['label'] ?? $calon['id'] ?? 'anak');
+
         $asalFile = $this->teksOpsional($baris['asal_daerah'] ?? null);
         $angkatanFile = $this->teksOpsional($baris['angkatan'] ?? null);
+        $alamatFile = $this->teksOpsional($baris['ktp_address'] ?? null);
+        $lahirFile = $this->teksOpsional($baris['birth_date'] ?? null);
 
-        if ($asalFile !== null && $this->normalkanNama($asalFile) !== $this->normalkanNama($anak->asal_daerah)) {
-            return 'Asal daerah berbeda dengan data anak '.$anak->id;
+        if ($asalFile !== null && $this->normalkanNama($asalFile) !== $this->normalkanNama($calon['asal'] ?? null)) {
+            return 'Asal daerah berbeda dengan data anak '.$label;
         }
 
-        if ($angkatanFile !== null && $this->normalkanNama($angkatanFile) !== $this->normalkanNama($anak->angkatan)) {
-            return 'Angkatan berbeda dengan data anak '.$anak->id;
+        if ($angkatanFile !== null && $this->normalkanNama($angkatanFile) !== $this->normalkanNama($calon['angkatan'] ?? null)) {
+            return 'Angkatan berbeda dengan data anak '.$label;
+        }
+
+        if ($alamatFile !== null && filled($calon['alamat'] ?? null)
+            && $this->normalkanNama($alamatFile) !== $this->normalkanNama($calon['alamat'])) {
+            return 'Alamat KTP berbeda dengan data anak '.$label;
+        }
+
+        if ($lahirFile !== null && filled($calon['lahir'] ?? null) && $lahirFile !== $calon['lahir']) {
+            return 'Tanggal lahir berbeda dengan data anak '.$label;
         }
 
         return null;
     }
 
     /**
-     * Laporkan baris yang MUNGKIN duplikat: nama + asal daerah + angkatan.
+     * Identitas lengkap file cocok dengan kandidat? Dipakai untuk memilih tepat
+     * satu anak ketika namanya kembar. Alamat KTP wajib sama (tidak boleh
+     * kosong di salah satu sisi); tanggal lahir dibandingkan bila keduanya ada.
      *
-     * Sifatnya informasi saja — baris tidak ditolak (keputusan ada di operator
-     * pada langkah Preview).
+     * @param  array<string, mixed>  $baris
+     * @param  array<string, mixed>  $calon
+     */
+    protected function identitasCocok(array $baris, array $calon): bool
+    {
+        $alamatFile = $this->normalkanNama($baris['ktp_address'] ?? null);
+        $alamatCalon = $this->normalkanNama($calon['alamat'] ?? null);
+
+        if ($alamatFile === '' || $alamatCalon === '' || $alamatFile !== $alamatCalon) {
+            return false;
+        }
+
+        $asalFile = $this->normalkanNama($baris['asal_daerah'] ?? null);
+        $angkatanFile = $this->normalkanNama($baris['angkatan'] ?? null);
+
+        if ($asalFile === '' || $angkatanFile === ''
+            || $asalFile !== $this->normalkanNama($calon['asal'] ?? null)
+            || $angkatanFile !== $this->normalkanNama($calon['angkatan'] ?? null)) {
+            return false;
+        }
+
+        $lahirFile = $this->teksOpsional($baris['birth_date'] ?? null);
+        $lahirCalon = $this->teksOpsional($calon['lahir'] ?? null);
+
+        return $lahirFile === null || $lahirCalon === null || $lahirFile === $lahirCalon;
+    }
+
+    /**
+     * Analisis identitas baris mode binaan.
      *
-     * Tiga sumber perbandingan:
-     * 1. `Di dalam file` — dua baris atau lebih dengan nama, asal daerah, dan
-     *    angkatan yang sama.
-     * 2. `Data anak` — nama sama dengan `semarak.anak`; asal daerah/angkatan
-     *    dipakai sebagai pembeda bila kolomnya diisi di file.
-     * 3. `Akun yang sudah ada` — nama sama dengan akun klien lain (beda email),
-     *    tanda data sudah pernah diimpor.
+     * Kunci identitas: nama + alamat KTP + tanggal lahir (bila ada) + asal
+     * daerah + angkatan. Hasil dibagi tiga:
+     *
+     * - `pasti`      : identitas sama persis dengan data anak/akun lama, atau
+     *                  dengan baris lain di file yang sama. Baris dilewati saat
+     *                  impor kecuali operator mencentang "Impor baris ganda".
+     * - `kemungkinan`: nama sama tetapi identitas belum bisa dipastikan
+     *                  (alamat kosong di salah satu sisi) → peringatan, tetap
+     *                  diimpor.
+     * - `informasi`  : nama sama tetapi alamat/tanggal lahir/asal/angkatan
+     *                  berbeda → dianggap orang lain, tetap diimpor dan TIDAK
+     *                  dilaporkan sebagai peringatan (tidak masuk `kemungkinan`).
+     *
+     * Nama tidak pernah dipakai sendirian sebagai penentu duplikat, sehingga
+     * dua anak bernama sama tetap dapat diimpor.
      *
      * @param  array<int, array<string, mixed>>  $validData
-     * @return array<int, array<string, mixed>>
+     * @return array{pasti: array<int, array<string, mixed>>, kemungkinan: array<int, array<string, mixed>>, dilewati: array<int, int|string|null>}
      */
-    public function deteksiKemungkinanDuplikat(array $validData): array
+    public function analisisDuplikatBinaan(array $validData): array
     {
-        $hasil = [];
+        $hasil = ['pasti' => [], 'kemungkinan' => [], 'dilewati' => []];
 
         if ($validData === []) {
             return $hasil;
         }
 
-        // 1. Duplikat di dalam file (nama + asal daerah + angkatan).
-        $kelompok = [];
-
-        foreach ($validData as $baris) {
-            $kunci = $this->kunciDuplikat($baris);
-
-            if ($kunci !== null) {
-                $kelompok[$kunci][] = $baris;
-            }
-        }
-
-        foreach ($kelompok as $barisSerupa) {
-            if (count($barisSerupa) < 2) {
-                continue;
-            }
-
-            $nomor = array_map(fn (array $b) => $b['_row_number'] ?? null, $barisSerupa);
-
-            foreach ($barisSerupa as $baris) {
-                $lain = array_values(array_filter(
-                    $nomor,
-                    fn ($n) => $n !== ($baris['_row_number'] ?? null)
-                ));
-
-                $hasil[] = [
-                    'row' => $baris['_row_number'] ?? null,
-                    'nama' => $baris['name'] ?? null,
-                    'email' => $baris['email'] ?? null,
-                    'jenis' => 'Di dalam file',
-                    'keyakinan' => 'Tinggi',
-                    'keterangan' => 'Nama, asal daerah, dan angkatan sama dengan baris '
-                        .implode(', ', array_map(fn ($n) => (string) $n, $lain)).'.',
-                ];
-            }
-        }
-
-        return array_merge($hasil, $this->duplikatTerhadapDataLama($validData));
-    }
-
-    /**
-     * Bagian (2) & (3) dari deteksi duplikat: bandingkan nama dengan data anak
-     * dan akun yang sudah ada. Asal daerah/angkatan dari file dipakai sebagai
-     * pembeda: bila file menyebut asal/angkatan yang BERBEDA, baris dianggap
-     * orang lain dan tidak dilaporkan.
-     *
-     * @param  array<int, array<string, mixed>>  $validData
-     * @return array<int, array<string, mixed>>
-     */
-    protected function duplikatTerhadapDataLama(array $validData): array
-    {
-        $hasil = [];
-
-        $kunciNama = array_values(array_unique(array_filter(array_map(
+        $nama = array_values(array_filter(array_map(
             fn (array $baris) => $this->normalkanNama($baris['name'] ?? null),
             $validData
-        ))));
+        )));
 
-        if ($kunciNama === []) {
-            return $hasil;
-        }
+        $kandidat = $this->kandidatIdentitas($nama);
 
-        $kandidat = $this->kandidatAnak($kunciNama);
+        /** @var array<int, array<string, mixed>> $pasti */
+        $pasti = [];
+        /** @var array<int, array<string, mixed>> $kemungkinan */
+        $kemungkinan = [];
 
-        // Dipecah per 500 nama agar batas parameter query tidak terlampaui.
-        $akunSerupa = collect();
-
-        foreach (array_chunk($kunciNama, 500) as $potongan) {
-            $akunSerupa = $akunSerupa->merge(
-                User::query()
-                    ->whereIn(DB::raw('LOWER(name)'), $potongan)
-                    ->get(['name', 'email'])
-            );
-        }
-
-        $akunSerupa = $akunSerupa->groupBy(fn (User $user) => $this->normalkanNama($user->name));
-
-        foreach ($validData as $baris) {
-            $nama = trim((string) ($baris['name'] ?? ''));
-            $kunci = $this->normalkanNama($nama);
+        // 1. Bandingkan dengan data anak/akun yang sudah ada.
+        foreach ($validData as $index => $baris) {
+            $kunci = $this->normalkanNama($baris['name'] ?? null);
 
             if ($kunci === '') {
                 continue;
             }
 
-            $asalFile = $this->teksOpsional($baris['asal_daerah'] ?? null);
-            $angkatanFile = $this->teksOpsional($baris['angkatan'] ?? null);
+            foreach ($kandidat[$kunci] ?? [] as $calon) {
+                $nilai = $this->bandingkanIdentitas($baris, $calon);
 
-            foreach ($kandidat->get($kunci, collect()) as $anak) {
-                $cocokAsal = $asalFile === null
-                    ? null
-                    : $this->normalkanNama($asalFile) === $this->normalkanNama($anak->asal_daerah);
-                $cocokAngkatan = $angkatanFile === null
-                    ? null
-                    : $this->normalkanNama($angkatanFile) === $this->normalkanNama($anak->angkatan);
+                if ($nilai['jenis'] === 'pasti') {
+                    $pasti[$index] = $this->entriPasti($baris, $calon, $nilai['keterangan']);
 
-                if ($cocokAsal === false || $cocokAngkatan === false) {
-                    continue;
+                    break;
                 }
 
-                $pasti = $cocokAsal === true && $cocokAngkatan === true;
-
-                $hasil[] = [
-                    'row' => $baris['_row_number'] ?? null,
-                    'nama' => $nama,
-                    'email' => $baris['email'] ?? null,
-                    'jenis' => 'Data anak',
-                    'keyakinan' => $pasti ? 'Tinggi' : 'Sedang',
-                    'keterangan' => 'Nama sama dengan anak '.$anak->id
-                        .' ('.$anak->asal_daerah.' · '.$anak->angkatan.', status '.$anak->status.').'
-                        .($pasti
-                            ? ' Asal daerah dan angkatan juga sama.'
-                            : ' Asal daerah/angkatan di file belum diisi.'),
-                ];
-            }
-
-            foreach ($akunSerupa->get($kunci, collect()) as $akun) {
-                if (Str::lower((string) $akun->email) === Str::lower((string) ($baris['email'] ?? ''))) {
-                    continue;
+                if ($nilai['jenis'] === 'peringatan') {
+                    $kemungkinan[$index] ??= $this->entriKemungkinan($baris, $calon, $nilai);
                 }
-
-                $hasil[] = [
-                    'row' => $baris['_row_number'] ?? null,
-                    'nama' => $nama,
-                    'email' => $baris['email'] ?? null,
-                    'jenis' => 'Akun yang sudah ada',
-                    'keyakinan' => 'Sedang',
-                    'keterangan' => 'Sudah ada akun dengan nama sama: '.$akun->email.'.',
-                ];
             }
         }
 
+        // 2. Bandingkan antar-baris di file. Baris pertama dianggap asli;
+        //    baris berikutnya ganda bila identitasnya lengkap dan sama.
+        $perNama = [];
+
+        foreach ($validData as $index => $baris) {
+            $kunci = $this->normalkanNama($baris['name'] ?? null);
+
+            if ($kunci !== '') {
+                $perNama[$kunci][] = $index;
+            }
+        }
+
+        foreach ($perNama as $daftar) {
+            if (count($daftar) < 2) {
+                continue;
+            }
+
+            foreach ($daftar as $posisi => $index) {
+                if (isset($pasti[$index])) {
+                    continue;
+                }
+
+                $baris = $validData[$index];
+
+                foreach (array_slice($daftar, 0, $posisi) as $indexLain) {
+                    $lain = $validData[$indexLain];
+                    $calon = [
+                        'label' => 'baris '.($lain['_row_number'] ?? '?'),
+                        'sumber' => 'Di dalam file',
+                        'asal' => $lain['asal_daerah'] ?? null,
+                        'angkatan' => $lain['angkatan'] ?? null,
+                        'alamat' => $lain['ktp_address'] ?? null,
+                        'lahir' => $lain['birth_date'] ?? null,
+                    ];
+
+                    $nilai = $this->bandingkanIdentitas($baris, $calon);
+
+                    if ($nilai['jenis'] === 'pasti') {
+                        $pasti[$index] = $this->entriPasti($baris, $calon, $nilai['keterangan']);
+                        unset($kemungkinan[$index]);
+
+                        break;
+                    }
+
+                    if ($nilai['jenis'] === 'peringatan') {
+                        $kemungkinan[$index] ??= $this->entriKemungkinan($baris, $calon, $nilai);
+                    }
+                }
+            }
+        }
+
+        ksort($pasti);
+        ksort($kemungkinan);
+
+        $hasil['pasti'] = array_values($pasti);
+        $hasil['kemungkinan'] = array_values($kemungkinan);
+        $hasil['dilewati'] = array_map(
+            fn (array $entri) => $entri['row'],
+            $hasil['pasti']
+        );
+
         return $hasil;
+    }
+
+    /**
+     * Bandingkan identitas satu baris dengan kandidat (anak/akun/baris lain).
+     *
+     * Urutan pemeriksaan: asal daerah & angkatan (pembeda utama) → tanggal
+     * lahir → kelengkapan alamat KTP → kesamaan alamat.
+     *
+     * @param  array<string, mixed>  $baris
+     * @param  array<string, mixed>  $calon
+     * @return array{jenis: string, keterangan: string}
+     */
+    protected function bandingkanIdentitas(array $baris, array $calon): array
+    {
+        $label = (string) ($calon['label'] ?? 'data lama');
+        $sumber = (string) ($calon['sumber'] ?? 'Data');
+
+        $asalFile = $this->normalkanNama($baris['asal_daerah'] ?? null);
+        $asalCalon = $this->normalkanNama($calon['asal'] ?? null);
+        $angkatanFile = $this->normalkanNama($baris['angkatan'] ?? null);
+        $angkatanCalon = $this->normalkanNama($calon['angkatan'] ?? null);
+        $alamatFile = $this->normalkanNama($baris['ktp_address'] ?? null);
+        $alamatCalon = $this->normalkanNama($calon['alamat'] ?? null);
+        $lahirFile = (string) ($this->teksOpsional($baris['birth_date'] ?? null) ?? '');
+        $lahirCalon = (string) ($this->teksOpsional($calon['lahir'] ?? null) ?? '');
+
+        $beda = [];
+
+        if ($asalFile !== '' && $asalCalon !== '' && $asalFile !== $asalCalon) {
+            $beda[] = 'asal daerah';
+        }
+
+        if ($angkatanFile !== '' && $angkatanCalon !== '' && $angkatanFile !== $angkatanCalon) {
+            $beda[] = 'angkatan';
+        }
+
+        if ($lahirFile !== '' && $lahirCalon !== '' && $lahirFile !== $lahirCalon) {
+            $beda[] = 'tanggal lahir';
+        }
+
+        if ($alamatFile !== '' && $alamatCalon !== '' && $alamatFile !== $alamatCalon) {
+            $beda[] = 'alamat KTP';
+        }
+
+        if ($beda !== []) {
+            return [
+                'jenis' => 'informasi',
+                'keterangan' => 'Nama sama dengan '.$label.' ('.$sumber.'), tetapi '
+                    .implode(', ', $beda).' berbeda; dianggap orang lain dan tetap diimpor.',
+            ];
+        }
+
+        // Identitas hanya bisa dipastikan bila alamat KTP tersedia di kedua
+        // sisi (file dan data lama) dan isinya sama. Tanpa alamat, nama + asal
+        // + angkatan saja tidak cukup untuk menyebutnya ganda.
+        if ($alamatFile === '' || $alamatCalon === '') {
+            return [
+                'jenis' => 'peringatan',
+                'keterangan' => 'Nama sama dengan '.$label.' ('.$sumber.'), tetapi alamat KTP kosong di '
+                    .'salah satu sisi sehingga belum bisa dipastikan ganda. Baris tetap diimpor; periksa manual.',
+            ];
+        }
+
+        return [
+            'jenis' => 'pasti',
+            'keterangan' => 'Nama dan alamat KTP sama dengan '.$label.' ('.$sumber.'), asal daerah/angkatan '
+                .'tidak bertentangan, sehingga kemungkinan data ganda.',
+        ];
+    }
+
+    /**
+     * Entri laporan duplikat pasti (baris akan dilewati).
+     *
+     * @param  array<string, mixed>  $baris
+     * @param  array<string, mixed>  $calon
+     * @return array<string, mixed>
+     */
+    protected function entriPasti(array $baris, array $calon, string $keterangan): array
+    {
+        return [
+            'row' => $baris['_row_number'] ?? null,
+            'blok' => $baris['_blok'] ?? null,
+            'nama' => (string) ($baris['name'] ?? ''),
+            'alamat' => $this->teksOpsional($baris['ktp_address'] ?? null),
+            'sumber' => (string) ($calon['sumber'] ?? 'Data lama'),
+            'anak_id' => $calon['id'] ?? null,
+            'keterangan' => $keterangan,
+        ];
+    }
+
+    /**
+     * Entri laporan nama sama yang belum bisa dipastikan ganda.
+     *
+     * @param  array<string, mixed>  $baris
+     * @param  array<string, mixed>  $calon
+     * @param  array{jenis: string, keterangan: string}  $nilai
+     * @return array<string, mixed>
+     */
+    protected function entriKemungkinan(array $baris, array $calon, array $nilai): array
+    {
+        return [
+            'row' => $baris['_row_number'] ?? null,
+            'blok' => $baris['_blok'] ?? null,
+            'nama' => (string) ($baris['name'] ?? ''),
+            'alamat' => $this->teksOpsional($baris['ktp_address'] ?? null),
+            'jenis' => $nilai['jenis'] === 'peringatan' ? 'Peringatan' : 'Informasi',
+            'sumber' => (string) ($calon['sumber'] ?? 'Data lama'),
+            'anak_id' => $calon['id'] ?? null,
+            'keterangan' => $nilai['keterangan'],
+        ];
     }
 
     /**
@@ -1636,21 +1814,169 @@ class ImportService
     }
 
     /**
-     * Kunci pembanding duplikat: nama + asal daerah + angkatan.
+     * Kandidat anak untuk penautan, dilengkapi profil akun klien yang sudah
+     * tertaut (alamat KTP & tanggal lahir) sebagai bahan pembanding identitas.
      *
-     * @param  array<string, mixed>  $baris
+     * @param  array<int, string>  $namaTernormalisasi
+     * @return Collection<string, Collection<int, array<string, mixed>>>
      */
-    protected function kunciDuplikat(array $baris): ?string
+    protected function kandidatTautan(array $namaTernormalisasi)
     {
-        $nama = $this->normalkanNama($baris['name'] ?? null);
+        $anak = $this->kandidatAnak($namaTernormalisasi);
 
-        if ($nama === '') {
-            return null;
+        if ($anak->isEmpty()) {
+            return collect();
         }
 
-        return $nama
-            .'|'.$this->normalkanNama($baris['asal_daerah'] ?? null)
-            .'|'.$this->normalkanNama($baris['angkatan'] ?? null);
+        $profil = $this->profilAkunAnak($anak->collapse()->pluck('id')->all());
+
+        return $anak->map(function (Collection $grup) use ($profil) {
+            return $grup->map(function (Anak $baris) use ($profil) {
+                $akun = $profil[(string) $baris->id] ?? null;
+
+                return [
+                    'id' => (string) $baris->id,
+                    'akun_id' => $akun['akun_id'] ?? null,
+                    'label' => (string) $baris->id,
+                    'nama' => $baris->nama,
+                    'asal' => $baris->asal_daerah,
+                    'angkatan' => $baris->angkatan,
+                    'status' => $baris->status,
+                    'alamat' => $akun['alamat'] ?? '',
+                    'lahir' => $akun['lahir'] ?? '',
+                    'sumber' => 'Data anak',
+                ];
+            })->values();
+        });
+    }
+
+    /**
+     * Profil akun klien yang tertaut ke anak: alamat KTP & tanggal lahir,
+     * di-key dengan id anak. Gagal baca (kolom belum ada/koneksi mati) →
+     * daftar kosong agar impor tetap berjalan.
+     *
+     * @param  array<int, string>  $idAnak
+     * @return array<string, array{akun_id: int, alamat: string, lahir: string}>
+     */
+    protected function profilAkunAnak(array $idAnak): array
+    {
+        if ($idAnak === [] || ! SchemaGuard::usersPunyaTautanAnak()) {
+            return [];
+        }
+
+        try {
+            $hasil = [];
+
+            foreach (array_chunk($idAnak, 500) as $potongan) {
+                $akun = User::query()
+                    ->whereIn('anak_id', $potongan)
+                    ->with('userProfile')
+                    ->get(['id', 'anak_id']);
+
+                foreach ($akun as $user) {
+                    $profil = $user->userProfile;
+
+                    $hasil[(string) $user->anak_id] = [
+                        'akun_id' => (int) $user->getKey(),
+                        'alamat' => (string) ($profil?->ktp_address ?? ''),
+                        'lahir' => $profil?->birth_date?->format('Y-m-d') ?? '',
+                    ];
+                }
+            }
+
+            return $hasil;
+        } catch (\Throwable $e) {
+            Log::warning('import.binaan.profil_gagal', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return [];
+        }
+    }
+
+    /**
+     * Kandidat pembanding identitas untuk analisis duplikat.
+     *
+     * Sumber:
+     * - `semarak.anak` (identitas dari kolom anak + profil akun yang tertaut);
+     * - akun klien bernama sama yang BELUM tertaut ke anak (mis. hasil import
+     *   lama), agar data yang sudah pernah masuk tidak terimpor lagi.
+     *
+     * @param  array<int, string>  $namaTernormalisasi
+     * @return array<string, array<int, array<string, mixed>>>
+     */
+    protected function kandidatIdentitas(array $namaTernormalisasi): array
+    {
+        $namaTernormalisasi = array_values(array_unique(array_filter($namaTernormalisasi)));
+
+        if ($namaTernormalisasi === []) {
+            return [];
+        }
+
+        try {
+            $hasil = [];
+            $anak = $this->kandidatAnak($namaTernormalisasi);
+            $profil = $this->profilAkunAnak(
+                $anak->isEmpty() ? [] : $anak->collapse()->pluck('id')->all()
+            );
+
+            foreach ($anak as $kunci => $grup) {
+                foreach ($grup as $baris) {
+                    $akun = $profil[(string) $baris->id] ?? null;
+
+                    $hasil[$kunci][] = [
+                        'id' => (string) $baris->id,
+                        'akun_id' => $akun['akun_id'] ?? null,
+                        'label' => (string) $baris->id,
+                        'nama' => $baris->nama,
+                        'asal' => $baris->asal_daerah,
+                        'angkatan' => $baris->angkatan,
+                        'alamat' => $akun['alamat'] ?? '',
+                        'lahir' => $akun['lahir'] ?? '',
+                        'sumber' => 'Data anak',
+                    ];
+                }
+            }
+
+            $punyaTautan = SchemaGuard::usersPunyaTautanAnak();
+
+            foreach (array_chunk($namaTernormalisasi, 500) as $potongan) {
+                $akun = User::query()
+                    ->where('user_type', User::ROLE_CLIENT)
+                    ->whereIn(DB::raw('LOWER(name)'), $potongan)
+                    ->with('userProfile')
+                    ->get(['id', 'name', 'anak_id']);
+
+                foreach ($akun as $user) {
+                    // Anak yang sudah tertaut sudah diwakili kandidat di atas.
+                    if ($punyaTautan && filled($user->anak_id)) {
+                        continue;
+                    }
+
+                    $kunci = $this->normalkanNama($user->name);
+
+                    $hasil[$kunci][] = [
+                        'id' => null,
+                        'akun_id' => (int) $user->getKey(),
+                        'label' => 'akun #'.$user->getKey(),
+                        'nama' => $user->name,
+                        'asal' => null,
+                        'angkatan' => null,
+                        'alamat' => (string) ($user->userProfile?->ktp_address ?? ''),
+                        'lahir' => $user->userProfile?->birth_date?->format('Y-m-d') ?? '',
+                        'sumber' => 'Akun',
+                    ];
+                }
+            }
+
+            return $hasil;
+        } catch (\Throwable $e) {
+            Log::warning('import.binaan.duplikat_gagal', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return [];
+        }
     }
 
     /**

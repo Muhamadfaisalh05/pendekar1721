@@ -1324,3 +1324,54 @@ tetap didukung parser.
 Catatan: formulir ini ditujukan untuk **mode Remaja Binaan**; mode Klien Umum tetap memakai template Excel/Word biasa
 (aturan email wajib tidak berubah).
 
+## 21. Nama anak tidak unik: identitas lengkap & kolom Alamat (13 Nov 2026)
+
+### 21.1 Masalah
+
+Sebelumnya duplikat mode Remaja Binaan hanya dibandingkan dengan **nama + asal daerah + angkatan**, dan penautan
+otomatis memakai nama sebagai penentu utama. Akibatnya dua anak bernama sama (mis. "Sari" dari alamat/angkatan
+berbeda) dianggap duplikat dan barisnya dilewati, padahal keduanya orang yang berbeda.
+
+### 21.2 Model identitas baru
+
+Identitas anak binaan = **nama + alamat KTP + tanggal lahir + asal daerah + angkatan** (dinormalisasi: huruf kecil,
+spasi dirapatkan). Nama **tidak pernah** menjadi penentu tunggal duplikat.
+
+| Hasil `bandingkanIdentitas()` | Syarat | Perlakuan impor |
+|---|---|---|
+| `pasti` | alamat KTP sama di kedua sisi (tidak kosong) dan asal/angkatan/tanggal lahir tidak bertentangan | **Dilewati**, kecuali operator mencentang "Impor tetap baris yang terdeteksi ganda" (`impor_ganda`) |
+| `peringatan` | nama sama, tetapi alamat KTP kosong di salah satu sisi | tetap diimpor + tampil di Preview sebagai peringatan |
+| `informasi` | alamat/tanggal lahir/asal/angkatan berbeda (keduanya terisi) | dianggap orang lain, tetap diimpor, tidak dilaporkan |
+
+Sumber pembanding (`kandidatIdentitas()`): `semarak.anak` (diperkaya alamat/tanggal lahir dari profil akun klien
+yang tertaut lewat `users.anak_id`) dan akun klien bernama sama yang **belum** tertaut. Untuk duplikat di dalam
+file, kemunculan pertama dianggap asli dan kemunculan berikutnya dinilai dengan aturan yang sama.
+
+### 21.3 Perubahan kode
+
+| Berkas | Perubahan |
+|---|---|
+| `app/Services/ImportService.php` | `analisisDuplikatBinaan()` mengembalikan `pasti`/`kemungkinan`/`dilewati`; helper baru `bandingkanIdentitas()`, `entriPasti()`, `entriKemungkinan()`, `kandidatIdentitas()`, `profilAkunAnak()`, `identitasCocok()`, `konflikIdentitasKandidat()`; `importData()` menerima `bool $imporGanda` dan melewati baris `pasti`; `deteksiKemungkinanDuplikat()`, `duplikatTerhadapDataLama()`, dan `kunciDuplikat()` dihapus |
+| `app/Filament/Pages/ImportData.php` | properti `$impor_ganda` + checkbox (hanya mode binaan) diteruskan ke `parseAndValidate()`/`importData()`; `totalDuplikat` membaca `duplikat.dilewati` |
+| `resources/views/filament/pages/import-data.blade.php` | kartu **Duplikat & Nama Sama**: tabel "Ganda pasti" (dilewati, atau tetap diimpor bila `impor_ganda`) dan "Nama sama, identitas belum pasti" (peringatan manual) |
+| `app/Filament/Resources/AnakResource.php` | kolom toggleable **Alamat (KTP)** dari profil akun tertaut (`AnakResource::alamatKtp()`), dapat dicari (individual + global tabel) lewat `idAnakDenganAlamat()`; modal "Luluskan & Aktifkan Akun Klien" menampilkan `ringkasanIdentitas()` (nama · angkatan · alamat KTP) |
+| `tests/Feature/Graduation/ImportBinaanTest.php` | tes baru: analisis identitas lengkap, nama sama + alamat berbeda tetap diimpor, ganda pasti dilewati & bisa dipaksa `impor_ganda`, duplikat terhadap akun klien lama lewat alamat KTP |
+| `tests/Feature/Graduation/GraduationOnboardingTest.php` | tes kolom Alamat (tampil + pencarian tabel) |
+| `tests/Feature/Graduation/PengamanSkemaFase2Test.php` | kolom `alamat_ktp` tidak dipasang saat `users.anak_id` belum ada |
+
+**Penautan tetap aman.** `petaTautanAnak()` tidak pernah menautkan berdasarkan nama saja: nama kembar hanya
+ditautkan bila alamat KTP + tanggal lahir + asal + angkatan menunjuk **tepat satu** anak; nama tunggal pun tetap
+ditolak bila asal/angkatan berbeda; anak yang sudah punya akun tidak pernah ditautkan ulang (unique
+`users.anak_id`). `ImportBinaanService::pastikanAkunBinaan()` tetap memakai penjagaan nama untuk **pembuatan akun**
+(bukan penautan anak); `GraduationService` memanggilnya dengan `izinkanNamaGanda: true`.
+
+Kolom Alamat hanya dipasang bila `users.anak_id` sudah dimigrasikan (`SchemaGuard`), sama seperti kolom "Akun Klien".
+
+### 21.4 Tes & verifikasi
+
+| Verifikasi | Hasil |
+|---|---|
+| `php artisan test tests/Feature/Graduation` | **59 passed (582 assertions)** |
+| `php -l` pada `ImportService.php`, `ImportData.php`, `AnakResource.php` | tidak ada syntax error |
+| Pencarian alamat lintas koneksi | memakai query `users` terpisah + `whereIn('id', ...)` (bukan `whereHas` lintas koneksi) agar tetap jalan di SQLite in-memory saat tes |
+
