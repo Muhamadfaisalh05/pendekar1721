@@ -192,17 +192,20 @@ class TemplateImportTest extends ImportTestCase
 
         $awal = TemplateExcel::BARIS_AWAL_DATA;
         $akhir = $awal + TemplateExcel::JUMLAH_BARIS_KOSONG - 1;
+        $awalValidasi = TemplateExcel::BARIS_CONTOH;
 
         $kolomJk = Coordinate::stringFromColumnIndex($this->kolomKe('jenis_kelamin'));
-        $validasiJk = $this->validasiPada($data, $kolomJk.$awal.':'.$kolomJk.$akhir);
+        $validasiJk = $this->validasiPada($data, $kolomJk.$awalValidasi.':'.$kolomJk.$akhir);
 
         $this->assertNotNull($validasiJk, 'Dropdown jenis kelamin wajib ada.');
         $this->assertSame(DataValidation::TYPE_LIST, $validasiJk->getType());
-        $this->assertStringStartsWith('DAFTAR!', (string) $validasiJk->getFormula1());
+        $this->assertSame('DAF_JENIS_KELAMIN', (string) $validasiJk->getFormula1());
+        $this->assertTrue($validasiJk->getShowDropDown(), 'setShowDropDown(true) membuat panah dropdown tampil di Excel.');
+        $this->assertTrue($validasiJk->getAllowBlank());
         $this->assertStringContainsString('L (laki-laki)', (string) $validasiJk->getPrompt());
 
         $kolomUmur = Coordinate::stringFromColumnIndex($this->kolomKe('umur'));
-        $validasiUmur = $this->validasiPada($data, $kolomUmur.$awal.':'.$kolomUmur.$akhir);
+        $validasiUmur = $this->validasiPada($data, $kolomUmur.$awalValidasi.':'.$kolomUmur.$akhir);
 
         $this->assertNotNull($validasiUmur);
         $this->assertSame(DataValidation::TYPE_WHOLE, $validasiUmur->getType());
@@ -210,7 +213,7 @@ class TemplateImportTest extends ImportTestCase
         $this->assertSame('30', $validasiUmur->getFormula2());
 
         $kolomTanggal = Coordinate::stringFromColumnIndex($this->kolomKe('tanggal_lahir'));
-        $validasiTanggal = $this->validasiPada($data, $kolomTanggal.$awal.':'.$kolomTanggal.$akhir);
+        $validasiTanggal = $this->validasiPada($data, $kolomTanggal.$awalValidasi.':'.$kolomTanggal.$akhir);
 
         $this->assertNotNull($validasiTanggal);
         $this->assertSame(DataValidation::TYPE_DATE, $validasiTanggal->getType());
@@ -313,18 +316,21 @@ class TemplateImportTest extends ImportTestCase
         $this->assertStringNotContainsString('w:documentProtection', $document);
     }
 
-    public function test_baris_contoh_excel_yang_lupa_dihapus_ditolak(): void
+    public function test_baris_contoh_excel_dilewati_sebagai_informasi_tanpa_memblokir(): void
     {
         $path = $this->layananTemplate()->buatExcel();
 
         $preview = (new ImportService)->parseAndValidate($path, 'xlsx', ImportService::MODE_BINAAN);
 
         $this->assertSame([], $preview['valid']);
+        $this->assertSame([], $preview['errors'], 'Baris CONTOH bukan error dan tidak memblokir import.');
+        $this->assertCount(1, $preview['dilewati']);
+        $this->assertStringContainsString('Baris contoh dilewati (tidak diimpor)', $preview['dilewati'][0]['alasan']);
+        $this->assertSame('dilewati', $preview['preview'][0]['status_baris']);
         $this->assertStringContainsString(
             SpesifikasiKolomImport::PENANDA_CONTOH,
-            implode(' | ', array_column($preview['errors'], 'msg'))
+            (string) $preview['preview'][0]['nama']
         );
-        $this->assertContains('Baris Contoh', array_column($preview['errors'], 'col'));
     }
 
     public function test_template_excel_lama_tetap_bisa_diimpor(): void
@@ -508,17 +514,16 @@ class TemplateImportTest extends ImportTestCase
         $this->assertSame(2, User::query()->whereNotNull('anak_id')->count());
     }
 
-    public function test_baris_contoh_word_yang_lupa_dihapus_ditolak(): void
+    public function test_baris_contoh_word_dilewati_sebagai_informasi_tanpa_memblokir(): void
     {
         $path = $this->layananTemplate()->buatWord();
 
         $preview = (new ImportService)->parseAndValidate($path, 'docx', ImportService::MODE_BINAAN);
 
         $this->assertSame([], $preview['valid']);
-        $this->assertStringContainsString(
-            SpesifikasiKolomImport::PENANDA_CONTOH,
-            implode(' | ', array_column($preview['errors'], 'msg'))
-        );
+        $this->assertSame([], $preview['errors']);
+        $this->assertCount(1, $preview['dilewati']);
+        $this->assertSame('dilewati', $preview['preview'][0]['status_baris']);
     }
 
     public function test_template_word_lama_tetap_bisa_diimpor(): void

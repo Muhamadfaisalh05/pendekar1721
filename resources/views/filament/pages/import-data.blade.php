@@ -26,22 +26,35 @@
     @if($previewData)
         <div class="mt-8 space-y-6">
             {{-- Summary Cards --}}
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            @php
+                $ringkasanPreview = $previewData['ringkasan'] ?? [
+                    'total' => $previewData['total'] ?? 0,
+                    'valid' => count($previewData['valid'] ?? []),
+                    'peringatan' => 0,
+                    'error' => count(array_unique(array_column($previewData['errors'] ?? [], 'row'))),
+                    'dilewati' => 0,
+                ];
+            @endphp
+            <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
                 <x-filament::card>
-                    <div class="text-sm font-medium text-gray-500">Total Data</div>
-                    <div class="text-2xl font-bold">{{ $previewData['total'] }}</div>
+                    <div class="text-sm font-medium text-gray-500">Total Baris</div>
+                    <div class="text-2xl font-bold">{{ $ringkasanPreview['total'] }}</div>
                 </x-filament::card>
                 <x-filament::card>
-                    <div class="text-sm font-medium text-gray-500">Data Valid</div>
-                    <div class="text-2xl font-bold text-success-600">{{ count($previewData['valid']) }}</div>
+                    <div class="text-sm font-medium text-gray-500">Valid</div>
+                    <div class="text-2xl font-bold text-success-600">{{ $ringkasanPreview['valid'] }}</div>
                 </x-filament::card>
                 <x-filament::card>
-                    <div class="text-sm font-medium text-gray-500">Data Error</div>
-                    <div class="text-2xl font-bold text-danger-600">{{ count($previewData['errors']) }}</div>
+                    <div class="text-sm font-medium text-gray-500">Peringatan</div>
+                    <div class="text-2xl font-bold text-warning-600">{{ $ringkasanPreview['peringatan'] }}</div>
                 </x-filament::card>
                 <x-filament::card>
-                    <div class="text-sm font-medium text-gray-500">Data Duplikat</div>
-                    <div class="text-2xl font-bold text-warning-600">{{ count($previewData['duplicates']) }}</div>
+                    <div class="text-sm font-medium text-gray-500">Error</div>
+                    <div class="text-2xl font-bold text-danger-600">{{ $ringkasanPreview['error'] }}</div>
+                </x-filament::card>
+                <x-filament::card>
+                    <div class="text-sm font-medium text-gray-500">Dilewati</div>
+                    <div class="text-2xl font-bold text-gray-600">{{ $ringkasanPreview['dilewati'] }}</div>
                 </x-filament::card>
             </div>
 
@@ -66,7 +79,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach($previewData['errors'] as $error)
+                                @foreach(array_slice($previewData['errors'], 0, 100) as $error)
                                     <tr class="border-b">
                                         <td class="px-4 py-3 font-medium">{{ ! empty($error['blok']) ? 'Blok '.$error['blok'] : $error['row'] }}</td>
                                         <td class="px-4 py-3">{{ $error['name'] ?: '-' }}</td>
@@ -101,7 +114,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach($previewData['duplicates'] as $dup)
+                                @foreach(array_slice($previewData['duplicates'], 0, 25) as $dup)
                                     <tr class="border-b">
                                         <td class="px-4 py-3 font-medium">{{ ! empty($dup['blok']) ? 'Blok '.$dup['blok'] : $dup['row'] }}</td>
                                         <td class="px-4 py-3">{{ $dup['name'] }}</td>
@@ -115,51 +128,8 @@
                 </x-filament::card>
             @endif
 
-            {{-- Valid Data Preview --}}
-            @if(count($previewData['valid']) > 0)
-                <x-filament::card>
-                    <h3 class="text-lg font-bold mb-4">Preview Data (Siap Import)</h3>
-                    <div class="overflow-x-auto max-h-96">
-                        <table class="w-full text-sm text-left">
-                            <thead class="text-xs text-gray-700 bg-gray-50 sticky top-0">
-                                <tr>
-                                    <th class="px-4 py-3">No</th>
-                                    <th class="px-4 py-3">Nama</th>
-                                    <th class="px-4 py-3">Email</th>
-                                    <th class="px-4 py-3">JK</th>
-                                    <th class="px-4 py-3">Kota KTP</th>
-                                    <th class="px-4 py-3">Status</th>
-                                    <th class="px-4 py-3">Foto (Excel)</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach(array_slice($previewData['valid'], 0, 50) as $index => $data)
-                                    <tr class="border-b">
-                                        <td class="px-4 py-3">{{ $index + 1 }}</td>
-                                        <td class="px-4 py-3 font-medium">{{ $data['name'] }}</td>
-                                        <td class="px-4 py-3">{{ $data['email'] }}</td>
-                                        <td class="px-4 py-3">{{ $data['gender'] }}</td>
-                                        <td class="px-4 py-3">{{ \App\Models\MasterCity::find($data['ktp_city_id'])?->title ?? '-' }}</td>
-                                        <td class="px-4 py-3">
-                                            @if($data['hire_status'] === '1')
-                                                <span class="text-success-600">Tersedia</span>
-                                            @else
-                                                <span class="text-gray-500">Tidak Tersedia</span>
-                                            @endif
-                                        </td>
-                                        <td class="px-4 py-3 text-gray-500">{{ $data['photo_filename'] ?: '-' }}</td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                        @if(count($previewData['valid']) > 50)
-                            <div class="p-4 text-center text-sm text-gray-500 bg-gray-50">
-                                Menampilkan 50 data pertama dari {{ count($previewData['valid']) }} data valid.
-                            </div>
-                        @endif
-                    </div>
-                </x-filament::card>
-            @endif
+            {{-- Tabel Preview Data: SEMUA baris, server-side pagination --}}
+            @include('filament.pages.partials.import-preview-table')
 
             {{-- Rencana Import per Baris (mode binaan) --}}
             @if(count($previewData['tautan']['rencana'] ?? []) > 0)
@@ -183,7 +153,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach($previewData['tautan']['rencana'] as $rencana)
+                                @foreach(array_slice($previewData['tautan']['rencana'], 0, 25) as $rencana)
                                     <tr class="border-b">
                                         <td class="px-4 py-3">{{ $rencana['row'] ?? '-' }}</td>
                                         <td class="px-4 py-3 font-medium">{{ $rencana['nama'] ?? '-' }}</td>
@@ -201,6 +171,12 @@
                             </tbody>
                         </table>
                     </div>
+                    @if(count($previewData['tautan']['rencana']) > 25)
+                        <p class="text-xs text-gray-500 mt-2">
+                            Menampilkan 25 rencana pertama. Seluruh baris (dengan status dan keterangan)
+                            tersedia pada tabel Preview Data di atas.
+                        </p>
+                    @endif
                 </x-filament::card>
             @endif
 
@@ -234,7 +210,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @foreach($previewData['tautan']['akan'] as $tautan)
+                                    @foreach(array_slice($previewData['tautan']['akan'], 0, 25) as $tautan)
                                         <tr class="border-b">
                                             <td class="px-4 py-3">{{ $tautan['row'] ?? '-' }}</td>
                                             <td class="px-4 py-3 font-medium">{{ $tautan['nama'] ?? '-' }}</td>
@@ -266,7 +242,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach($previewData['tautan']['tidak'] as $tautan)
+                                @foreach(array_slice($previewData['tautan']['tidak'], 0, 25) as $tautan)
                                     <tr class="border-b">
                                         <td class="px-4 py-3">{{ $tautan['row'] ?? '-' }}</td>
                                         <td class="px-4 py-3 font-medium">{{ $tautan['nama'] ?? '-' }}</td>
@@ -321,7 +297,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @foreach($duplikatBinaan['pasti'] as $duplikat)
+                                    @foreach(array_slice($duplikatBinaan['pasti'], 0, 25) as $duplikat)
                                         <tr class="border-b">
                                             <td class="px-4 py-3">{{ $duplikat['row'] ?? '-' }}</td>
                                             <td class="px-4 py-3 font-medium">{{ $duplikat['nama'] ?? '-' }}</td>
@@ -356,7 +332,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @foreach($duplikatBinaan['kemungkinan'] as $duplikat)
+                                    @foreach(array_slice($duplikatBinaan['kemungkinan'], 0, 25) as $duplikat)
                                         <tr class="border-b">
                                             <td class="px-4 py-3">{{ $duplikat['row'] ?? '-' }}</td>
                                             <td class="px-4 py-3 font-medium">{{ $duplikat['nama'] ?? '-' }}</td>
@@ -389,40 +365,9 @@
     @endif
 
         <div class="mt-8">
-            {{-- Hasil Import (ringkasan + baris gagal) --}}
+            {{-- Hasil Import (tabel per baris + unduhan) --}}
             @if(is_array($hasilImport))
-                <x-filament::card>
-                    <h3 class="text-lg font-bold mb-2">Hasil Import</h3>
-                    <p class="text-sm text-gray-600 mb-4">
-                        {{ $hasilImport['akun_dibuat'] }} akun dibuat
-                        ({{ $hasilImport['anak_baru'] }} anak baru,
-                        {{ $hasilImport['ditautkan'] }} akun ditautkan),
-                        {{ $hasilImport['gagal'] }} baris gagal.
-                    </p>
-
-                    @if(count($hasilImport['gagal_detail'] ?? []) > 0)
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-sm text-left">
-                                <thead class="text-xs text-gray-700 bg-gray-50">
-                                    <tr>
-                                        <th class="px-4 py-3">Baris / Blok</th>
-                                        <th class="px-4 py-3">Nama</th>
-                                        <th class="px-4 py-3">Alasan Gagal</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach($hasilImport['gagal_detail'] as $gagal)
-                                        <tr class="border-b">
-                                            <td class="px-4 py-3">{{ ! empty($gagal['blok']) ? 'Blok '.$gagal['blok'] : ($gagal['row'] ?? '-') }}</td>
-                                            <td class="px-4 py-3 font-medium">{{ $gagal['nama'] ?? '-' }}</td>
-                                            <td class="px-4 py-3 text-danger-600">{{ $gagal['alasan'] ?? '-' }}</td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                    @endif
-                </x-filament::card>
+                @include('filament.pages.partials.import-result-table')
             @endif
         </div>
 </x-filament-panels::page>

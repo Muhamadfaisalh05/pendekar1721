@@ -22,8 +22,9 @@ use App\Services\ImportService;
 final class SpesifikasiKolomImport
 {
     /**
-     * Penanda baris contoh. Parser menolak file yang masih memuat teks ini
-     * supaya data fiktif tidak pernah masuk ke database.
+     * Penanda baris contoh. Baris yang masih memuat teks ini DILEWATI parser
+     * (tidak diimpor) dan dilaporkan sebagai informasi di Preview, supaya data
+     * fiktif tidak pernah masuk ke database tanpa memblokir baris lain.
      */
     public const PENANDA_CONTOH = 'CONTOH - HAPUS SEBELUM IMPORT';
 
@@ -307,7 +308,7 @@ final class SpesifikasiKolomImport
         return [
             'Unduh template ini, lalu buka pada aplikasi pengolah angka/dokumen Anda (Excel atau Word).',
             'Isi data pada sheet/tabel DATA mulai baris kosong pertama setelah baris CONTOH.',
-            'Hapus baris CONTOH berwarna kuning sebelum file diunggah.',
+            'Hapus baris CONTOH berwarna kuning sebelum file diunggah. Bila lupa, baris bertanda CONTOH otomatis dilewati (tidak diimpor) dan baris lain tetap diproses.',
             'Isi seluruh kolom bertanda (*) karena wajib; kolom tanpa tanda boleh dikosongkan.',
             'Tulis tanggal lahir dengan format DD/MM/YYYY (contoh 17/08/2008), atau isi kolom Umur dengan angka 5-30.',
             'Tulis jenis kelamin dengan kode L (laki-laki) atau P (perempuan).',
@@ -327,6 +328,7 @@ final class SpesifikasiKolomImport
             'Jangan mengubah, menghapus, atau menambah baris header; urutan kolom harus tetap.',
             'Jangan menghapus kolom, meskipun kolom itu opsional dan tidak diisi.',
             'Jangan menggabungkan sel (merge) di dalam tabel data dan jangan menaruh teks lain pada tabel data.',
+            'Dropdown pada kolom master (agama, pendidikan, pelatihan, wilayah, kota KTP, status) mengambil nilai dari sheet DAFTAR yang disembunyikan. Bila master belum lengkap, Excel menampilkan PERINGATAN tetapi nilai baru masih boleh diketik; periksa ejaannya karena import hanya menerima nilai yang terdaftar.',
             'Jumlah baris maksimum per file mengikuti batas server ('.(int) config('pendekar.import.max_rows', 2000).' baris).',
             'Gunakan satu file untuk satu kali import. Simpan berkas asli sebagai arsip bila diperlukan.',
         ];

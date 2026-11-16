@@ -134,7 +134,168 @@ class ImportService
             ? $this->analisisDuplikatBinaan($validasi['valid'])
             : ['pasti' => [], 'kemungkinan' => [], 'dilewati' => []];
 
+        return $this->hiasiPreview($validasi);
+    }
+
+    /**
+     * Lengkapi baris Preview dengan rencana tautan, peringatan identitas, dan
+     * hitungan ringkas. Semua baris tetap disimpan (termasuk error/dilewati),
+     * tetapi halaman hanya merender 25 baris per halaman.
+     *
+     * @param  array<string, mixed>  $validasi
+     * @return array<string, mixed>
+     */
+    protected function hiasiPreview(array $validasi): array
+    {
+        $mode = (string) ($validasi['mode'] ?? self::MODE_KLIEN);
+        $imporGanda = (bool) ($validasi['impor_ganda'] ?? false);
+
+        $rencana = [];
+        foreach (($validasi['tautan']['rencana'] ?? []) as $entri) {
+            $rencana[(string) ($entri['row'] ?? '')] = $entri;
+        }
+
+        $pasti = [];
+        foreach (($validasi['duplikat']['pasti'] ?? []) as $entri) {
+            $pasti[(string) ($entri['row'] ?? '')] = $entri;
+        }
+
+        $kemungkinan = [];
+        foreach (($validasi['duplikat']['kemungkinan'] ?? []) as $entri) {
+            $kemungkinan[(string) ($entri['row'] ?? '')] = $entri;
+        }
+
+        $ringkasan = [
+            'total' => 0,
+            'valid' => 0,
+            'peringatan' => 0,
+            'error' => 0,
+            'dilewati' => 0,
+        ];
+
+        foreach (($validasi['preview'] ?? []) as $index => $baris) {
+            $row = (string) ($baris['row'] ?? '');
+            $status = (string) ($baris['status_baris'] ?? 'valid');
+
+            if ($status === 'valid' && isset($pasti[$row]) && ! $imporGanda) {
+                $status = 'dilewati';
+                $baris['keterangan'] = 'Duplikat identitas: '.($pasti[$row]['keterangan'] ?? 'identitas sama dengan data lain');
+
+                $validasi['dilewati'][] = [
+                    'row' => $baris['row'] ?? null,
+                    'blok' => $baris['blok'] ?? null,
+                    'nama' => $baris['nama'] ?? '',
+                    'alasan' => $baris['keterangan'],
+                ];
+            } elseif ($status === 'valid') {
+                if ($mode === self::MODE_BINAAN) {
+                    $aksi = $rencana[$row] ?? null;
+
+                    $baris['keterangan'] = ($aksi['aksi'] ?? null) === 'tautkan'
+                        ? 'Tautkan ke '.($aksi['anak_id'] ?? '-')
+                        : 'Anak baru + akun Draft';
+                } else {
+                    $baris['keterangan'] = 'Akun klien aktif';
+                }
+
+                if (isset($pasti[$row]) && $imporGanda) {
+                    $status = 'peringatan';
+                    $baris['keterangan'] .= '; ganda identitas tetap diimpor karena opsi paksa aktif';
+                } elseif (isset($kemungkinan[$row])) {
+                    $status = 'peringatan';
+                    $baris['keterangan'] .= '; '.($kemungkinan[$row]['keterangan'] ?? 'Nama sama dengan data lain');
+                }
+            }
+
+            $baris['status_baris'] = $status;
+            $validasi['preview'][$index] = $baris;
+
+            $ringkasan['total']++;
+
+            if (isset($ringkasan[$status])) {
+                $ringkasan[$status]++;
+            }
+        }
+
+        $validasi['ringkasan'] = $ringkasan;
+        $validasi['total'] = $ringkasan['total'];
+
         return $validasi;
+    }
+
+    /**
+     * Gabungkan baris Preview dengan ringkasan import menjadi laporan per
+     * baris (dipakai tabel Hasil Import dan unduhan Excel).
+     *
+     * Status yang ditampilkan: Berhasil / Dilewati / Gagal. Untuk baris
+     * berhasil, `anak_id` dan `status_akun` diambil dari hasil nyata proses
+     * import (bukan tebakan dari Preview).
+     *
+     * @param  array<int, array<string, mixed>>  $previewRows
+     * @param  array<string, mixed>  $ringkasanImport
+     * @return array{baris: array<int, array<string, mixed>>, ringkasan: array{total: int, berhasil: int, dilewati: int, gagal: int}}
+     */
+    public function laporanHasilImport(array $previewRows, array $ringkasanImport): array
+    {
+        $kunci = fn (array $entri): string => (string) ($entri['row'] ?? '');
+
+        $berhasil = [];
+        foreach (($ringkasanImport['berhasil_detail'] ?? []) as $entri) {
+            $berhasil[$kunci($entri)] = $entri;
+        }
+
+        $gagal = [];
+        foreach (($ringkasanImport['gagal_detail'] ?? []) as $entri) {
+            $gagal[$kunci($entri)] = $entri;
+        }
+
+        $dilewati = [];
+        foreach (($ringkasanImport['dilewati_detail'] ?? []) as $entri) {
+            $dilewati[$kunci($entri)] = $entri;
+        }
+
+        $ringkasan = ['total' => 0, 'berhasil' => 0, 'dilewati' => 0, 'gagal' => 0];
+        $barisHasil = [];
+
+        foreach ($previewRows as $baris) {
+            $row = $kunci($baris);
+            $statusPreview = (string) ($baris['status_baris'] ?? 'valid');
+
+            $hasil = 'Berhasil';
+            $anakId = null;
+            $statusAkun = '-';
+            $keterangan = (string) ($baris['keterangan'] ?? '');
+
+            if (isset($gagal[$row])) {
+                $hasil = 'Gagal';
+                $keterangan = (string) ($gagal[$row]['alasan'] ?? 'Gagal diproses');
+            } elseif (isset($berhasil[$row])) {
+                $anakId = $berhasil[$row]['anak_id'] ?? null;
+                $statusAkun = (string) ($berhasil[$row]['status_akun'] ?? '-');
+                $keterangan = (string) ($berhasil[$row]['keterangan'] ?? 'Berhasil');
+            } elseif ($statusPreview === 'error') {
+                $hasil = 'Gagal';
+            } elseif (isset($dilewati[$row]) || $statusPreview === 'dilewati') {
+                $hasil = 'Dilewati';
+                $keterangan = (string) (($dilewati[$row]['alasan'] ?? null) ?: $keterangan);
+            }
+
+            $barisHasil[] = [
+                'row' => $baris['row'] ?? null,
+                'blok' => $baris['blok'] ?? null,
+                'nama' => (string) ($baris['nama'] ?? ''),
+                'anak_id' => $anakId,
+                'status_akun' => $statusAkun,
+                'hasil' => $hasil,
+                'keterangan' => $keterangan,
+            ];
+
+            $ringkasan['total']++;
+            $kunciHasil = strtolower($hasil);
+            $ringkasan[$kunciHasil]++;
+        }
+
+        return ['baris' => $barisHasil, 'ringkasan' => $ringkasan];
     }
 
     /**
@@ -588,11 +749,82 @@ class ImportService
     }
 
     /**
+     * Susun satu baris tampilan Preview dari baris mentah hasil parser.
+     *
+     * Tabel Preview menampilkan SEMUA baris file (valid, peringatan, error,
+     * dilewati), jadi data mentah perlu disimpan dalam bentuk yang stabil
+     * meskipun validasi mengubah/menormalkan nilai internal.
+     *
+     * @param  array<string, mixed>  $row
+     * @return array<string, mixed>
+     */
+    protected function barisPreview(array $row): array
+    {
+        $teks = fn (mixed $nilai): string => trim((string) ($nilai ?? ''));
+
+        $tanggal = $row['tanggal lahir'] ?? null;
+        $tanggalTampil = $teks($tanggal);
+
+        if (is_numeric($tanggal)) {
+            $hasilTanggal = $this->parseTanggal($tanggal);
+            $tanggalTampil = is_string($hasilTanggal)
+                ? \DateTimeImmutable::createFromFormat('!Y-m-d', $hasilTanggal)->format('d/m/Y')
+                : $tanggalTampil;
+        }
+
+        return [
+            'row' => $row['_row_number'] ?? null,
+            'blok' => $row['_blok'] ?? null,
+            'nama' => $teks($row['nama'] ?? null),
+            'jenis_kelamin' => $teks($row['jenis kelamin'] ?? null),
+            'asal_daerah' => $teks($row['asal daerah'] ?? null),
+            'agama' => $teks($row['agama'] ?? null),
+            'umur' => $teks($row['umur'] ?? null),
+            'tanggal_lahir' => $tanggalTampil,
+            'angkatan' => $teks($row['angkatan'] ?? null),
+            'email' => $teks($row['email'] ?? null),
+            'alamat_ktp' => $teks($row['alamat ktp'] ?? null),
+            'kota_ktp' => $teks($row['kota ktp'] ?? null),
+            'pendidikan' => $teks($row['pendidikan'] ?? null),
+            'pelatihan' => $teks($row['pelatihan'] ?? null),
+            'penempatan_wilayah' => $teks($row['penempatan wilayah'] ?? null),
+            'status_pekerjaan' => $teks($row['status pekerjaan'] ?? null),
+            'status_baris' => 'valid',
+            'keterangan' => 'Siap diimpor',
+            'masalah' => [],
+        ];
+    }
+
+    /**
+     * Petakan nama kolom pada pesan error ke kunci kolom Preview.
+     */
+    protected function kunciMasalah(string $kolom): string
+    {
+        return match ($kolom) {
+            'Nama' => 'nama',
+            'Jenis Kelamin' => 'jenis_kelamin',
+            'Asal Daerah' => 'asal_daerah',
+            'Agama' => 'agama',
+            'Umur' => 'umur',
+            'Tanggal Lahir' => 'tanggal_lahir',
+            'Angkatan' => 'angkatan',
+            'Email' => 'email',
+            'Alamat KTP' => 'alamat_ktp',
+            'Kota KTP' => 'kota_ktp',
+            'Pendidikan' => 'pendidikan',
+            'Pelatihan' => 'pelatihan',
+            'Penempatan Wilayah' => 'penempatan_wilayah',
+            'Status Pekerjaan' => 'status_pekerjaan',
+            default => strtolower(str_replace(' ', '_', $kolom)),
+        };
+    }
+
+    /**
      * Validasi per baris. Mode `binaan` mewajibkan kolom data anak; mode
      * `klien` mempertahankan aturan lama (Nama, Email, Jenis Kelamin).
      *
      * @param  array<int, array<string, mixed>>  $rows
-     * @return array{valid: array<int, array<string, mixed>>, errors: array<int, array<string, mixed>>, duplicates: array<int, array<string, mixed>>, total: int}
+     * @return array{valid: array<int, array<string, mixed>>, errors: array<int, array<string, mixed>>, duplicates: array<int, array<string, mixed>>, dilewati: array<int, array<string, mixed>>, preview: array<int, array<string, mixed>>, total: int}
      */
     protected function validateRows(array $rows, string $mode = self::MODE_KLIEN)
     {
@@ -602,6 +834,8 @@ class ImportService
             'valid' => [],
             'errors' => [],
             'duplicates' => [],
+            'dilewati' => [],
+            'preview' => [],
             'total' => count($rows),
         ];
 
@@ -617,15 +851,26 @@ class ImportService
             $rowNum = $row['_row_number'] ?? null;
             $errors = [];
             $parsedData = [];
+            $preview = $this->barisPreview($row);
 
-            // 0. Baris CONTOH template yang lupa dihapus.
+            // 0. Baris CONTOH template: DILEWATI sebagai informasi, bukan error.
+            //    Deteksinya HANYA dari penanda pada kolom Nama sesuai kontrak
+            //    template; tidak menebak dari data lain.
             if (! empty($row['_contoh'])) {
-                $errors[] = [
-                    'col' => 'Baris Contoh',
-                    'val' => SpesifikasiKolomImport::PENANDA_CONTOH,
-                    'msg' => 'Baris contoh pada template masih ada. Hapus baris bertanda '
-                        .'"CONTOH - HAPUS SEBELUM IMPORT", lalu unggah ulang.',
+                $alasan = 'Baris contoh dilewati (tidak diimpor)';
+
+                $results['dilewati'][] = [
+                    'row' => $rowNum,
+                    'blok' => $row['_blok'] ?? null,
+                    'nama' => (string) ($preview['nama'] ?? ''),
+                    'alasan' => $alasan,
                 ];
+
+                $preview['status_baris'] = 'dilewati';
+                $preview['keterangan'] = $alasan;
+                $results['preview'][] = $preview;
+
+                continue;
             }
 
             // 1. Nama (wajib di semua mode)
@@ -655,6 +900,8 @@ class ImportService
                 $kunciEmail = strtolower($email);
 
                 if (in_array($kunciEmail, $existingEmails, true) || isset($emailDalamFile[$kunciEmail])) {
+                    $alasan = 'Email sudah terdaftar atau duplikat di dalam file';
+
                     $results['duplicates'][] = [
                         'row' => $rowNum,
                         'blok' => $row['_blok'] ?? null,
@@ -662,7 +909,18 @@ class ImportService
                         'email' => $email,
                     ];
 
+                    $results['dilewati'][] = [
+                        'row' => $rowNum,
+                        'blok' => $row['_blok'] ?? null,
+                        'nama' => $nama,
+                        'alasan' => $alasan,
+                    ];
+
                     $emailDalamFile[$kunciEmail] = true;
+
+                    $preview['status_baris'] = 'dilewati';
+                    $preview['keterangan'] = $alasan;
+                    $results['preview'][] = $preview;
 
                     continue; // baris duplikat tidak diimpor
                 }
@@ -839,6 +1097,8 @@ class ImportService
 
             // Compile errors or valid data
             if ($errors !== []) {
+                $pesanPreview = [];
+
                 foreach ($errors as $err) {
                     $results['errors'][] = [
                         'row' => $rowNum,
@@ -848,12 +1108,21 @@ class ImportService
                         'val' => $err['val'],
                         'msg' => $err['msg'],
                     ];
+
+                    $kunci = $this->kunciMasalah((string) $err['col']);
+                    $preview['masalah'][$kunci][] = (string) $err['msg'];
+                    $pesanPreview[] = $err['col'].': '.$err['msg'];
                 }
+
+                $preview['status_baris'] = 'error';
+                $preview['keterangan'] = implode('; ', $pesanPreview);
             } else {
                 $parsedData['_row_number'] = $rowNum;
                 $parsedData['_blok'] = $row['_blok'] ?? null;
                 $results['valid'][] = $parsedData;
             }
+
+            $results['preview'][] = $preview;
         }
 
         return $results;
@@ -1062,6 +1331,16 @@ class ImportService
                 }
 
                 $ringkasan['akun_dibuat']++;
+                $ringkasan['berhasil_detail'][] = [
+                    'row' => $data['_row_number'] ?? null,
+                    'blok' => $data['_blok'] ?? null,
+                    'nama' => (string) ($data['name'] ?? ''),
+                    'anak_id' => null,
+                    'akun_id' => $user->getKey(),
+                    'status_akun' => 'Aktif',
+                    'hasil' => 'Berhasil',
+                    'keterangan' => 'Akun klien aktif dibuat',
+                ];
             }
 
             DB::commit();
@@ -1153,7 +1432,7 @@ class ImportService
                     $anakBaru = true;
                 }
 
-                $binaan->buatAkunDraft(
+                $akun = $binaan->buatAkunDraft(
                     $anak,
                     $createdBy,
                     $data['email'] ?? null,
@@ -1165,6 +1444,18 @@ class ImportService
 
                 $anakBaru ? $ringkasan['anak_baru']++ : $ringkasan['ditautkan']++;
                 $ringkasan['akun_dibuat']++;
+                $ringkasan['berhasil_detail'][] = [
+                    'row' => $row,
+                    'blok' => $data['_blok'] ?? null,
+                    'nama' => $nama,
+                    'anak_id' => (string) $anak->getKey(),
+                    'akun_id' => $akun->getKey(),
+                    'status_akun' => 'Draft',
+                    'hasil' => 'Berhasil',
+                    'keterangan' => $anakBaru
+                        ? 'Anak baru + akun Draft'
+                        : 'Tautkan ke '.$anak->getKey().' (akun Draft, tanpa anak baru)',
+                ];
             } catch (\Throwable $e) {
                 if ($anakBaru && $anak instanceof Anak) {
                     $binaan->hapusAnakBaru($anak);
@@ -1240,6 +1531,16 @@ class ImportService
                 }
 
                 $ringkasan['akun_dibuat']++;
+                $ringkasan['berhasil_detail'][] = [
+                    'row' => $row,
+                    'blok' => $data['_blok'] ?? null,
+                    'nama' => (string) ($data['name'] ?? ''),
+                    'anak_id' => null,
+                    'akun_id' => $user->getKey(),
+                    'status_akun' => 'Draft',
+                    'hasil' => 'Berhasil',
+                    'keterangan' => 'Akun Draft dibuat (kolom tautan anak belum tersedia)',
+                ];
             } catch (\Throwable $e) {
                 $ringkasan['gagal']++;
                 $ringkasan['gagal_detail'][] = [
@@ -1281,6 +1582,7 @@ class ImportService
             'akun_dibuat' => 0,
             'gagal' => 0,
             'gagal_detail' => [],
+            'berhasil_detail' => [],
             'dilewati' => 0,
             'dilewati_detail' => [],
         ];

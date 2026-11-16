@@ -456,8 +456,9 @@ class FormulirWordDropdownTest extends ImportTestCase
         $preview = (new ImportService)->parseAndValidate($path, 'docx', ImportService::MODE_BINAAN);
 
         $this->assertSame([], $preview['valid'], 'Blok kosong/placeholder tidak boleh jadi baris valid.');
-        $this->assertCount(1, $preview['errors'], 'Hanya blok CONTOH yang dilaporkan.');
-        $this->assertSame(1, $preview['errors'][0]['blok']);
+        $this->assertSame([], $preview['errors'], 'Blok CONTOH bukan error; ia dilewati sebagai informasi.');
+        $this->assertCount(1, $preview['dilewati']);
+        $this->assertSame(1, $preview['dilewati'][0]['blok']);
     }
 
     public function test_master_kosong_memberi_catatan_bukan_daftar_cadangan(): void
@@ -532,7 +533,8 @@ class FormulirWordDropdownTest extends ImportTestCase
             $validasi = $data->getDataValidation($huruf($kunci).'5');
 
             $this->assertSame(DataValidation::TYPE_LIST, $validasi->getType(), "{$kunci} harus dropdown.");
-            $this->assertStringContainsString('DAFTAR!', $validasi->getFormula1(), "{$kunci} harus mengambil dari sheet DAFTAR.");
+            $this->assertStringStartsWith('DAF_', (string) $validasi->getFormula1(), "{$kunci} harus menunjuk named range DAF_*.");
+            $this->assertTrue($validasi->getShowDropDown(), "{$kunci} harus menampilkan panah dropdown.");
         }
     }
 }

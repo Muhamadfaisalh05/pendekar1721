@@ -1438,3 +1438,109 @@ Catatan:
 **Rollback:** hapus pemanggilan `->spa()` pada kedua panel dan `->deferLoading()` pada empat resource;
 kembalikan `toggleable()` pada kolom JK/Asal Daerah. Tidak ada perubahan skema atau data.
 
+
+## 23. Dropdown Excel nyata, CONTOH dilewati, tabel Preview & Hasil Import (16 Nov 2026)
+
+Lanjutan Pekerjaan A (`b4602b98`). Tidak ada perubahan skema, tidak ada backfill
+`graduated_at`, dan panel/rute Absensi native tidak disentuh.
+
+### 23.1 Status dropdown yang sebenarnya
+
+| Template | Status sebelum commit ini | Tindakan |
+|---|---|---|
+| **Word formulir per anak** | **Sudah berfungsi** sejak `b4602b98`: 7 dropdown `w:sdt` + `w:dropDownList` (jenis kelamin, agama, pendidikan, pelatihan, penempatan wilayah, kota KTP, status pekerjaan) dan 1 pemilih tanggal | Tidak diubah; tes `FormulirWordDropdownTest` tetap hijau |
+| **Excel** | Validasi list sudah dipasang, **tetapi panah dropdown tidak tampil di Microsoft Excel** dan formula masih menunjuk rentang langsung `DAFTAR!...`, bukan named range | Diperbaiki |
+
+Penyebab dropdown Excel tidak tampil: pada OOXML, atribut `showDropDown="1"` justru
+berarti **menyembunyikan** panah. `PhpSpreadsheet` membalik nilai saat menulis
+(`showDropDown` XML = `!getShowDropDown()`), sehingga nilai default `false`
+menghasilkan `showDropDown="1"` dan Excel menyembunyikan dropdown. Sekarang
+`setShowDropDown(true)` dipakai dan diberi komentar eksplisit agar tidak terbalik lagi.
+
+Perbaikan Excel:
+- sheet `DAFTAR` tetap disembunyikan + diproteksi tanpa password; isinya dari master/enum;
+- 8 **named range** `DAF_AGAMA`, `DAF_JENIS_KELAMIN`, `DAF_PENDIDIKAN`, `DAF_PELATIHAN`,
+  `DAF_WILAYAH`, `DAF_KOTA_KTP`, `DAF_STATUS_PEKERJAAN`, `DAF_STATUS_PROFIL`;
+- validasi list di seluruh area isian (baris 5-204) menunjuk named range, bukan list inline
+  (batas rumus inline Excel 255 karakter bisa terlampaui oleh master kota);
+- `allowBlank = true`, pesan input/error Indonesia, gaya error **warning** agar nilai baru
+  masih boleh bila master belum lengkap; penjelasan ditambahkan ke sheet `PETUNJUK`;
+- area isian (termasuk baris CONTOH) tetap **UNPROTECTED**; perbaikan `53f25bab` tidak rusak;
+- header kolom tidak berubah dan template Excel lama tetap dapat diimpor.
+
+### 23.2 Baris CONTOH tidak lagi memblokir
+
+- Baris/blok yang memuat penanda `CONTOH - HAPUS SEBELUM IMPORT` pada Nama **dilewati
+  otomatis**, tidak diimpor, dan muncul sebagai status **Dilewati** dengan keterangan
+  "Baris contoh dilewati (tidak diimpor)".
+- Deteksi tetap **hanya** dari penanda tersebut, bukan menebak data lain.
+- Baris valid lain tetap dapat diimpor; bila file hanya berisi CONTOH, halaman memberi pesan
+  **"Tidak ada data untuk diimpor"** dan tidak membuat akun/anak.
+
+### 23.3 Tabel Preview Data
+
+- Menampilkan **semua** baris file (bukan hanya error) dalam satu tabel: No/Blok, Nama, JK,
+  Asal Daerah, Agama, Umur, Tanggal Lahir, Angkatan, Email, Alamat KTP, Kota KTP, Pendidikan,
+  Pelatihan, Penempatan Wilayah, Status Pekerjaan, Status Baris, Keterangan.
+- Status: **Valid / Peringatan / Error / Dilewati**. Sel bermasalah diberi latar merah muda
+  dan tooltip alasan (atribut `title`).
+- Keterangan memuat rencana nyata: "Anak baru + akun Draft", "Tautkan ke AN-xxx",
+  "Akun klien aktif", alasan duplikat, atau alasan error.
+- Filter status (Semua/Valid/Peringatan/Error/Dilewati), pencarian nama, paginasi
+  **25 baris/halaman di sisi server**; ringkasan total/valid/peringatan/error/dilewati
+  ditampilkan di atas tabel. Daftar Error Validasi tetap ada sebagai ringkasan.
+- Tabel "Rencana Import per Baris" lama dibatasi 25 baris pertama agar tidak merender
+  ratusan baris sekaligus; detail semua baris ada di tabel Preview.
+
+
+### 23.4 Tabel & unduhan Hasil Import
+
+- Setelah Import ditekan, tabel hasil per baris memuat: No/Blok, Nama, **ID Anak (AN-xxx)**,
+  **Status Akun (Draft/Aktif)**, Hasil (Berhasil/Dilewati/Gagal), dan Keterangan.
+- Baris gagal menampilkan alasan; baris berhasil dengan ID anak memiliki tautan
+  **"Lihat di Anak Binaan"**.
+- Tombol **"Unduh laporan hasil"** menghasilkan `.xlsx` dengan tabel yang sama. Laporan
+  **sengaja tanpa email dan alamat KTP** (mengurangi penyebaran PII saat laporan diarsipkan),
+  tetapi mempertahankan Nama + ID Anak agar operator dapat mencocokkan data.
+- `ImportService::laporanHasilImport()` menggabungkan baris Preview dengan hasil nyata
+  (`berhasil_detail`, `gagal_detail`, `dilewati_detail`) sehingga ID/status akun bukan tebakan.
+
+### 23.5 Berkas yang diubah
+
+| Berkas | Perubahan |
+|---|---|
+| `app/Support/Import/TemplateExcel.php` | `setShowDropDown(true)`, named range `DAF_*`, validasi menunjuk named range |
+| `app/Support/Import/SpesifikasiKolomImport.php` | dokumentasi CONTOH dilewati; catatan dropdown/warning di PETUNJUK |
+| `app/Services/ImportService.php` | CONTOH dilewati, `preview` semua baris, `ringkasan`, `hiasiPreview()`, `laporanHasilImport()`, detail berhasil per baris |
+| `app/Filament/Pages/ImportData.php` | filter/pencarian/paginasi server-side, pesan "Tidak ada data untuk diimpor", laporan hasil, unduhan |
+| `resources/views/filament/pages/import-data.blade.php` | ringkasan 5 status, tabel Preview, hasil, tombol unduh |
+| `resources/views/filament/pages/partials/import-preview-table.blade.php` | tabel Preview (baru) |
+| `resources/views/filament/pages/partials/import-result-table.blade.php` | tabel Hasil + tautan/unduhan (baru) |
+| `app/Support/Import/LaporanHasilImportExcel.php` | pembuat laporan `.xlsx` tanpa email/alamat (baru) |
+| `tests/Feature/Graduation/ImportPreviewTableTest.php` | 10 tes baru |
+| `tests/Feature/Graduation/TemplateImportTest.php`, `FormulirWordDropdownTest.php` | ekspektasi CONTOH/named range/showDropDown disesuaikan |
+
+### 23.6 Tes & verifikasi
+
+| Verifikasi | Hasil |
+|---|---|
+| Dropdown Excel | 8 named range + validasi list, `showDropDown=true`, `allowBlank=true`, gaya warning, DAFTAR sesuai master |
+| Round-trip dropdown | 2 baris memakai nilai dropdown → import 2 anak + 2 akun Draft |
+| CONTOH + 2 valid | 2 diimpor, CONTOH dilewati, tanpa error, tombol Import tetap berfungsi |
+| Hanya CONTOH | pesan "Tidak ada data untuk diimpor", tidak ada akun dibuat |
+| Preview | semua status tampil, filter Error/Semua berfungsi, pencarian nama, paginasi 25 |
+| Hasil | ID anak, status Draft, baris gagal + alasan, tautan "Lihat di Anak Binaan", unduhan |
+| Laporan | header sesuai, tanpa email/alamat KTP |
+| Mode Klien Umum | tetap membuat akun `Published` (Aktif) |
+| Nama sama | dua baris dengan alamat berbeda tetap valid dan diimpor |
+| Kinerja | file 300 baris: tes (termasuk pembuatan file + parse + validasi) **0,69 detik** |
+| Regresi performa | `PanelNavigationPerfTest` (Commit B) tetap hijau |
+| Suite penuh | `php artisan test`: **196 passed (1546 assertions)**, 0 gagal |
+| Gaya kode | `vendor/bin/pint --test` PASS pada 9 berkas PHP yang diubah |
+
+### 23.7 Rollback
+
+Kembalikan `TemplateExcel` ke formula rentang langsung + hapus named range; hapus
+`hiasiPreview()`/`laporanHasilImport()` dan kolom `preview`/`hasil_detail`; kembalikan
+blok view lama. Tidak ada perubahan skema/data, sehingga rollback tidak memerlukan migrasi.
+

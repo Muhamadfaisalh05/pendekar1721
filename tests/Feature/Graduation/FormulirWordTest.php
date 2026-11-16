@@ -337,16 +337,17 @@ class FormulirWordTest extends ImportTestCase
         $this->assertSame(2, User::query()->whereNotNull('anak_id')->count());
     }
 
-    public function test_blok_contoh_formulir_ditolak_dan_blok_kosong_diabaikan(): void
+    public function test_blok_contoh_formulir_dilewati_dan_blok_kosong_diabaikan(): void
     {
         $path = $this->layananTemplate()->buatFormulirWord();
 
         $preview = (new ImportService)->parseAndValidate($path, 'docx', ImportService::MODE_BINAAN);
 
         $this->assertSame([], $preview['valid']);
-        $this->assertCount(1, $preview['errors'], 'Hanya blok CONTOH yang dilaporkan; 5 blok kosong diabaikan.');
-        $this->assertSame(1, $preview['errors'][0]['blok'], 'Pesan galat harus menunjuk Blok 1.');
-        $this->assertStringContainsString(SpesifikasiKolomImport::PENANDA_CONTOH, $preview['errors'][0]['msg']);
+        $this->assertSame([], $preview['errors'], 'Blok CONTOH bukan error; 5 blok kosong diabaikan.');
+        $this->assertCount(1, $preview['dilewati']);
+        $this->assertSame(1, $preview['dilewati'][0]['blok'], 'Info harus menunjuk Blok 1.');
+        $this->assertStringContainsString('Baris contoh dilewati', $preview['dilewati'][0]['alasan']);
     }
 
     public function test_blok_dengan_label_wajib_kosong_ditolak_dengan_nomor_blok(): void

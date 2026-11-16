@@ -5,6 +5,7 @@ namespace App\Support\Import;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Cell\DataValidation;
+use PhpOffice\PhpSpreadsheet\NamedRange;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
@@ -57,6 +58,24 @@ final class TemplateExcel
         'kota_ktp',
         'status_pekerjaan',
         'status_profil',
+    ];
+
+    /**
+     * Nama named range untuk setiap daftar.
+     *
+     * Excel membatasi panjang rumus validasi inline 255 karakter; master kota
+     * saja bisa jauh melebihi batas itu. Karena itu validasi menunjuk NAMED
+     * RANGE (mis. DAF_AGAMA), bukan menulis seluruh daftar ke formula.
+     */
+    private const NAMA_RANGE_DAFTAR = [
+        'agama' => 'DAF_AGAMA',
+        'jenis_kelamin' => 'DAF_JENIS_KELAMIN',
+        'pendidikan' => 'DAF_PENDIDIKAN',
+        'pelatihan' => 'DAF_PELATIHAN',
+        'wilayah' => 'DAF_WILAYAH',
+        'kota_ktp' => 'DAF_KOTA_KTP',
+        'status_pekerjaan' => 'DAF_STATUS_PEKERJAAN',
+        'status_profil' => 'DAF_STATUS_PROFIL',
     ];
 
     private const WARNA_NAVY = 'FF1F3864';
@@ -152,6 +171,17 @@ final class TemplateExcel
                 $sheet->setCellValueExplicit($huruf.($baris + 2), (string) $teks, DataType::TYPE_STRING);
             }
 
+            // Named range mencakup SELURUH nilai master (bukan hanya nilai
+            // pertama). Dropdown di sheet DATA menunjuk nama ini, sehingga
+            // rumus validasi tetap pendek meski master kota berisi ratusan
+            // baris dan nilainya selalu sinkron dengan sheet DAFTAR.
+            $barisAkhir = count($nilai) + 1;
+            $this->spreadsheet->addNamedRange(new NamedRange(
+                self::NAMA_RANGE_DAFTAR[$kunci],
+                $sheet,
+                '$'.$huruf.'$2:$'.$huruf.'$'.$barisAkhir
+            ));
+
             $panjang = max(array_map(fn ($teks): int => mb_strlen((string) $teks), $nilai));
             $sheet->getColumnDimension($huruf)->setWidth(min(45, max(14, $panjang + 4)));
         }
@@ -168,22 +198,11 @@ final class TemplateExcel
     }
 
     /**
-     * Rentang absolut satu daftar pada sheet DAFTAR (untuk validasi data).
+     * Nama named range satu daftar pada sheet DAFTAR (untuk validasi data).
      */
     private function rentangDaftar(string $kunci): string
     {
-        $urutan = self::URUTAN_DAFTAR;
-        $index = array_search($kunci, $urutan, true);
-        $huruf = Coordinate::stringFromColumnIndex(($index === false ? 0 : $index) + 1);
-
-        $jumlah = count(array_filter(
-            $this->referensi[$kunci] ?? [],
-            fn ($item): bool => trim((string) $item) !== ''
-        ));
-
-        $barisAkhir = max(2, $jumlah + 1);
-
-        return "DAFTAR!\${$huruf}\$2:\${$huruf}\${$barisAkhir}";
+        return self::NAMA_RANGE_DAFTAR[$kunci] ?? self::NAMA_RANGE_DAFTAR['agama'];
     }
 
     /**
@@ -478,7 +497,9 @@ final class TemplateExcel
      */
     private function pasangValidasi(int $barisAkhir): void
     {
-        $awal = self::BARIS_AWAL_DATA;
+        // Validasi mencakup baris CONTOH (4) sampai baris terakhir (204):
+        // seluruh area yang bisa diketik operator tetap punya dropdown.
+        $awal = self::BARIS_CONTOH;
 
         $rentang = fn (string $kunci): string => $this->hurufKolom($kunci).$awal.':'.$this->hurufKolom($kunci).$barisAkhir;
 
@@ -579,13 +600,21 @@ final class TemplateExcel
 
     /**
      * Validasi dropdown dari sheet DAFTAR.
+     *
+     * CATATAN PENTING: pada OOXML atribut `showDropDown="1"` justru berarti
+     * panah dropdown DISEMBUNYIKAN. PhpSpreadsheet membalik nilai itu saat
+     * menulis file (`showDropDown` XML = !getShowDropDown()), sehingga
+     * `setShowDropDown(true)` adalah nilai yang membuat dropdown TAMPIL di
+     * Microsoft Excel. Jangan mengubahnya menjadi false.
      */
-    private function validasiDaftar(string $rentang, string $kunciDaftar, string $judul, string $pesan, string $gaya = DataValidation::STYLE_STOP): void
+    private function validasiDaftar(string $rentang, string $kunciDaftar, string $judul, string $pesan, string $gaya = DataValidation::STYLE_WARNING): void
     {
         $validasi = new DataValidation;
         $validasi->setType(DataValidation::TYPE_LIST)
             ->setErrorStyle($gaya)
             ->setAllowBlank(true)
+            // true = dropdown tampil (lihat catatan metode ini).
+            ->setShowDropDown(true)
             ->setShowErrorMessage(true)
             ->setShowInputMessage(true)
             ->setErrorTitle($judul)

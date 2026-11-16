@@ -5,12 +5,15 @@ namespace App\Filament\Pages;
 use App\Filament\Support\PeringatanMigrasi;
 use App\Services\ImportService;
 use App\Services\ImportTemplateService;
+use App\Support\Import\LaporanHasilImportExcel;
 use Filament\Forms;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Storage;
+use Livewire\Attributes\Computed;
 use Livewire\WithFileUploads;
 
 class ImportData extends Page implements HasForms
@@ -35,6 +38,15 @@ class ImportData extends Page implements HasForms
     public $file;
 
     public $previewData = null;
+
+    /** Halaman tabel Preview (server-side, 25 baris per halaman). */
+    public int $previewPage = 1;
+
+    /** Filter status tabel Preview: semua/valid/peringatan/error/dilewati. */
+    public string $previewStatus = 'semua';
+
+    /** Pencarian nama pada tabel Preview. */
+    public string $previewSearch = '';
 
     /**
      * Ringkasan hasil import terakhir (dipakai untuk melaporkan baris gagal).
@@ -81,6 +93,71 @@ class ImportData extends Page implements HasForms
     public static function canAccess(): bool
     {
         return auth()->user()?->user_type === 'admin';
+    }
+
+    /**
+     * Baris tabel Preview setelah filter/pencarian, 25 baris per halaman.
+     *
+     * Sumber data tetap di properti server (`previewData`), bukan dirender
+     * seluruhnya ke HTML. Ini menjaga halaman tetap ringan meski file berisi
+     * ratusan/ribuan baris.
+     */
+    #[Computed]
+    public function barisPreview(): LengthAwarePaginator
+    {
+        $semua = collect($this->previewData['preview'] ?? []);
+
+        if ($this->previewStatus !== 'semua') {
+            $semua = $semua->where('status_baris', $this->previewStatus);
+        }
+
+        $cari = trim($this->previewSearch);
+
+        if ($cari !== '') {
+            $semua = $semua->filter(
+                fn (array $baris): bool => mb_stripos((string) ($baris['nama'] ?? ''), $cari) !== false
+            );
+        }
+
+        $semua = $semua->values();
+        $perHalaman = 25;
+        $jumlahHalaman = max(1, (int) ceil($semua->count() / $perHalaman));
+
+        if ($this->previewPage > $jumlahHalaman) {
+            $this->previewPage = $jumlahHalaman;
+        }
+
+        return new LengthAwarePaginator(
+            $semua->forPage($this->previewPage, $perHalaman)->values(),
+            $semua->count(),
+            $perHalaman,
+            $this->previewPage
+        );
+    }
+
+    public function updatedPreviewSearch(): void
+    {
+        $this->previewPage = 1;
+    }
+
+    public function updatedPreviewStatus(): void
+    {
+        $this->previewPage = 1;
+    }
+
+    public function gotoPreviewPage(int $halaman): void
+    {
+        $this->previewPage = max(1, $halaman);
+    }
+
+    public function previousPreviewPage(): void
+    {
+        $this->previewPage = max(1, $this->previewPage - 1);
+    }
+
+    public function nextPreviewPage(): void
+    {
+        $this->previewPage++;
     }
 
     protected function getFormSchema(): array
@@ -244,9 +321,27 @@ class ImportData extends Page implements HasForms
             $imporGanda = $mode === ImportService::MODE_BINAAN && (bool) ($data['impor_ganda'] ?? false);
 
             $this->hasilImport = null;
+            $this->previewPage = 1;
+            $this->previewStatus = 'semua';
+            $this->previewSearch = '';
 
             $service = new ImportService;
             $this->previewData = $service->parseAndValidate($filePath, $extension, $mode, $tautkanAnak, $imporGanda);
+
+            $jumlahValid = count($this->previewData['valid'] ?? []);
+            $jumlahError = count($this->previewData['errors'] ?? []);
+
+            if ($jumlahValid === 0 && $jumlahError === 0) {
+                Notification::make()
+                    ->title('Tidak ada data untuk diimpor')
+                    ->body('File hanya berisi baris contoh atau baris kosong. Tidak ada data yang dapat diimpor.')
+                    ->warning()
+                    ->send();
+
+                $this->isProcessing = false;
+
+                return;
+            }
 
             Notification::make()->title('File berhasil diproses untuk preview.')->success()->send();
         } catch (\Exception $e) {
@@ -266,10 +361,16 @@ class ImportData extends Page implements HasForms
         }
 
         if (count($this->previewData['valid']) === 0) {
-            Notification::make()->title('Tidak ada data valid untuk diimport.')->warning()->send();
+            Notification::make()
+                ->title('Tidak ada data untuk diimpor')
+                ->body('Semua baris dilewati atau tidak valid. Periksa tabel Preview.')
+                ->warning()
+                ->send();
 
             return;
         }
+
+        $preview = $this->previewData;
 
         try {
             $data = $this->form->getState();
@@ -297,7 +398,7 @@ class ImportData extends Page implements HasForms
 
             $service = new ImportService;
             $ringkasan = $service->importData(
-                $this->previewData['valid'],
+                $preview['valid'],
                 $uploadedPhotos,
                 auth()->id(),
                 $mode === ImportService::MODE_BINAAN ? null : $importPassword,
@@ -306,6 +407,9 @@ class ImportData extends Page implements HasForms
                 $imporGanda,
             );
 
+            $laporan = $service->laporanHasilImport($preview['preview'] ?? [], $ringkasan);
+            $ringkasan['hasil_detail'] = $laporan['baris'];
+            $ringkasan['hasil_ringkasan'] = $laporan['ringkasan'];
             $this->hasilImport = $ringkasan;
 
             $totalDuplikat = (int) ($ringkasan['dilewati'] ?? 0);
@@ -333,5 +437,38 @@ class ImportData extends Page implements HasForms
         } catch (\Exception $e) {
             Notification::make()->title('Terjadi kesalahan saat menyimpan data: '.$e->getMessage())->danger()->send();
         }
+    }
+
+    /**
+     * Unduh laporan hasil import terakhir (.xlsx).
+     *
+     * Laporan sengaja tidak memuat email/alamat KTP; lihat
+     * {@see LaporanHasilImportExcel}.
+     */
+    public function downloadLaporanHasil()
+    {
+        if (! is_array($this->hasilImport) || empty($this->hasilImport['hasil_detail'])) {
+            Notification::make()->title('Belum ada hasil import yang dapat diunduh.')->warning()->send();
+
+            return null;
+        }
+
+        $direktori = storage_path('app/import-reports');
+
+        if (! is_dir($direktori)) {
+            mkdir($direktori, 0775, true);
+        }
+
+        $nama = 'laporan-hasil-import-'.now()->format('Ymd-His').'.xlsx';
+        $path = $direktori.DIRECTORY_SEPARATOR.$nama;
+
+        (new LaporanHasilImportExcel)->simpan([
+            'baris' => $this->hasilImport['hasil_detail'],
+            'ringkasan' => $this->hasilImport['hasil_ringkasan'] ?? [],
+        ], $path);
+
+        return response()
+            ->download($path, $nama)
+            ->deleteFileAfterSend(true);
     }
 }
