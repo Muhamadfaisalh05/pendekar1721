@@ -3,10 +3,6 @@
         <x-filament::button wire:click="downloadExcelTemplate" color="success" icon="heroicon-o-document-arrow-down">
             Download Template Excel
         </x-filament::button>
-        
-        <x-filament::button wire:click="downloadWordTemplate" color="info" icon="heroicon-o-document-text">
-            Download Template Word
-        </x-filament::button>
 
         <x-filament::button wire:click="downloadFormulirWordTemplate" color="warning" icon="heroicon-o-identification">
             Download Formulir Word (per anak)

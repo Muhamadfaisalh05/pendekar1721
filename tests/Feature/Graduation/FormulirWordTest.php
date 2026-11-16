@@ -55,7 +55,10 @@ class FormulirWordTest extends ImportTestCase
     }
 
     /**
-     * Semua tabel dua kolom (satu tabel = satu blok) pada dokumen.
+     * Semua tabel BLOK formulir (header baris pertama `Label | Isian`).
+     *
+     * Tabel petunjuk ("Kolom | Nilai yang diterima") dan lampiran daftar
+     * pilihan juga dua kolom, sehingga harus disaring dengan header.
      *
      * @return array<int, Table>
      */
@@ -69,9 +72,18 @@ class FormulirWordTest extends ImportTestCase
                     continue;
                 }
 
-                if (count($element->getRows()[0]->getCells()) === 2) {
-                    $tabel[] = $element;
+                $baris = $element->getRows();
+                $sel = $baris === [] ? [] : $baris[0]->getCells();
+
+                if (count($sel) !== 2) {
+                    continue;
                 }
+
+                if ($this->teksSel($sel[0]) !== 'Label' || $this->teksSel($sel[1]) !== 'Isian') {
+                    continue;
+                }
+
+                $tabel[] = $element;
             }
         }
 

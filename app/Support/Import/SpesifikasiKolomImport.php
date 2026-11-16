@@ -347,9 +347,9 @@ final class SpesifikasiKolomImport
             'Setiap halaman blok adalah SATU remaja binaan: isi kolom Isian di sebelah kanan label.',
             'Kosongkan atau hapus seluruh halaman BLOK 1 (CONTOH) sebelum mengunggah; jangan mengosongkan sebagian saja.',
             'Label bertanda (*) wajib diisi; label tanpa tanda boleh dikosongkan.',
-            'Tulis tanggal lahir dengan format DD/MM/YYYY (contoh 17/08/2008), atau isi Umur dengan angka 5-30.',
-            'Tulis jenis kelamin dengan kode L (laki-laki) atau P (perempuan).',
-            'Bila lebih dari satu pelatihan/wilayah, pisahkan dengan koma (contoh: Menjahit, Tata Boga).',
+            'Tulis tanggal lahir dengan format DD/MM/YYYY (contoh 17/08/2008), atau pilih dari kalender, atau isi Umur dengan angka 5-30.',
+            'Pilih Jenis Kelamin, Agama, Pendidikan, Pelatihan, Wilayah, Kota KTP, dan Status Pekerjaan dari dropdown agar nilainya dikenali saat import.',
+            'Bila lebih dari satu pelatihan/wilayah, pisahkan dengan koma (contoh: Menjahit, Tata Boga). Daftar nilai yang diterima ada pada tabel di bawah.',
             'Blok yang seluruh isiannya kosong diabaikan. Simpan sebagai .docx, lalu unggah pada menu Import Data.',
         ];
     }

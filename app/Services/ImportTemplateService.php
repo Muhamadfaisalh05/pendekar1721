@@ -69,26 +69,64 @@ class ImportTemplateService
     public function buatFormulirWord(): string
     {
         $path = $this->pathSementara($this->namaBerkasFormulir());
+        $referensi = $this->referensi();
 
-        (new TemplateFormulirWord($this->referensi()))->simpan($path);
+        (new TemplateFormulirWord($referensi, $this->labelMasterKosong($referensi)))->simpan($path);
 
         return $path;
     }
 
     /**
-     * Daftar pilihan untuk sheet DAFTAR (Excel) dan keterangan Word.
+     * Daftar pilihan untuk sheet DAFTAR (Excel) dan dropdown Word.
+     *
+     * SENGAJA tanpa daftar cadangan: bila master benar-benar kosong, dropdown
+     * hanya berisi placeholder dan dokumen mencantumkan catatan "master belum
+     * tersedia". Daftar cadangan lama membuat operator memilih nilai yang
+     * tidak ada di database, sehingga import gagal saat penautan.
      *
      * @return array<string, array<int, string>>
      */
     public function referensi(): array
     {
+        $wilayah = $this->daftarDariDatabase(MasterCity::class);
+
         return [
             'agama' => $this->daftarAgama(),
             'jenis_kelamin' => ['L', 'P'],
-            'pendidikan' => $this->daftarDariDatabase(MasterEducationDegree::class, ['SMA/SMK', 'SMP', 'SD', 'D3', 'S1']),
-            'pelatihan' => $this->daftarDariDatabase(MasterTraining::class, ['Menjahit', 'Tata Boga', 'Mengetik']),
-            'wilayah' => $this->daftarDariDatabase(MasterCity::class, ['Kota Bandung', 'Kota Bogor', 'Jakarta']),
+            'pendidikan' => $this->daftarDariDatabase(MasterEducationDegree::class),
+            'pelatihan' => $this->daftarDariDatabase(MasterTraining::class),
+            'wilayah' => $wilayah,
+            'kota_ktp' => $wilayah,
+            'status_pekerjaan' => ['Belum Bekerja', 'Sedang Bekerja'],
+            'status_profil' => ['Tersedia', 'Belum'],
         ];
+    }
+
+    /**
+     * Label kolom yang daftar masternya kosong (dipakai catatan formulir).
+     *
+     * @param  array<string, array<int, string>>  $referensi
+     * @return array<int, string>
+     */
+    private function labelMasterKosong(array $referensi): array
+    {
+        $label = [
+            'agama' => 'Agama',
+            'pendidikan' => 'Pendidikan',
+            'pelatihan' => 'Pelatihan',
+            'wilayah' => 'Penempatan Wilayah',
+            'kota_ktp' => 'Kota KTP',
+        ];
+
+        $kosong = [];
+
+        foreach ($label as $kunci => $teks) {
+            if (($referensi[$kunci] ?? []) === []) {
+                $kosong[] = $teks;
+            }
+        }
+
+        return $kosong;
     }
 
     /**
@@ -98,7 +136,7 @@ class ImportTemplateService
      */
     private function daftarAgama(): array
     {
-        $agama = $this->daftarDariDatabase(MasterReligion::class, []);
+        $agama = $this->daftarDariDatabase(MasterReligion::class);
 
         try {
             // `semarak.anak` bisa belum tersedia di environment tertentu;
@@ -115,10 +153,6 @@ class ImportTemplateService
             Log::warning('import.template.agama_gagal', ['error' => $e->getMessage()]);
         }
 
-        if ($agama === []) {
-            $agama = ['Islam', 'Kristen', 'Katolik', 'Hindu', 'Buddha', 'Konghucu'];
-        }
-
         return array_values(array_unique(array_filter(array_map(
             fn ($item): string => trim((string) $item),
             $agama
@@ -126,16 +160,15 @@ class ImportTemplateService
     }
 
     /**
-     * Ambil kolom `title` dari master; bila kosong/gagal pakai daftar cadangan.
+     * Ambil kolom `title` dari master; kosong bila master belum tersedia.
      *
      * @param  class-string<Model>  $kelas
-     * @param  array<int, string>  $cadangan
      * @return array<int, string>
      */
-    private function daftarDariDatabase(string $kelas, array $cadangan): array
+    private function daftarDariDatabase(string $kelas): array
     {
         try {
-            $daftar = $kelas::query()
+            return $kelas::query()
                 ->whereNotNull('title')
                 ->orderBy('title')
                 ->pluck('title')
@@ -146,10 +179,9 @@ class ImportTemplateService
                 ->all();
         } catch (\Throwable $e) {
             Log::warning('import.template.master_gagal', ['kelas' => $kelas, 'error' => $e->getMessage()]);
-            $daftar = [];
-        }
 
-        return $daftar === [] ? $cadangan : $daftar;
+            return [];
+        }
     }
 
     /**

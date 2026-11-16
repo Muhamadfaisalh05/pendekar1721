@@ -26,7 +26,8 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
  *    baris 4, lalu 200 baris siap isi lengkap dengan gaya, format sel, dan
  *    validasi data (dropdown dari sheet DAFTAR).
  * 3. DAFTAR — sumber dropdown (agama, jenis kelamin, pendidikan, pelatihan,
- *    wilayah) dari database saat template dibuat; disembunyikan + dikunci.
+ *    wilayah, kota KTP, status pekerjaan, status profil) dari database saat
+ *    template dibuat; disembunyikan + dikunci.
  *
  * Kompatibilitas parser: header DATA memakai
  * {@see SpesifikasiKolomImport::header()} sehingga `ImportService` mengenali
@@ -45,6 +46,18 @@ final class TemplateExcel
 
     /** Jumlah baris kosong yang dipra-format (gaya + validasi). */
     public const JUMLAH_BARIS_KOSONG = 200;
+
+    /** Urutan kolom sheet DAFTAR (sumber semua dropdown). */
+    private const URUTAN_DAFTAR = [
+        'agama',
+        'jenis_kelamin',
+        'pendidikan',
+        'pelatihan',
+        'wilayah',
+        'kota_ktp',
+        'status_pekerjaan',
+        'status_profil',
+    ];
 
     private const WARNA_NAVY = 'FF1F3864';
 
@@ -120,7 +133,7 @@ final class TemplateExcel
     private function tulisDaftar(): void
     {
         $sheet = $this->daftar;
-        $urutan = ['agama', 'jenis_kelamin', 'pendidikan', 'pelatihan', 'wilayah'];
+        $urutan = self::URUTAN_DAFTAR;
 
         foreach ($urutan as $index => $kunci) {
             $huruf = Coordinate::stringFromColumnIndex($index + 1);
@@ -143,7 +156,7 @@ final class TemplateExcel
             $sheet->getColumnDimension($huruf)->setWidth(min(45, max(14, $panjang + 4)));
         }
 
-        $sheet->getStyle('A1:E1')->applyFromArray([
+        $sheet->getStyle('A1:'.Coordinate::stringFromColumnIndex(count($urutan)).'1')->applyFromArray([
             'font' => ['bold' => true, 'color' => ['argb' => 'FFFFFFFF'], 'name' => self::FONT, 'size' => 10],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => self::WARNA_NAVY]],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
@@ -159,7 +172,7 @@ final class TemplateExcel
      */
     private function rentangDaftar(string $kunci): string
     {
-        $urutan = ['agama', 'jenis_kelamin', 'pendidikan', 'pelatihan', 'wilayah'];
+        $urutan = self::URUTAN_DAFTAR;
         $index = array_search($kunci, $urutan, true);
         $huruf = Coordinate::stringFromColumnIndex(($index === false ? 0 : $index) + 1);
 
@@ -504,6 +517,28 @@ final class TemplateExcel
             'Wilayah tidak ada di daftar',
             'Pilih dari daftar, atau ketik beberapa wilayah dipisahkan koma.',
             DataValidation::STYLE_WARNING,
+        );
+
+        $this->validasiDaftar(
+            $rentang('kota_ktp'),
+            'kota_ktp',
+            'Kota KTP tidak ada di daftar',
+            'Pilih kota KTP dari daftar pada sheet DAFTAR.',
+            DataValidation::STYLE_WARNING,
+        );
+
+        $this->validasiDaftar(
+            $rentang('status_pekerjaan'),
+            'status_pekerjaan',
+            'Status pekerjaan tidak valid',
+            'Pilih Belum Bekerja atau Sedang Bekerja dari daftar.',
+        );
+
+        $this->validasiDaftar(
+            $rentang('status_profil'),
+            'status_profil',
+            'Status profil tidak valid',
+            'Pilih Tersedia atau Belum dari daftar.',
         );
 
         $umur = new DataValidation;

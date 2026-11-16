@@ -34,6 +34,30 @@ final class TemplateFormulirWord
     /** Awalan judul setiap blok; dipakai parser untuk menentukan nomor blok. */
     public const AWALAN_JUDUL_BLOK = 'BLOK';
 
+    /**
+     * Kolom yang memakai dropdown CONTENT CONTROL (`w:sdt` + `w:dropDownList`)
+     * berisi nilai dari master/enum. Nama kunci sama dengan
+     * `SpesifikasiKolomImport::kolom()`.
+     */
+    public const KOLOM_DROPDOWN = [
+        'jenis_kelamin',
+        'agama',
+        'pendidikan',
+        'pelatihan',
+        'penempatan_wilayah',
+        'kota_ktp',
+        'status_pekerjaan',
+    ];
+
+    /** Kolom yang memakai pemilih tanggal (`w:sdt` + `w:date`). */
+    public const KOLOM_TANGGAL = 'tanggal_lahir';
+
+    /** Teks placeholder pada kontrol yang belum dipilih. */
+    public const PLACEHOLDER_MULAI = 'Pilih';
+
+    /** Jumlah nilai yang ditampilkan pada tabel petunjuk sebelum diringkas. */
+    private const BATAS_NILAI_PETUNJUK = 10;
+
     private const FONT = 'Arial';
 
     private const UKURAN_ISIAN = 10;
@@ -52,8 +76,12 @@ final class TemplateFormulirWord
 
     /**
      * @param  array<string, array<int, string>>  $referensi  Daftar pilihan dari database.
+     * @param  array<int, string>  $masterKosong  Label kolom yang master datanya belum tersedia.
      */
-    public function __construct(private readonly array $referensi) {}
+    public function __construct(
+        private readonly array $referensi,
+        private readonly array $masterKosong = [],
+    ) {}
 
     /**
      * Bangun dokumen dan simpan ke path tertentu (.docx).
@@ -79,6 +107,9 @@ final class TemplateFormulirWord
     private function bangun(string $path): void
     {
         $this->phpWord = new PhpWord;
+        // compatibilityMode 15 (Word 2013+) wajib agar content control
+        // (`w:sdt`) tampil sebagai dropdown, bukan kotak teks biasa.
+        $this->phpWord->getCompatibility()->setOoxmlVersion(15);
         $this->phpWord->setDefaultFontName(self::FONT);
         $this->phpWord->setDefaultFontSize(self::UKURAN_ISIAN);
 
@@ -111,7 +142,16 @@ final class TemplateFormulirWord
             $this->tulisBlok($section, $nomor, $nomor === 1);
         }
 
+        // Lampiran memuat daftar pilihan LENGKAP (tabel petunjuk hanya
+        // meringkas maksimal 10 nilai per kolom).
+        $section->addPageBreak();
+        $this->tulisLampiranDaftarPilihan($section);
+
         IOFactory::createWriter($this->phpWord, 'Word2007')->save($path);
+
+        // PhpWord belum mendukung content control: token `[[SDT:blok:kunci]]`
+        // yang ditulis pada kolom Isian diganti di sini menjadi `w:sdt` valid.
+        $this->pasangKontrolKonten($path);
     }
 
     /**
@@ -192,6 +232,19 @@ final class TemplateFormulirWord
             ['shading' => ['fill' => self::WARNA_CONTOH], 'spaceBefore' => 60, 'spaceAfter' => 60]
         );
 
+        if ($this->masterKosong !== []) {
+            $section->addText(
+                'CATATAN: daftar master berikut belum tersedia di server: '.implode(', ', $this->masterKosong)
+                .'. Dropdown tetap ada, tetapi hanya menampilkan placeholder "'.self::PLACEHOLDER_MULAI.'..."; '
+                .'isi manual atau hubungi admin sebelum formulir dibagikan.',
+                ['name' => self::FONT, 'size' => 9, 'italic' => true, 'color' => '9C0006'],
+                ['shading' => ['fill' => self::WARNA_CONTOH], 'spaceBefore' => 60, 'spaceAfter' => 120]
+            );
+        }
+
+        $section->addTextBreak(1);
+        $this->tulisTabelNilaiDiterima($section);
+
         $section->addTextBreak(1);
         $this->judulBagian($section, 'CATATAN PRIVASI');
         $section->addText(
@@ -246,7 +299,11 @@ final class TemplateFormulirWord
 
             $wajib = in_array(ImportService::MODE_BINAAN, $definisi['wajib'], true);
             $label = $definisi['header'].($wajib ? '*' : '');
-            $isi = $contoh ? (string) ($contohBaris[$index] ?? '') : '';
+            $kunci = $definisi['kunci'];
+            $memakaiKontrol = in_array($kunci, self::KOLOM_DROPDOWN, true) || $kunci === self::KOLOM_TANGGAL;
+            $isi = $memakaiKontrol
+                ? KontrolKontenWord::token($nomor, $kunci)
+                : ($contoh ? (string) ($contohBaris[$index] ?? '') : '');
 
             $gayaLabel = ['valign' => 'center'];
             $gayaIsian = ['valign' => 'center'];
@@ -295,5 +352,210 @@ final class TemplateFormulirWord
 
         return 'Wajib diisi: '.implode(', ', $wajib).'. '
             .'Umur boleh dikosongkan bila Tanggal Lahir diisi (umur dihitung otomatis).';
+    }
+
+    /**
+     * Peta seluruh kontrol (dropdown + tanggal) untuk semua blok.
+     *
+     * Blok 1 (CONTOH) memakai nilai contoh supaya operator melihat bentuk
+     * pilihan yang benar; blok lain dibiarkan placeholder.
+     */
+    private function pasangKontrolKonten(string $path): void
+    {
+        $kontrol = [];
+        $jumlahBlok = self::JUMLAH_BLOK_KOSONG + 1;
+
+        for ($nomor = 1; $nomor <= $jumlahBlok; $nomor++) {
+            foreach (self::KOLOM_DROPDOWN as $kunci) {
+                $kontrol[$nomor.':'.$kunci] = [
+                    'jenis' => 'dropdown',
+                    'alias' => $this->headerKunci($kunci),
+                    'tag' => 'pendekar_b'.$nomor.'_'.$kunci,
+                    'placeholder' => self::PLACEHOLDER_MULAI.' '.mb_strtolower($this->headerKunci($kunci)).'...',
+                    'nilai' => $nomor === 1 ? $this->nilaiContohDropdown($kunci) : null,
+                    'items' => $this->itemDropdown($kunci),
+                ];
+            }
+
+            $kontrol[$nomor.':'.self::KOLOM_TANGGAL] = [
+                'jenis' => 'tanggal',
+                'alias' => $this->headerKunci(self::KOLOM_TANGGAL),
+                'tag' => 'pendekar_b'.$nomor.'_'.self::KOLOM_TANGGAL,
+                'placeholder' => self::PLACEHOLDER_MULAI.' tanggal (DD/MM/YYYY)',
+                'nilai' => $nomor === 1 ? '17/08/2008' : null,
+            ];
+        }
+
+        KontrolKontenWord::pasang($path, $kontrol);
+    }
+
+    /**
+     * Daftar `w:listItem` satu kolom dropdown dari master/enum.
+     *
+     * @return array<int, array{display: string, value: string}>
+     */
+    private function itemDropdown(string $kunci): array
+    {
+        // Referensi Excel memakai kunci `wilayah`; formulir memakai `penempatan_wilayah`.
+        $kunciReferensi = $kunci === 'penempatan_wilayah' ? 'wilayah' : $kunci;
+
+        $daftar = $kunci === 'kota_ktp'
+            ? ($this->referensi['kota_ktp'] ?? $this->referensi['wilayah'] ?? [])
+            : ($this->referensi[$kunciReferensi] ?? []);
+
+        $hasil = [];
+
+        foreach ($daftar as $nilai) {
+            $nilai = trim((string) $nilai);
+
+            if ($nilai === '') {
+                continue;
+            }
+
+            if ($kunci === 'jenis_kelamin') {
+                $kode = strtoupper($nilai);
+                $hasil[] = [
+                    'display' => match ($kode) {
+                        'L' => 'L - Laki-laki',
+                        'P' => 'P - Perempuan',
+                        default => $nilai,
+                    },
+                    'value' => $kode,
+                ];
+
+                continue;
+            }
+
+            $hasil[] = ['display' => $nilai, 'value' => $nilai];
+        }
+
+        return $hasil;
+    }
+
+    /**
+     * Nilai contoh untuk dropdown pada blok CONTOH.
+     */
+    private function nilaiContohDropdown(string $kunci): ?string
+    {
+        return $this->itemDropdown($kunci)[0]['display'] ?? null;
+    }
+
+    /**
+     * Header kolom dari definisi kolom (sumber tunggal label).
+     */
+    private function headerKunci(string $kunci): string
+    {
+        foreach (SpesifikasiKolomImport::kolom() as $definisi) {
+            if ($definisi['kunci'] === $kunci) {
+                return $definisi['header'];
+            }
+        }
+
+        return $kunci;
+    }
+
+    /**
+     * Tabel ringkas "Nilai yang diterima" pada halaman petunjuk.
+     */
+    private function tulisTabelNilaiDiterima(Section $section): void
+    {
+        $this->judulBagian($section, 'NILAI YANG DITERIMA');
+
+        $table = $section->addTable([
+            'borderSize' => 4,
+            'borderColor' => self::WARNA_BORDER,
+            'cellMargin' => 60,
+            'layout' => 'fixed',
+        ]);
+
+        $table->addRow(340, ['tblHeader' => true]);
+        $table->addCell(3200, ['bgColor' => self::WARNA_NAVY, 'valign' => 'center'])
+            ->addText('Kolom', ['name' => self::FONT, 'size' => 9, 'bold' => true, 'color' => 'FFFFFF']);
+        $table->addCell(6800, ['bgColor' => self::WARNA_NAVY, 'valign' => 'center'])
+            ->addText('Nilai yang diterima', ['name' => self::FONT, 'size' => 9, 'bold' => true, 'color' => 'FFFFFF']);
+
+        foreach (self::KOLOM_DROPDOWN as $kunci) {
+            $table->addRow(360);
+            $table->addCell(3200, ['valign' => 'center'])
+                ->addText($this->headerKunci($kunci), ['name' => self::FONT, 'size' => 9, 'bold' => true]);
+            $table->addCell(6800, ['valign' => 'center'])
+                ->addText($this->ringkasanNilai($kunci), ['name' => self::FONT, 'size' => 9]);
+        }
+
+        $table->addRow(360);
+        $table->addCell(3200, ['valign' => 'center'])
+            ->addText($this->headerKunci(self::KOLOM_TANGGAL), ['name' => self::FONT, 'size' => 9, 'bold' => true]);
+        $table->addCell(6800, ['valign' => 'center'])
+            ->addText($this->ringkasanNilai(self::KOLOM_TANGGAL), ['name' => self::FONT, 'size' => 9]);
+    }
+
+    /**
+     * Ringkasan nilai satu kolom: master yang belum tersedia ditulis jelas,
+     * daftar panjang diringkas menjadi maksimal 10 nilai.
+     */
+    private function ringkasanNilai(string $kunci): string
+    {
+        if ($kunci === self::KOLOM_TANGGAL) {
+            return 'Format DD/MM/YYYY (pemilih tanggal, contoh 17/08/2008).';
+        }
+
+        $items = $this->itemDropdown($kunci);
+
+        if ($items === []) {
+            return 'Belum tersedia (master kosong). Isi manual atau hubungi admin.';
+        }
+
+        $total = count($items);
+        $tampil = array_slice($items, 0, self::BATAS_NILAI_PETUNJUK);
+        $teks = implode(', ', array_map(static fn (array $item): string => $item['display'], $tampil));
+
+        if ($total > self::BATAS_NILAI_PETUNJUK) {
+            $teks .= '; dan '.($total - self::BATAS_NILAI_PETUNJUK).' nilai lainnya (lihat lampiran DAFTAR PILIHAN).';
+        }
+
+        return $teks;
+    }
+
+    /**
+     * Lampiran: daftar LENGKAP pilihan dropdown (tanpa pemotongan 10 nilai).
+     */
+    private function tulisLampiranDaftarPilihan(Section $section): void
+    {
+        $this->judulBagian($section, 'LAMPIRAN DAFTAR PILIHAN');
+
+        $section->addText(
+            'Daftar berikut adalah isi dropdown pada setiap blok formulir. Operator tidak perlu mengetik ulang nilai; '
+            .'cukup pilih dari dropdown agar nilainya dikenali saat import.',
+            ['name' => self::FONT, 'size' => 9, 'italic' => true],
+            ['spaceAfter' => 120]
+        );
+
+        $table = $section->addTable([
+            'borderSize' => 4,
+            'borderColor' => self::WARNA_BORDER,
+            'cellMargin' => 60,
+            'layout' => 'fixed',
+        ]);
+
+        $table->addRow(340, ['tblHeader' => true]);
+        $table->addCell(3200, ['bgColor' => self::WARNA_NAVY, 'valign' => 'center'])
+            ->addText('Kolom', ['name' => self::FONT, 'size' => 9, 'bold' => true, 'color' => 'FFFFFF']);
+        $table->addCell(6800, ['bgColor' => self::WARNA_NAVY, 'valign' => 'center'])
+            ->addText('Daftar lengkap', ['name' => self::FONT, 'size' => 9, 'bold' => true, 'color' => 'FFFFFF']);
+
+        foreach (array_merge(self::KOLOM_DROPDOWN, [self::KOLOM_TANGGAL]) as $kunci) {
+            $items = $kunci === self::KOLOM_TANGGAL ? [] : $this->itemDropdown($kunci);
+            $teks = $kunci === self::KOLOM_TANGGAL
+                ? 'Format DD/MM/YYYY (pemilih tanggal).'
+                : ($items === []
+                    ? 'Belum ada data master.'
+                    : implode(', ', array_map(static fn (array $item): string => $item['display'], $items)));
+
+            $table->addRow(360);
+            $table->addCell(3200, ['valign' => 'center'])
+                ->addText($this->headerKunci($kunci), ['name' => self::FONT, 'size' => 9, 'bold' => true]);
+            $table->addCell(6800, ['valign' => 'center'])
+                ->addText($teks, ['name' => self::FONT, 'size' => 9]);
+        }
     }
 }

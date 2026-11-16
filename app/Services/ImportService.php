@@ -8,6 +8,7 @@ use App\Models\MasterEducationDegree;
 use App\Models\MasterTraining;
 use App\Models\User;
 use App\Modules\Absensi\Models\Anak;
+use App\Support\Import\KontrolKontenWord;
 use App\Support\Import\SpesifikasiKolomImport;
 use App\Support\Import\TemplateFormulirWord;
 use App\Support\SchemaGuard;
@@ -199,6 +200,26 @@ class ImportService
      */
     protected function parseWord($filePath)
     {
+        // Buka content control (`w:sdt`) pada salinan sementara; reader
+        // PhpWord tidak mengenal sdt sehingga nilai dropdown bisa hilang.
+        $berkasBaca = KontrolKontenWord::ratakan($filePath);
+
+        try {
+            return $this->parseWordDariBerkas($berkasBaca);
+        } finally {
+            if ($berkasBaca !== $filePath && is_file($berkasBaca)) {
+                @unlink($berkasBaca);
+            }
+        }
+    }
+
+    /**
+     * Isi `parseWord()` untuk berkas yang sudah siap dibaca PhpWord.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    protected function parseWordDariBerkas($filePath)
+    {
         $phpWord = WordIOFactory::load($filePath);
         $barisFormulir = [];
         $blokKe = 0;
@@ -283,7 +304,7 @@ class ImportService
             }
 
             $jumlahLabel++;
-            $hasil[$label] = trim((string) ($sel[1] ?? ''));
+            $hasil[$label] = $this->normalisasiNilaiFormulir($label, (string) ($sel[1] ?? ''));
         }
 
         if ($jumlahLabel < 2 || ! array_key_exists('nama', $hasil)) {
@@ -291,6 +312,48 @@ class ImportService
         }
 
         return $hasil;
+    }
+
+    /**
+     * Normalkan nilai isian yang datang dari content control Word.
+     *
+     * - placeholder "Pilih ..." dianggap KOSONG (blok tidak diisi),
+     * - display text "L - Laki-laki" / "P - Perempuan" disimpan sebagai L/P,
+     * - status pekerjaan dari dropdown disimpan dalam bentuk baku.
+     */
+    protected function normalisasiNilaiFormulir(string $label, string $nilai): string
+    {
+        $nilai = trim((string) preg_replace('/\s+/', ' ', trim($nilai)));
+
+        if ($nilai === '') {
+            return '';
+        }
+
+        if (preg_match('/^pilih(\s|\.\.\.|$)/iu', $nilai) === 1) {
+            return '';
+        }
+
+        if ($label === 'jenis kelamin') {
+            if (preg_match('/^([LP])\s*[-\x{2013}\x{2014}]/iu', $nilai, $cocok) === 1) {
+                return strtoupper($cocok[1]);
+            }
+
+            if (preg_match('/^(laki-laki|perempuan)$/iu', $nilai, $cocok) === 1) {
+                return mb_strtolower($cocok[1]) === 'laki-laki' ? 'L' : 'P';
+            }
+        }
+
+        if ($label === 'status pekerjaan') {
+            if (preg_match('/^(sedang bekerja|bekerja)$/iu', $nilai) === 1) {
+                return 'Sedang Bekerja';
+            }
+
+            if (preg_match('/^(belum bekerja|tidak bekerja)$/iu', $nilai) === 1) {
+                return 'Belum Bekerja';
+            }
+        }
+
+        return $nilai;
     }
 
     /**

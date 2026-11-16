@@ -199,19 +199,6 @@ class ImportData extends Page implements HasForms
     }
 
     /**
-     * Unduh template Word resmi (.docx).
-     */
-    public function downloadWordTemplate()
-    {
-        $layanan = new ImportTemplateService;
-        $path = $layanan->buatWord();
-
-        return response()
-            ->download($path, $layanan->namaBerkas('docx'))
-            ->deleteFileAfterSend(true);
-    }
-
-    /**
      * Unduh formulir Word resmi (.docx): satu blok per anak, A4 portrait.
      */
     public function downloadFormulirWordTemplate()
