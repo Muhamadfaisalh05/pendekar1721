@@ -19,6 +19,17 @@ Route::get('/', Front\HomeController::class)->name('home');
 
 /*
 |--------------------------------------------------------------------------
+| Fallback file publik
+|--------------------------------------------------------------------------
+| Dipakai bila symlink public/storage belum dibuat. Bila symlink sudah ada,
+| web server akan menyajikan file statis dan route ini tidak terpanggil.
+*/
+Route::get('/storage/{path}', Front\PublicStorageController::class)
+    ->where('path', '.*')
+    ->name('storage.public');
+
+/*
+|--------------------------------------------------------------------------
 | Login terpadu (satu halaman untuk semua role)
 |--------------------------------------------------------------------------
 | Redirect setelah login ditentukan oleh App\Models\User::dashboardUrl().
