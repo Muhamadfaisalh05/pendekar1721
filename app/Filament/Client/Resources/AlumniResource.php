@@ -77,6 +77,9 @@ class AlumniResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            // Direktori alumni dapat berisi banyak baris; muat barisnya
+            // menyusul agar navigasi panel Klien tetap ringan.
+            ->deferLoading()
             ->columns([
                 Tables\Columns\ImageColumn::make('userProfile.profile_picture_path')
                     ->label('Foto')

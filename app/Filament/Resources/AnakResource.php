@@ -133,6 +133,11 @@ class AnakResource extends Resource
             );
 
         return $table
+            // Tabel dimuat menyusul (satu request Livewire) supaya kerangka
+            // halaman dan menu tampil lebih dulu. Ini terutama terasa saat
+            // pindah halaman, karena tabel + aksi per baris adalah bagian
+            // HTML terbesar pada halaman ini.
+            ->deferLoading()
             // Eager load akun klien + profilnya lintas koneksi: satu query
             // tambahan untuk seluruh halaman tabel, bukan satu query per baris
             // (N+1) saat menampilkan alamat KTP.
@@ -150,14 +155,17 @@ class AnakResource extends Resource
                     ->searchable(isIndividual: true, isGlobal: true)
                     ->sortable(),
 
+                // Kolom sekunder disembunyikan default agar tabel ringkas dan
+                // HTML per baris lebih kecil; operator tetap bisa
+                // menampilkannya lewat menu pemilih kolom.
                 Tables\Columns\TextColumn::make('jenis_kelamin')
                     ->label('JK')
-                    ->toggleable(),
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 Tables\Columns\TextColumn::make('asal_daerah')
                     ->label('Asal Daerah')
                     ->searchable(isIndividual: true)
-                    ->toggleable(),
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 // Alamat KTP dari profil akun klien (hanya bila `users.anak_id`
                 // sudah dimigrasikan, karena sumbernya relasi tersebut).

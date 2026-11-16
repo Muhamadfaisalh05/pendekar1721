@@ -43,6 +43,9 @@ class KegiatanResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            // Baris tabel dimuat menyusul supaya perpindahan dari menu tidak
+            // menunggu render seluruh baris + modal aksi.
+            ->deferLoading()
             ->defaultSort('id')
             ->columns([
                 Tables\Columns\TextColumn::make('id')

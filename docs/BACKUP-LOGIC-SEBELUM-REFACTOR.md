@@ -1375,3 +1375,66 @@ Kolom Alamat hanya dipasang bila `users.anak_id` sudah dimigrasikan (`SchemaGuar
 | `php -l` pada `ImportService.php`, `ImportData.php`, `AnakResource.php` | tidak ada syntax error |
 | Pencarian alamat lintas koneksi | memakai query `users` terpisah + `whereIn('id', ...)` (bukan `whereHas` lintas koneksi) agar tetap jalan di SQLite in-memory saat tes |
 
+
+---
+
+## 22. Percepatan navigasi panel Admin & Klien (Commit B, 16 Nov 2026)
+
+Perubahan ini hanya menyentuh **cara halaman dikirim**, bukan data, otorisasi, atau alur bisnis.
+Panel Absensi native (`/absensi`, `routes/absensi.php`, `ApiController`, `EnsureAbsensiAdmin`,
+`database/migrations/semarak/*`) **tidak disentuh**.
+
+### 22.1 Perubahan
+
+| Berkas | Perubahan | Alasan |
+|---|---|---|
+| `app/Providers/Filament/AdminPanelProvider.php` | `->spa()` | Tautan internal memakai `wire:navigate`; CSS/JS tidak diunduh ulang setiap pindah halaman |
+| `app/Providers/Filament/ClientPanelProvider.php` | `->spa()` | Sama seperti panel Admin |
+| `app/Filament/Resources/AnakResource.php` | `->deferLoading()`; kolom **JK** dan **Asal Daerah** `toggleable(isToggledHiddenByDefault: true)` | HTML awal tidak membawa 10 baris tabel + modal aksi per baris; kolom sekunder bisa diaktifkan operator lewat pemilih kolom |
+| `app/Filament/Resources/KegiatanResource.php` | `->deferLoading()` | Baris + modal aksi dimuat menyusul |
+| `app/Filament/Resources/UserResource.php` | `->deferLoading()` | Baris + aksi (reset sandi, hapus) dimuat menyusul |
+| `app/Filament/Client/Resources/AlumniResource.php` | `->deferLoading()` | Direktori alumni bisa panjang; kerangka halaman tampil lebih dulu |
+
+Tabel yang memakai `deferLoading()` menampilkan kerangka + indikator muat, lalu mengirim satu request
+Livewire `loadTable` untuk mengisi header/baris. Perilaku filter, pencarian, aksi, dan modal tetap sama
+setelah tabel dimuat.
+
+### 22.2 Hasil pengukuran (harness `storage/app/perf/measure.php`)
+
+Pengukuran 5 pengulangan warm per URL, database dev SQLite, tanpa cache halaman. Angka **median** respons
+HTTP awal (belum termasuk request `loadTable` susulan).
+
+| Halaman | Sebelum | Sesudah | Selisih waktu | Body sebelum | Body sesudah | Query |
+|---|---:|---:|---:|---:|---:|---:|
+| `/admin/anak` | 1009,3 ms | 275,2 ms | **−72,7%** | 379,1 KB | 117,8 KB | 14 → 6 |
+| `/admin/kegiatan` | 706,2 ms | 191,9 ms | **−72,8%** | 277,2 KB | 87,5 KB | 8 → 4 |
+| `/admin/users` | 544,6 ms | 257,8 ms | **−52,7%** | 224,8 KB | 103,9 KB | 14 → 4 |
+| `/admin` (warm) | 265,2 ms | 264,6 ms | ±0% | 114,2 KB | 114,7 KB | 16 |
+| `/admin/master-cities` | 261,4 ms | 257,9 ms | ±0% (tanpa perubahan) | 115,6 KB | 116,2 KB | 8 |
+| `/admin/import-data` | 264,0 ms | 239,2 ms | −9,4% (derau) | 103,1 KB | 103,7 KB | 4 |
+| `/klien` | 120,8 ms | 87,1 ms | −27,9% (derau) | 58,5 KB | 58,9 KB | 18 |
+| `/klien/profil` | 522,1 ms | 442,7 ms | −15,2% (derau) | 200,9 KB | 201,4 KB | 16 |
+
+Catatan:
+- Halaman tanpa `deferLoading()` (`/admin`, `/admin/master-cities`, `/klien`, `/klien/profil`) tidak
+  berubah secara struktural; selisih kecil adalah derau mesin.
+- Manfaat mode SPA **tidak terukur** oleh harness karena harness mengirim request HTTP terpisah.
+  Yang diverifikasi: markup panel memuat `wire:navigate` (13 tautan di `/admin`, 4 di `/klien`) dan
+  tes memastikan `hasSpaMode()` aktif untuk panel `admin` + `client`.
+- Artefak: `storage/app/perf/baseline-admin.txt`, `baseline-klien.txt`,
+  `run-after-admin-5.txt`, `run-after-klien-5.txt`, `body-*.html`.
+
+### 22.3 Tes & verifikasi
+
+| Verifikasi | Hasil |
+|---|---|
+| `php artisan test` (seluruh suite) | **186 passed (1383 assertions)**, 0 gagal |
+| `tests/Feature/Performance/PanelNavigationPerfTest.php` (baru) | 5 tes: SPA aktif, HTML awal tanpa `fi-ta-header-cell` + `wire:init="loadTable"`, lalu header/baris muncul setelah `loadTable()` untuk Anak, Kegiatan, User, dan Alumni Klien |
+| `tests/Feature/Graduation/PengamanSkemaFase2Test.php` | disesuaikan: halaman tetap 200 tanpa kolom Fase 2; isi tabel diperiksa setelah `loadTable()` |
+| `tests/Feature/Graduation/GraduationOnboardingTest.php` | `loadTable()` sebelum memeriksa kolom Akun Klien / Alamat (KTP) |
+| `tests/Feature/Absensi/AbsensiFilamentTest.php` | `/admin/kegiatan` tetap 200; kolom `Uraian Kegiatan` diperiksa setelah `loadTable()` |
+| `php -l` pada 6 berkas produksi yang diubah | tidak ada syntax error |
+
+**Rollback:** hapus pemanggilan `->spa()` pada kedua panel dan `->deferLoading()` pada empat resource;
+kembalikan `toggleable()` pada kolom JK/Asal Daerah. Tidak ada perubahan skema atau data.
+

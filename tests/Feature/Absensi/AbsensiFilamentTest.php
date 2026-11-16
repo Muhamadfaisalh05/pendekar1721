@@ -2,8 +2,10 @@
 
 namespace Tests\Feature\Absensi;
 
+use App\Filament\Resources\KegiatanResource\Pages\ManageKegiatan;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
+use Livewire\Livewire;
 use Tests\Support\Absensi\AbsensiTestCase;
 
 class AbsensiFilamentTest extends AbsensiTestCase
@@ -20,7 +22,14 @@ class AbsensiFilamentTest extends AbsensiTestCase
         $this->actingAs($admin);
 
         $this->get('/admin/anak')->assertOk()->assertSee('Anak Binaan');
-        $this->get('/admin/kegiatan')->assertOk()->assertSee('Uraian Kegiatan');
+
+        // Tabel Kegiatan memakai `deferLoading()`: kolom baru dikirim lewat
+        // request Livewire `loadTable`, bukan di HTML awal.
+        $this->get('/admin/kegiatan')->assertOk();
+
+        Livewire::test(ManageKegiatan::class)
+            ->loadTable()
+            ->assertSee('Uraian Kegiatan');
     }
 
     public function test_klien_tidak_bisa_membuka_resource_absensi(): void

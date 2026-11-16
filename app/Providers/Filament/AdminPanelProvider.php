@@ -32,6 +32,12 @@ class AdminPanelProvider extends PanelProvider
             ->default()
             ->id('admin')
             ->path('admin')
+            // Navigasi internal panel memakai mode SPA Livewire
+            // (`wire:navigate`): CSS/JS tidak diunduh dan dieksekusi ulang
+            // setiap pindah halaman, sehingga perpindahan terasa jauh lebih
+            // cepat. Panel Absensi native tidak terpengaruh karena bukan
+            // bagian dari panel Filament ini.
+            ->spa()
             ->brandName('PENDEKAR1721 - Admin')
             ->colors([
                 'primary' => Color::Amber,

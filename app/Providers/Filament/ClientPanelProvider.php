@@ -25,6 +25,10 @@ class ClientPanelProvider extends PanelProvider
         return $panel
             ->id('client')
             ->path('klien')
+            // Navigasi internal panel memakai mode SPA Livewire
+            // (`wire:navigate`): CSS/JS tidak diunduh dan dieksekusi ulang
+            // setiap pindah halaman. Panel Absensi native tidak terpengaruh.
+            ->spa()
             ->brandName('PENDEKAR1721')
             ->colors([
                 'primary' => Color::Green,

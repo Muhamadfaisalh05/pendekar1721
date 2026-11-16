@@ -340,6 +340,7 @@ class GraduationOnboardingTest extends AbsensiTestCase
         $this->actingAs($admin);
 
         Livewire::test(ManageAnak::class)
+            ->loadTable()
             ->assertSee('Akun Klien')
             ->assertSee('isti@example.test');
 
@@ -369,6 +370,7 @@ class GraduationOnboardingTest extends AbsensiTestCase
         $this->actingAs($admin);
 
         Livewire::test(ManageAnak::class)
+            ->loadTable()
             ->assertSee('Alamat (KTP)')
             ->assertSee('Jl. Merdeka No. 10')
             ->searchTable('merdeka')

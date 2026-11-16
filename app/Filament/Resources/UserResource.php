@@ -289,6 +289,10 @@ class UserResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            // Baris pengguna dimuat menyusul agar kerangka halaman tampil
+            // lebih dulu; aksi per baris (reset sandi, hapus, dll.) adalah
+            // bagian HTML yang mahal pada tabel ini.
+            ->deferLoading()
             ->defaultSort('name')
             ->columns([
                 Tables\Columns\TextColumn::make('name')

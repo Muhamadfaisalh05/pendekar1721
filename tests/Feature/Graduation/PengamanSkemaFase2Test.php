@@ -4,6 +4,7 @@ namespace Tests\Feature\Graduation;
 
 use App\Enums\UserStatus;
 use App\Filament\Resources\AnakResource\Pages\ManageAnak;
+use App\Filament\Resources\UserResource\Pages\ListUsers;
 use App\Filament\Support\PeringatanMigrasi;
 use App\Models\User;
 use App\Modules\Absensi\Models\Anak;
@@ -142,7 +143,13 @@ class PengamanSkemaFase2Test extends AbsensiTestCase
 
         $admin = $this->admin();
 
-        $this->actingAs($admin)->get('/admin/users')->assertOk()->assertSee($admin->name);
+        // Tabel memakai `deferLoading()`, sehingga baris dimuat lewat request
+        // Livewire terpisah. Halaman tetap harus terbuka, lalu tabel dimuat.
+        $this->actingAs($admin)->get('/admin/users')->assertOk();
+
+        Livewire::test(ListUsers::class)
+            ->loadTable()
+            ->assertCanSeeTableRecords([$admin]);
     }
 
     public function test_import_data_tetap_jalan_dan_tidak_menautkan_anak(): void
@@ -202,8 +209,12 @@ class PengamanSkemaFase2Test extends AbsensiTestCase
     {
         $this->actingAs($this->admin());
 
-        $this->get('/admin/anak')
-            ->assertOk()
+        // Tabel memakai `deferLoading()`, sehingga header kolom baru muncul
+        // setelah request Livewire `loadTable` — bukan di HTML awal.
+        $this->get('/admin/anak')->assertOk();
+
+        Livewire::test(ManageAnak::class)
+            ->loadTable()
             ->assertSee('Akun Klien');
 
         $kolom = Livewire::test(ManageAnak::class)->instance()->getTable()->getColumns();
