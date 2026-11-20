@@ -27,10 +27,12 @@ class SecurityHeaders
             'X-Permitted-Cross-Domain-Policies' => 'none',
             /*
              * CSP subset yang aman untuk Filament/Livewire: hanya membatasi
-             * pembingkaian, plugin, <base>, dan target form — tidak menyentuh
-             * script/style inline sehingga panel tidak rusak.
+             * pembingkaian, plugin, <base>, sumber font, dan target form —
+             * tidak menyentuh script/style inline sehingga panel tidak rusak.
+             * font-src 'self' memaksa seluruh font berasal dari domain sendiri
+             * (Inter di public/fonts/inter), jadi CDN font pihak ketiga diblokir.
              */
-            'Content-Security-Policy' => "frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'",
+            'Content-Security-Policy' => "frame-ancestors 'self'; object-src 'none'; base-uri 'self'; font-src 'self'; form-action 'self'",
         ];
 
         // HSTS hanya dikirim lewat HTTPS agar tidak mengunci akses HTTP lokal.

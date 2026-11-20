@@ -1,0 +1,23 @@
+/*
+ * Font Inter v4.1 — di-self-host ke public/fonts/inter/ agar aplikasi
+ * benar-benar tanpa dependensi pihak ketiga saat runtime (tidak ada
+ * request ke rsms.me / CDN font mana pun).
+ *
+ * Berkas berasal dari rilis resmi https://rsms.me/inter/ (variable font).
+ * Lisensi: SIL Open Font License 1.1 — lihat public/fonts/inter/LICENSE.txt
+ */
+@font-face {
+    font-family: "Inter";
+    font-style: normal;
+    font-weight: 100 900;
+    font-display: swap;
+    src: url("/fonts/inter/InterVariable.woff2") format("woff2");
+}
+
+@font-face {
+    font-family: "Inter";
+    font-style: italic;
+    font-weight: 100 900;
+    font-display: swap;
+    src: url("/fonts/inter/InterVariable-Italic.woff2") format("woff2");
+}

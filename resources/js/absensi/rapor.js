@@ -1,11 +1,18 @@
 import { apiGet, apiPost, escapeHtml, hideMessage, showMessage, toFixedNumber } from './api';
 
 const STATUS_META = [
-    ['sesuai', 'SESUAI', 'border-emerald-200 bg-emerald-50 text-emerald-700'],
-    ['arahan', 'ARAHAN', 'border-amber-200 bg-amber-50 text-amber-700'],
-    ['telat', 'TELAT', 'border-orange-200 bg-orange-50 text-orange-700'],
-    ['tidak', 'TIDAK', 'border-rose-200 bg-rose-50 text-rose-700'],
+    ['sesuai', 'Sesuai', 'green'],
+    ['arahan', 'Arahan', 'yellow'],
+    ['telat', 'Telat', 'orange'],
+    ['tidak', 'Tidak', 'red'],
 ];
+
+const COLOR_CLASSES = {
+    green: 'border-green-200 bg-green-50 text-green-700',
+    yellow: 'border-yellow-200 bg-yellow-50 text-yellow-700',
+    orange: 'border-orange-200 bg-orange-50 text-orange-700',
+    red: 'border-red-200 bg-red-50 text-red-700',
+};
 
 const formatDate = (date) => {
     const year = date.getFullYear();
@@ -30,7 +37,6 @@ export function initRapor() {
     const periodBox = document.getElementById('reportPeriod');
     const scores = document.getElementById('reportScores');
     const rows = document.getElementById('reportRows');
-    const standar = document.getElementById('reportStandar');
     const catatan = document.getElementById('catatanPerilaku');
     const rekomendasi = document.getElementById('rekomendasi');
 
@@ -90,14 +96,16 @@ export function initRapor() {
             `;
 
             periodBox.innerHTML = `
-                <p class="mb-1"><span class="inline-block w-40 font-medium">Periode Rapor:</span> ${escapeHtml(data.periode_mulai)} s.d. ${escapeHtml(data.periode_selesai)}</p>
-                <p class="mb-1"><span class="inline-block w-40 font-medium">Tanggal Cetak:</span> ${escapeHtml(data.tanggal_catat)}</p>
+                <p class="mb-1"><span class="inline-block w-32 font-medium">Tanggal Catat:</span> ${escapeHtml(data.tanggal_catat)}</p>
+                <p class="mb-1"><span class="inline-block w-32 font-medium">Status:</span> ${escapeHtml(anak.status)}</p>
+                <p class="mb-1"><span class="inline-block w-32 font-medium">Periode:</span> ${escapeHtml(data.periode_mulai)} s.d. ${escapeHtml(data.periode_selesai)}</p>
+                <p class="mb-1"><span class="inline-block w-32 font-medium">Standar:</span> ${(data.standar_evaluasi || []).map(escapeHtml).join(', ')}</p>
             `;
 
             const total = STATUS_META.reduce((sum, [key]) => sum + Number(data.ringkasan.status[key] || 0), 0);
 
             scores.innerHTML = STATUS_META.map(([key, title, color]) => `
-                <div class="rounded-lg border py-3 ${color}">
+                <div class="rounded-lg border py-3 ${COLOR_CLASSES[color]}">
                     <p class="text-xs font-bold">${title}</p>
                     <p class="text-xl font-bold">${Number(data.ringkasan.status[key] || 0)}</p>
                     <p class="text-xs">${total ? ((Number(data.ringkasan.status[key] || 0) / total) * 100).toFixed(1) : '0.0'}%</p>
@@ -111,21 +119,14 @@ export function initRapor() {
             `;
 
             rows.innerHTML = data.ringkasan.detail.map((row) => `
-                <tr>
-                    <td class="px-3 py-2">${Number(row.no)}</td>
-                    <td class="px-3 py-2">${escapeHtml(row.kegiatan)}</td>
-                    <td class="px-3 py-2 text-center">${Number(row.sesuai)}</td>
-                    <td class="px-3 py-2 text-center">${Number(row.arahan)}</td>
-                    <td class="px-3 py-2 text-center">${Number(row.telat)}</td>
-                    <td class="px-3 py-2 text-center">${Number(row.tidak)}</td>
-                    <td class="px-3 py-2 text-center">${Number(row.libur)}</td>
+                <tr class="border-b border-slate-100">
+                    <td data-label="No" class="px-3 py-2 text-center">${Number(row.no)}</td>
+                    <td data-label="Kegiatan" class="px-3 py-2">${escapeHtml(row.kegiatan)}</td>
+                    <td data-label="Sesuai" class="px-3 py-2 text-center">${Number(row.sesuai)}</td>
+                    <td data-label="Arahan" class="px-3 py-2 text-center">${Number(row.arahan)}</td>
+                    <td data-label="Telat" class="px-3 py-2 text-center">${Number(row.telat)}</td>
+                    <td data-label="Tidak" class="px-3 py-2 text-center">${Number(row.tidak)}</td>
                 </tr>
-            `).join('');
-
-            standar.innerHTML = (data.standar_evaluasi || []).map((item) => `
-                <span class="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 font-semibold text-blue-700">
-                    ${escapeHtml(item)}
-                </span>
             `).join('');
 
             catatan.value = data.catatan || '';

@@ -3,15 +3,12 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\MasterTrainingResource\Pages;
-use App\Filament\Resources\MasterTrainingResource\RelationManagers;
 use App\Models\MasterTraining;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class MasterTrainingResource extends Resource
 {
@@ -30,8 +27,36 @@ class MasterTrainingResource extends Resource
         return $form
             ->schema([
                 Forms\Components\TextInput::make('title')
+                    ->label('Nama Pelatihan')
                     ->required()
                     ->maxLength(255),
+                Forms\Components\Textarea::make('description_1')
+                    ->label('Deskripsi 1')
+                    ->rows(4)
+                    ->maxLength(5000)
+                    ->columnSpanFull(),
+                Forms\Components\Textarea::make('description_2')
+                    ->label('Deskripsi 2')
+                    ->rows(4)
+                    ->maxLength(5000)
+                    ->columnSpanFull(),
+                Forms\Components\FileUpload::make('image_path')
+                    ->label('Foto Gambar')
+                    ->disk('public')
+                    ->directory('training-images')
+                    ->visibility('public')
+                    ->image()
+                    ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
+                    ->maxSize(5120)
+                    ->imageEditor()
+                    ->imageEditorAspectRatios(['16:9', '4:3', '1:1'])
+                    ->imageCropAspectRatio('16:9')
+                    ->imageResizeTargetWidth('1280')
+                    ->imageResizeTargetHeight('720')
+                    ->imagePreviewHeight('240')
+                    ->openable()
+                    ->downloadable()
+                    ->columnSpanFull(),
             ]);
     }
 
@@ -40,9 +65,23 @@ class MasterTrainingResource extends Resource
         return $table
             ->defaultSort('title')
             ->columns([
+                Tables\Columns\ImageColumn::make('image_path')
+                    ->label('Foto')
+                    ->disk('public')
+                    ->height(48),
                 Tables\Columns\TextColumn::make('title')
                     ->searchable(isIndividual: true, isGlobal: false)
                     ->sortable(),
+                Tables\Columns\TextColumn::make('description_1')
+                    ->label('Deskripsi 1')
+                    ->limit(60)
+                    ->tooltip(fn (MasterTraining $record): ?string => $record->description_1)
+                    ->toggleable(),
+                Tables\Columns\TextColumn::make('description_2')
+                    ->label('Deskripsi 2')
+                    ->limit(60)
+                    ->tooltip(fn (MasterTraining $record): ?string => $record->description_2)
+                    ->toggleable(),
             ])
             ->filters([
                 //

@@ -53,6 +53,7 @@ class PageController
         return view('absensi.pengaturan', [
             'kegiatanList' => Kegiatan::query()->orderBy('id')->get(),
             'angkatanList' => Anak::query()->distinct()->orderBy('angkatan')->pluck('angkatan'),
+            'anakList' => Anak::query()->orderBy('nama')->get(['id', 'angkatan']),
         ]);
     }
 }

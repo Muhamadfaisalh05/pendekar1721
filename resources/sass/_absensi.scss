@@ -56,6 +56,51 @@ body.app-body {
     transform: translateY(-1px);
 }
 
+.absensi-header-filter {
+    @apply inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition;
+    color: #fff;
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+}
+
+.absensi-header-filter:hover,
+.absensi-header-filter[aria-expanded="true"] {
+    background: rgba(255, 255, 255, 0.24);
+}
+
+.dashboard-filter-anchor {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    left: 0;
+    z-index: 60;
+    display: flex;
+    justify-content: flex-end;
+    max-width: 80rem;
+    margin: 0 auto;
+    padding: 0 1rem;
+    pointer-events: none;
+}
+
+.dashboard-filter-popover {
+    width: min(42rem, 100%);
+    margin-top: 0.6rem;
+    padding: 1rem;
+    border: 1px solid #e5e5f1;
+    border-radius: 1rem;
+    background: #fff;
+    box-shadow: 0 16px 40px rgba(37, 39, 93, 0.18);
+    pointer-events: auto;
+}
+
+.dashboard-filter-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.85rem;
+}
+
 .absensi-header-link {
     @apply inline-flex items-center rounded-lg px-3 py-2 text-sm font-semibold text-white/85 transition;
 }
@@ -258,12 +303,6 @@ body.app-body {
 }
 
 // ---------- Filter dasbor ----------
-.dashboard-filter-panel {
-    border: 1px solid var(--absensi-card-border);
-    border-radius: 1rem;
-    background: #fbfbff;
-}
-
 .dashboard-filter-control {
     @apply mt-1 block w-full rounded-xl border px-3 py-2.5 text-sm font-normal outline-none transition;
     border-color: #e5e5f1;
@@ -276,17 +315,153 @@ body.app-body {
     box-shadow: 0 0 0 3px rgba(91, 76, 226, 0.14);
 }
 
-.dashboard-filter-button {
-    @apply inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm font-semibold transition;
-    border-color: #e5e5f1;
-    color: #4a4870;
+// ---------- Modal data anak ----------
+.modal-open {
+    overflow: hidden;
+}
+
+.child-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.child-modal.hidden {
+    display: none;
+}
+
+.child-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.55);
+}
+
+.child-modal-content {
+    position: relative;
+    z-index: 1;
+    width: min(100%, 54rem);
+    max-height: min(90vh, 52rem);
+    overflow-y: auto;
+    padding: 1.25rem;
+    border-radius: 1rem;
+    background: #fff;
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.25);
+}
+
+.child-modal-close {
+    display: grid;
+    width: 2.25rem;
+    height: 2.25rem;
+    flex: 0 0 auto;
+    place-items: center;
+    border-radius: 0.65rem;
+    color: #64748b;
+    background: #f1f5f9;
+}
+
+.child-modal-close:hover {
+    color: #1e293b;
+    background: #e2e8f0;
+}
+
+.child-mobile-list {
+    display: none;
+}
+
+.child-mobile-card {
+    padding: 1rem;
+    border-bottom: 1px solid var(--absensi-card-border);
     background: #fff;
 }
 
-.dashboard-filter-button:hover {
-    border-color: #c9c4ff;
-    background: #f7f6ff;
-    color: var(--absensi-brand-purple);
+.child-mobile-card-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.child-mobile-heading-actions {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.child-mobile-toggle,
+.responsive-row-toggle {
+    display: none;
+}
+
+.child-mobile-card:not(.child-mobile-expanded) .child-mobile-details,
+.child-mobile-card:not(.child-mobile-expanded) .child-mobile-actions {
+    display: none;
+}
+
+.child-mobile-name {
+    overflow-wrap: anywhere;
+    color: var(--absensi-brand-ink);
+    font-size: 0.95rem;
+    font-weight: 700;
+}
+
+.child-mobile-id {
+    margin-top: 0.15rem;
+    color: #77768e;
+    font-size: 0.75rem;
+}
+
+.child-mobile-details {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem 1rem;
+    margin-top: 0.9rem;
+}
+
+.child-mobile-details dt {
+    color: #77768e;
+    font-size: 0.7rem;
+}
+
+.child-mobile-details dd {
+    overflow-wrap: anywhere;
+    color: #334155;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.child-mobile-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #f1f1f7;
+}
+
+.child-mobile-actions button {
+    display: inline-flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    min-height: 2.25rem;
+    border-radius: 0.6rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.child-mobile-edit {
+    color: #2563eb;
+    background: #eff6ff;
+}
+
+.child-mobile-delete {
+    color: #dc2626;
+    background: #fef2f2;
 }
 
 // ---------- Tabel ----------
@@ -295,7 +470,7 @@ body.app-body {
 }
 
 .responsive-data-table {
-    @apply w-full min-w-[640px] text-sm;
+    @apply w-full text-sm;
 }
 
 .responsive-data-table thead th {
@@ -311,6 +486,160 @@ body.app-body {
 }
 
 @media (max-width: 767.98px) {
+    .absensi-header-action,
+    .absensi-header-filter {
+        width: 2.4rem;
+        height: 2.4rem;
+        flex: 0 0 auto;
+        justify-content: center;
+        padding: 0;
+    }
+
+    .absensi-header-action span,
+    .absensi-header-filter span {
+        display: none;
+    }
+
+    .absensi-brand-badge {
+        display: none;
+    }
+
+    .child-table-wrapper {
+        display: none;
+    }
+
+    .child-mobile-list {
+        display: block;
+    }
+
+    .child-mobile-toggle {
+        display: grid;
+        width: 2rem;
+        height: 2rem;
+        flex: 0 0 auto;
+        place-items: center;
+        border-radius: 0.55rem;
+        color: #5145c7;
+        background: #f0efff;
+    }
+
+    .child-mobile-card.child-mobile-expanded .child-mobile-details {
+        display: grid;
+    }
+
+    .child-mobile-card.child-mobile-expanded .child-mobile-actions {
+        display: flex;
+    }
+
+    .responsive-table-wrap {
+        overflow: visible;
+        border: 0;
+        border-radius: 0;
+    }
+
+    .responsive-data-table,
+    .responsive-data-table tbody {
+        display: block;
+        width: 100%;
+    }
+
+    .responsive-data-table thead {
+        display: none;
+    }
+
+    .responsive-data-table tbody tr {
+        display: block;
+        margin-bottom: 0.75rem;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid var(--absensi-card-border);
+        border-radius: 0.85rem;
+        background: #fff;
+        box-shadow: 0 4px 12px rgba(37, 39, 93, 0.045);
+    }
+
+    .responsive-data-table tbody tr.responsive-row-collapsible:not(.responsive-row-expanded) td:not(.responsive-row-summary) {
+        display: none;
+    }
+
+    .responsive-data-table tbody td[colspan] {
+        display: block;
+    }
+
+    .responsive-data-table tbody tr:last-child {
+        margin-bottom: 0;
+    }
+
+    .responsive-data-table tbody td {
+        display: grid;
+        grid-template-columns: minmax(6.5rem, 0.8fr) minmax(0, 1.2fr);
+        align-items: start;
+        gap: 0.75rem;
+        width: 100%;
+        padding: 0.65rem 0;
+        border: 0;
+        border-bottom: 1px solid #f1f1f7;
+        text-align: left;
+        overflow-wrap: anywhere;
+    }
+
+    .responsive-data-table tbody td:last-child {
+        border-bottom: 0;
+    }
+
+    .responsive-data-table tbody td::before {
+        content: attr(data-label);
+        color: #77768e;
+        font-size: 0.72rem;
+        font-weight: 600;
+        text-align: left;
+    }
+
+    .responsive-data-table tbody td.responsive-row-summary {
+        grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr) auto;
+        align-items: center;
+    }
+
+    .responsive-row-summary-value {
+        min-width: 0;
+        overflow-wrap: anywhere;
+        color: #334155;
+        font-weight: 600;
+    }
+
+    .responsive-row-toggle {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.3rem;
+        min-height: 2rem;
+        padding: 0.35rem 0.5rem;
+        border-radius: 0.5rem;
+        color: #5145c7;
+        background: #f0efff;
+        font-size: 0.7rem;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .responsive-data-table input[type="date"],
+    .responsive-data-table select {
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    .schedule-range-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+        align-items: center;
+        gap: 0.35rem;
+    }
+
+    .schedule-range-row button {
+        grid-column: 1 / -1;
+        justify-self: end;
+    }
+
     .dashboard-hero-content {
         align-items: flex-start;
         flex-direction: column;
@@ -340,12 +669,17 @@ body.app-body {
 
 @media print {
     .absensi-header,
-    footer {
+    nav,
+    footer,
+    button,
+    select,
+    input {
         display: none !important;
     }
 
     main {
         max-width: none !important;
+        margin: 0 !important;
         padding: 0 !important;
     }
 
@@ -356,8 +690,103 @@ body.app-body {
         max-width: none !important;
     }
 
+    .semarak-card {
+        border: 0 !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+    }
+
+    .child-mobile-list {
+        display: none !important;
+    }
+
+    .child-table-wrapper {
+        display: block !important;
+        overflow: visible !important;
+    }
+
+    .responsive-table-wrap {
+        overflow: visible !important;
+    }
+
+    .responsive-data-table {
+        display: table !important;
+        width: 100% !important;
+        border-collapse: collapse !important;
+    }
+
+    .responsive-data-table thead {
+        display: table-header-group !important;
+    }
+
+    .responsive-data-table tbody {
+        display: table-row-group !important;
+    }
+
+    .responsive-data-table thead th {
+        color: #1f2937 !important;
+        background: transparent !important;
+        font-weight: 700 !important;
+        border-bottom: 1px solid #9ca3af !important;
+    }
+
+    .responsive-data-table thead tr,
+    .responsive-data-table tbody tr {
+        display: table-row !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+    }
+
+    .responsive-data-table thead th,
+    .responsive-data-table tbody td {
+        display: table-cell !important;
+        width: auto !important;
+        padding: 0.4rem !important;
+        vertical-align: middle !important;
+        border-bottom: 1px solid #e5e7eb !important;
+        white-space: normal !important;
+    }
+
+    .responsive-data-table thead th.text-center,
+    .responsive-data-table tbody td.text-center {
+        text-align: center !important;
+    }
+
+    .responsive-data-table tbody td::before {
+        display: none !important;
+        content: none !important;
+    }
+
+    // Tabel rekap rapor: kunci lebar kolom agar header dan isi sejajar saat dicetak.
+    .report-table {
+        table-layout: fixed !important;
+    }
+
+    .report-table .report-col-no {
+        width: 2.2rem;
+    }
+
+    .report-table .report-col-count {
+        width: 3.6rem;
+    }
+
+    .report-table thead th:nth-child(2),
+    .report-table tbody td:nth-child(2) {
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+    textarea {
+        background: transparent !important;
+        overflow: visible !important;
+    }
+
     body {
         background: #fff !important;
+        padding: 0 !important;
     }
 
     @page {

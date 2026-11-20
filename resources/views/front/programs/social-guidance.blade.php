@@ -3,6 +3,18 @@
 @section('title', 'Program Bimbingan Sosial')
 
 @section('content')
+    @php
+        $programImage = $training?->imageUrl() ?: asset('images/bimbingan-sosial.png');
+        $programImageAlt = $training?->image_path
+            ? 'Foto program ' . $training->title
+            : 'Peserta mengikuti kegiatan Bimbingan Sosial di dalam ruangan';
+        $programParagraphs = $training && ($training->description_1 || $training->description_2)
+            ? array_values(array_filter([$training->description_1, $training->description_2]))
+            : [
+                'Kegiatan bimbingan sosial dapat mencakup komunikasi, kerja sama, pengenalan diri, pemecahan masalah sehari-hari, disiplin, dan latihan membangun hubungan yang saling menghargai. Materi dan metode disesuaikan dengan kebutuhan peserta.',
+                'Pendampingan dilakukan secara bertahap agar peserta dapat mengenali potensi dirinya, meningkatkan rasa percaya diri, serta menerapkan keterampilan sosial dalam kehidupan sehari-hari dan persiapan memasuki dunia kerja.',
+            ];
+    @endphp
     <section class="program-detail-section">
         <div class="container mx-auto px-4 sm:px-6 lg:px-8">
             <nav class="profile-breadcrumb" aria-label="Breadcrumb">
@@ -26,16 +38,13 @@
                 <article class="program-detail-card">
                     <span class="section-kicker">Tentang Program</span>
                     <h2>Tentang Bimbingan Sosial</h2>
-                    <p>
-                        Kegiatan bimbingan sosial dapat mencakup komunikasi, kerja sama, pengenalan diri, pemecahan
-                        masalah sehari-hari, disiplin, dan latihan membangun hubungan yang saling menghargai.
-                        Materi dan metode disesuaikan dengan kebutuhan peserta.
-                    </p>
-                    <p>
-                        Pendampingan dilakukan secara bertahap agar peserta dapat mengenali potensi dirinya,
-                        meningkatkan rasa percaya diri, serta menerapkan keterampilan sosial dalam kehidupan
-                        sehari-hari dan persiapan memasuki dunia kerja.
-                    </p>
+                    <figure class="program-detail-figure">
+                        <img src="{{ $programImage }}" alt="{{ $programImageAlt }}" loading="lazy" />
+                        <figcaption>Kegiatan bimbingan sosial di ruang pelatihan.</figcaption>
+                    </figure>
+                    @foreach($programParagraphs as $paragraph)
+                        <p>{{ $paragraph }}</p>
+                    @endforeach
                 </article>
 
                 <article class="program-detail-card">

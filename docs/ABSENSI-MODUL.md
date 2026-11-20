@@ -72,7 +72,7 @@ Tamu yang membuka `/admin`, `/klien`, atau `/absensi` diarahkan ke `/login`
 | Normalisasi input | Email di-`trim` + lowercase sebelum dicari; `max:255` untuk email & kata sandi |
 | Rehash otomatis | Hash lama (cost/parameter usang) diperbarui saat login berhasil |
 | Anti-cache | `GET /login` mengirim `Cache-Control: no-store, no-cache, must-revalidate, private` + `Pragma: no-cache` |
-| Header keamanan | `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `Content-Security-Policy` (subset `frame-ancestors`, `object-src`, `base-uri`, `form-action`) — lihat `App\Http\Middleware\SecurityHeaders` |
+| Header keamanan | `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `Content-Security-Policy` (subset `frame-ancestors`, `object-src`, `base-uri`, `font-src 'self'`, `form-action`) — lihat `App\Http\Middleware\SecurityHeaders` |
 | Proxy tepercaya | `X-Forwarded-For` hanya dibaca bila `TRUSTED_PROXIES` diisi (cegah spoofing IP untuk melewati rate limit) |
 | Audit | Percobaan login gagal dicatat `Log::warning('Percobaan login gagal', ...)` tanpa kata sandi |
 | Anti indexing | Halaman login memakai `<meta name="robots" content="noindex, nofollow">` |
@@ -124,6 +124,25 @@ Header modul absensi hanya memuat brand SEMARAK, tombol **Input Evaluasi**, taut
 `Summary`, `Rapor`, `Pengaturan`) serta label nama/role pengguna di kanan header sudah
 dihapus. Navigasi antar halaman memakai kartu **Menu utama** di dasbor; logo SEMARAK selalu
 kembali ke `/absensi`.
+
+#### Aset tanpa pihak ketiga (font self-host)
+
+Font **Inter v4.1** disajikan dari domain sendiri, bukan CDN:
+
+- Berkas font: `public/fonts/inter/InterVariable.woff2` (normal) dan
+  `public/fonts/inter/InterVariable-Italic.woff2` (italic), variable weight 100–900.
+- Deklarasi `@font-face`: `resources/sass/_fonts.scss`, di-import paling atas `app.scss`
+  sehingga berlaku untuk landing page, `/login`, modul absensi, dan panel Filament.
+- `tailwind.config.js` memakai `fontFamily.sans = ['Inter', ...]`.
+- Tag `<link rel="preconnect" href="https://rsms.me">` dan
+  `<link rel="stylesheet" href="https://rsms.me/inter/inter.css">` sudah **dihapus** dari
+  `resources/views/layouts/base.blade.php` dan `resources/views/auth/login.blade.php`.
+- `Content-Security-Policy` memuat `font-src 'self'` sehingga browser menolak font dari
+  domain lain (defense in depth).
+- Lisensi: SIL Open Font License 1.1 — `public/fonts/inter/LICENSE.txt`.
+
+Cara memperbarui font: unduh rilis baru dari <https://rsms.me/inter/>, ganti kedua berkas
+`.woff2` (plus `LICENSE.txt`), lalu `npm run build` dan `php artisan view:clear`.
 
 ## Endpoint API (parity native)
 

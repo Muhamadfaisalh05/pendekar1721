@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Front;
 
 use App\Http\Controllers\Controller;
+use App\Models\MasterTraining;
 use Illuminate\View\View;
 
 class ProgramDetailController extends Controller
@@ -96,8 +97,15 @@ class ProgramDetailController extends Controller
     {
         abort_unless(isset(self::PROGRAMS[$program]), 404);
 
+        $programData = self::PROGRAMS[$program];
+
+        $training = MasterTraining::query()
+            ->whereRaw('LOWER(title) = ?', [mb_strtolower($programData['title'])])
+            ->first();
+
         return view('front.programs.detail', [
-            'program' => self::PROGRAMS[$program],
+            'program' => $programData,
+            'training' => $training,
         ]);
     }
 }

@@ -6,6 +6,7 @@ use App\Enums\UserStatus;
 use App\Http\Controllers\Controller;
 use App\Models\MasterCity;
 use App\Models\MasterEducationDegree;
+use App\Models\MasterSkill;
 use App\Models\MasterTraining;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
@@ -82,6 +83,10 @@ class HomeController extends Controller
 
         $trainings = $trainings->sortBy('title')->values();
 
+        $skills = MasterSkill::query()
+            ->orderBy('title')
+            ->get();
+
         $cities = MasterCity::query()
             ->orderBy('title')
             ->get();
@@ -109,6 +114,7 @@ class HomeController extends Controller
         return view('welcome', [
             'users' => $users,
             'trainings' => $trainings,
+            'skills' => $skills,
             'cities' => $cities,
             'educationDegrees' => $educationDegrees,
             'totalClients' => $totalClients,

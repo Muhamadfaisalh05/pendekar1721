@@ -93,54 +93,75 @@
     <section class="program-section" id="program">
         <div class="container mx-auto px-4 sm:px-6 lg:px-8">
             <div class="section-heading align-left">
-                <span class="section-kicker">Program & Pelatihan</span>
+                <span class="section-kicker">Program, Pelatihan & Keterampilan</span>
                 <h3>Pelayanan yang terus berkembang</h3>
             </div>
 
             <div class="program-grid">
                 @forelse($trainings->reject(fn ($training) => \Illuminate\Support\Str::lower($training->title ?? '') === 'montir mobil')->take(6) as $training)
                     @php
-                        $isSewingProgram = \Illuminate\Support\Str::lower($training->title ?? '') === 'menjahit';
-                        $isSocialGuidanceProgram = \Illuminate\Support\Str::lower($training->title ?? '') === 'bimbingan sosial';
-                        $programSlug = match (\Illuminate\Support\Str::lower($training->title ?? '')) {
+                        $trainingTitle = \Illuminate\Support\Str::lower($training->title ?? '');
+                        $isSewingProgram = $trainingTitle === 'menjahit';
+                        $isSocialGuidanceProgram = $trainingTitle === 'bimbingan sosial';
+                        $programSlug = match ($trainingTitle) {
                             'montir motor' => 'montir-motor',
                             'tata boga' => 'tata-boga',
                             default => null,
                         };
                         $isDetailProgram = $isSewingProgram || $isSocialGuidanceProgram || $programSlug !== null;
+                        $programCategory = $isDetailProgram ? 'Program' : 'Pelatihan';
+                        $programCategoryClass = $isDetailProgram ? 'program' : 'pelatihan';
+                        $programUrl = match (true) {
+                            $isSewingProgram => route('front.program.sewing'),
+                            $isSocialGuidanceProgram => route('front.program.social-guidance'),
+                            $programSlug !== null => route('front.program.detail', ['program' => $programSlug]),
+                            default => null,
+                        };
+                        $programIllustration = $training->imageUrl() ?: match (true) {
+                            $isSewingProgram => '/images/sewing-workshop.png',
+                            $isSocialGuidanceProgram => '/images/bimbingan-sosial.png',
+                            $programSlug === 'montir-motor' => '/images/motorcycle-workshop.png',
+                            $programSlug === 'tata-boga' => '/images/culinary-workshop.png',
+                            default => null,
+                        };
+                        $programIllustrationAlt = $training->image_path
+                            ? 'Foto program ' . $training->title
+                            : match (true) {
+                                $isSewingProgram => 'Peserta berlatih menjahit menggunakan mesin di ruang praktik',
+                                $isSocialGuidanceProgram => 'Peserta mengikuti kegiatan Bimbingan Sosial di dalam ruangan',
+                                $programSlug === 'montir-motor' => 'Peserta berlatih memeriksa dan memperbaiki sepeda motor di ruang praktik bengkel',
+                                $programSlug === 'tata-boga' => 'Peserta praktik tata boga menyiapkan dan menimbang bahan makanan bersama',
+                                default => 'Ilustrasi program pelatihan',
+                            };
+                        $programDescription = $training->description_1 ?: match (true) {
+                            $isSewingProgram => 'Peserta berlatih menggunakan mesin jahit, mengolah kain, dan merapikan hasil jahitan melalui praktik langsung.',
+                            $isSocialGuidanceProgram => 'Pendampingan untuk mengembangkan kemandirian, kepercayaan diri, dan keterampilan sosial peserta.',
+                            $programSlug === 'montir-motor' => 'Peserta berlatih mengenali komponen, memeriksa kondisi motor, dan melakukan perawatan dasar di ruang praktik bengkel.',
+                            $programSlug === 'tata-boga' => 'Peserta praktik menyiapkan bahan, menimbang takaran, dan bekerja sama mengolah makanan dengan menjaga kebersihan pangan.',
+                            default => $training->description_2 ?: 'Program pembinaan dan penguatan kapasitas yang relevan untuk kebutuhan masyarakat.',
+                        };
                     @endphp
                     <article class="program-card">
-                        @if($isDetailProgram)
-                            @php
-                                $programUrl = match (true) {
-                                    $isSewingProgram => route('front.program.sewing'),
-                                    $isSocialGuidanceProgram => route('front.program.social-guidance'),
-                                    default => route('front.program.detail', ['program' => $programSlug]),
-                                };
-                                $programIllustration = match (true) {
-                                    $isSewingProgram => '/images/sewing-workshop.png',
-                                    $isSocialGuidanceProgram => '/images/bimbingan-sosial.png',
-                                    $programSlug === 'montir-motor' => '/images/motorcycle-workshop.png',
-                                    $programSlug === 'tata-boga' => '/images/culinary-workshop.png',
-                                    default => '/images/tata-boga.svg',
-                                };
-                                $programIllustrationAlt = match (true) {
-                                    $isSewingProgram => 'Peserta berlatih menjahit menggunakan mesin di ruang praktik',
-                                    $isSocialGuidanceProgram => 'Peserta mengikuti kegiatan Bimbingan Sosial di dalam ruangan',
-                                    $programSlug === 'montir-motor' => 'Peserta berlatih memeriksa dan memperbaiki sepeda motor di ruang praktik bengkel',
-                                    $programSlug === 'tata-boga' => 'Peserta praktik tata boga menyiapkan dan menimbang bahan makanan bersama',
-                                    default => 'Ilustrasi program pelatihan',
-                                };
-                            @endphp
-                            <a class="program-image-link" href="{{ $programUrl }}"
-                                aria-label="Lihat detail program {{ $training->title }}">
+                        @if($programIllustration !== null)
+                            @if($isDetailProgram)
+                                <a class="program-image-link" href="{{ $programUrl }}"
+                                    aria-label="Lihat detail program {{ $training->title }}">
+                            @else
+                                <div class="program-image-link">
+                            @endif
                                 <img class="program-image" src="{{ $programIllustration }}"
                                     alt="{{ $programIllustrationAlt }}" loading="lazy" />
-                                <span class="program-image-action">
-                                    Lihat program
-                                    <span aria-hidden="true">&rarr;</span>
-                                </span>
-                            </a>
+                                @if($isDetailProgram)
+                                    <span class="program-image-action">
+                                        Lihat program
+                                        <span aria-hidden="true">&rarr;</span>
+                                    </span>
+                                @endif
+                            @if($isDetailProgram)
+                                </a>
+                            @else
+                                </div>
+                            @endif
                         @else
                             <div class="program-icon">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
@@ -148,23 +169,21 @@
                                 </svg>
                             </div>
                         @endif
+                        <span class="program-badge program-badge--{{ $programCategoryClass }}">{{ $programCategory }}</span>
                         <h4>
-                            @if($isSewingProgram || $isSocialGuidanceProgram)
+                            @if($isDetailProgram)
                                 <a href="{{ $programUrl }}">{{ $training->title }}</a>
                             @else
                                 {{ $training->title }}
                             @endif
                         </h4>
-                        @if($isSewingProgram)
-                            <p>Peserta berlatih menggunakan mesin jahit, mengolah kain, dan merapikan hasil jahitan melalui praktik langsung.</p>
-                        @elseif($isSocialGuidanceProgram)
-                            <p>Pendampingan untuk mengembangkan kemandirian, kepercayaan diri, dan keterampilan sosial peserta.</p>
-                        @elseif($programSlug === 'montir-motor')
-                            <p>Peserta berlatih mengenali komponen, memeriksa kondisi motor, dan melakukan perawatan dasar di ruang praktik bengkel.</p>
-                        @elseif($programSlug === 'tata-boga')
-                            <p>Peserta praktik menyiapkan bahan, menimbang takaran, dan bekerja sama mengolah makanan dengan menjaga kebersihan pangan.</p>
+                        @if($training->description_1)
+                            <p>{{ $training->description_1 }}</p>
+                            @if($training->description_2)
+                                <p>{{ $training->description_2 }}</p>
+                            @endif
                         @else
-                            <p>{{ $training->description ?? 'Program pembinaan dan penguatan kapasitas yang relevan untuk kebutuhan masyarakat.' }}</p>
+                            <p>{{ $programDescription }}</p>
                         @endif
                         @if($isDetailProgram)
                             <a class="program-detail-link" href="{{ $programUrl }}">
@@ -174,8 +193,36 @@
                         @endif
                     </article>
                 @empty
-                    <div class="empty-box">Belum ada program yang tersedia.</div>
+                    <div class="empty-box">Belum ada program atau pelatihan yang tersedia.</div>
                 @endforelse
+
+                @foreach($skills->take(6) as $skill)
+                    <article class="program-card" @if($loop->first) id="keterampilan" @endif>
+                        @if($skill->image_path)
+                            <div class="program-image-link">
+                                <img class="program-image" src="{{ $skill->imageUrl() }}"
+                                    alt="Foto keterampilan {{ $skill->title }}" loading="lazy" />
+                            </div>
+                        @else
+                            <div class="program-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                    <path d="M12 4v16m8-8H4" />
+                                </svg>
+                            </div>
+                        @endif
+                        <span class="program-badge program-badge--keterampilan">Keterampilan</span>
+                        <h4>{{ $skill->title }}</h4>
+                        @if($skill->description_1)
+                            <p>{{ $skill->description_1 }}</p>
+                        @endif
+                        @if($skill->description_2)
+                            <p>{{ $skill->description_2 }}</p>
+                        @endif
+                        @if(! $skill->description_1 && ! $skill->description_2)
+                            <p>Keterampilan praktis yang mendukung kesiapan kerja dan kemandirian peserta.</p>
+                        @endif
+                    </article>
+                @endforeach
             </div>
         </div>
     </section>

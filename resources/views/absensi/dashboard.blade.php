@@ -110,52 +110,9 @@
                 <h2 class="font-bold text-slate-800">Hasil evaluasi</h2>
                 <p class="mt-1 text-xs text-slate-500">Persentase dari penilaian yang masuk sesuai filter.</p>
             </div>
-            <div class="flex items-center gap-3">
-                <span class="hidden items-center gap-2 text-xs text-slate-500 sm:inline-flex">
-                    <span class="h-2 w-2 rounded-full bg-indigo-500"></span> Data diperbarui otomatis
-                </span>
-                <button type="button" id="dashboardFilterToggle" class="dashboard-filter-button"
-                    aria-expanded="false" aria-controls="dashboardFilterPanel">
-                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
-                        aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round"
-                            d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75" />
-                    </svg>
-                    Filter
-                </button>
-            </div>
-        </div>
-
-        <div id="dashboardFilterPanel" class="dashboard-filter-panel mb-4 hidden p-4">
-            <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-                <label class="text-xs font-semibold text-slate-600">Angkatan
-                    <select id="filterAngkatan" class="dashboard-filter-control">
-                        <option value="">Semua Angkatan</option>
-                        @foreach ($angkatanList as $angkatan)
-                            <option value="{{ $angkatan }}">{{ $angkatan }}</option>
-                        @endforeach
-                    </select>
-                </label>
-                <label class="text-xs font-semibold text-slate-600">Status anak
-                    <select id="filterStatus" class="dashboard-filter-control">
-                        <option value="Aktif">Hanya Siswa Aktif</option>
-                        <option value="">Semua Status</option>
-                        <option value="Non-Aktif">Non-Aktif</option>
-                        <option value="Lulus">Lulus</option>
-                    </select>
-                </label>
-                <label class="text-xs font-semibold text-slate-600">Dari tanggal
-                    <input id="filterMulai" type="date" class="dashboard-filter-control">
-                </label>
-                <label class="text-xs font-semibold text-slate-600">Sampai tanggal
-                    <input id="filterSampai" type="date" class="dashboard-filter-control">
-                </label>
-                <div class="flex items-end">
-                    <button type="button" id="resetDashboardFilters" class="dashboard-filter-button w-full justify-center">
-                        Reset
-                    </button>
-                </div>
-            </div>
+            <span class="hidden items-center gap-2 text-xs text-slate-500 sm:inline-flex">
+                <span class="h-2 w-2 rounded-full bg-indigo-500"></span> Data diperbarui otomatis
+            </span>
         </div>
 
         <div class="grid grid-cols-2 gap-3 md:gap-4 xl:grid-cols-4">
@@ -238,12 +195,17 @@
 
         <div class="dashboard-panel p-4 md:p-5">
             <div class="mb-4">
-                <h2 class="font-bold text-slate-800">Tren penilaian harian</h2>
+                <h2 class="flex items-center gap-2 font-bold text-slate-800">
+                    <svg class="h-4 w-4 text-indigo-500" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="1.7" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
+                    </svg>
+                    Tren penilaian harian
+                </h2>
                 <p class="mt-1 text-xs text-slate-500">Jumlah evaluasi dan proporsi nilai sesuai per hari.</p>
             </div>
-            <p id="chartEmpty" class="hidden rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-500">
-                Belum ada penilaian pada rentang ini.
-            </p>
+            <div id="chartEmpty" class="py-10 text-center text-slate-400">Belum ada data untuk filter ini.</div>
             <div id="trendChart" class="space-y-3"></div>
         </div>
     </section>

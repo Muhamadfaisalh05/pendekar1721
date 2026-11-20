@@ -3,6 +3,18 @@
 @section('title', 'Program Menjahit')
 
 @section('content')
+    @php
+        $programImage = $training?->imageUrl() ?: asset('images/sewing-workshop.png');
+        $programImageAlt = $training?->image_path
+            ? 'Foto program ' . $training->title
+            : 'Peserta berlatih menjahit menggunakan mesin di ruang praktik';
+        $programParagraphs = $training && ($training->description_1 || $training->description_2)
+            ? array_values(array_filter([$training->description_1, $training->description_2]))
+            : [
+                'Peserta belajar mengenal dan menggunakan mesin jahit dengan aman, menyiapkan kain, mengukur bahan, memahami pola sederhana, lalu berlatih menyatukan potongan kain dan merapikan hasilnya.',
+                'Praktik ini melatih ketelitian, kesabaran, dan keterampilan kerja. Kemampuan menjahit dapat digunakan untuk membuat atau memperbaiki pakaian, serta dikembangkan menjadi peluang kerja maupun usaha.',
+            ];
+    @endphp
     <section class="program-detail-section">
         <div class="container mx-auto px-4 sm:px-6 lg:px-8">
             <nav class="profile-breadcrumb" aria-label="Breadcrumb">
@@ -27,19 +39,12 @@
                     <span class="section-kicker">Tentang Program</span>
                     <h2>Tentang Menjahit</h2>
                     <figure class="program-detail-figure">
-                        <img src="{{ asset('images/sewing-workshop.png') }}"
-                            alt="Peserta berlatih menjahit menggunakan mesin di ruang praktik" loading="lazy" />
+                        <img src="{{ $programImage }}" alt="{{ $programImageAlt }}" loading="lazy" />
                         <figcaption>Praktik menjahit menggunakan mesin di ruang pelatihan.</figcaption>
                     </figure>
-                    <p>
-                        Peserta belajar mengenal dan menggunakan mesin jahit dengan aman, menyiapkan kain, mengukur
-                        bahan, memahami pola sederhana, lalu berlatih menyatukan potongan kain dan merapikan hasilnya.
-                    </p>
-                    <p>
-                        Praktik ini melatih ketelitian, kesabaran, dan keterampilan kerja. Kemampuan menjahit dapat
-                        digunakan untuk membuat atau memperbaiki pakaian, serta dikembangkan menjadi peluang kerja
-                        maupun usaha.
-                    </p>
+                    @foreach($programParagraphs as $paragraph)
+                        <p>{{ $paragraph }}</p>
+                    @endforeach
                 </article>
 
                 <article class="program-detail-card">

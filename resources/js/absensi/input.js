@@ -1,6 +1,14 @@
 import { apiGet, apiPost, hideMessage, showMessage } from './api';
 
-const LABELS = { sesuai: 'Sesuai', arahan: 'Arahan', telat: 'Telat', tidak: 'Tidak', libur: 'Libur' };
+const COLORS = {
+    sesuai: ['bg-green-600', 'text-white', 'border-green-600'],
+    arahan: ['bg-yellow-500', 'text-white', 'border-yellow-500'],
+    telat: ['bg-orange-500', 'text-white', 'border-orange-500'],
+    tidak: ['bg-red-600', 'text-white', 'border-red-600'],
+    libur: ['bg-slate-500', 'text-white', 'border-slate-500'],
+};
+
+const ALL_COLOR_CLASSES = Object.values(COLORS).flat();
 
 /**
  * Port logika halaman absensi.php native: muat jadwal + nilai, disable kegiatan
@@ -17,17 +25,27 @@ export function initInput() {
     const activities = [...document.querySelectorAll('[data-activity]')];
 
     const setValue = (card, value) => {
+        const isLeave = value === 'libur';
+
         card.dataset.value = value ?? '';
+
         const label = card.querySelector('[data-value-label]');
-        label.textContent = value ? LABELS[value] ?? value : '';
-        label.classList.toggle('hidden', !value);
+        if (label) {
+            label.textContent = isLeave ? 'Sakit / Izin' : '';
+            label.classList.toggle('hidden', !isLeave);
+        }
+
+        card.querySelector('[data-eval-options]')?.classList.toggle('hidden', isLeave);
 
         card.querySelectorAll('.eval-button').forEach((button) => {
-            const active = button.dataset.value === value;
-            button.classList.toggle('bg-blue-600', active);
-            button.classList.toggle('text-white', active);
-            button.classList.toggle('border-blue-600', active);
+            button.classList.remove(...ALL_COLOR_CLASSES);
+            if (button.dataset.value === value && COLORS[value]) {
+                button.classList.add(...COLORS[value]);
+            }
+            button.disabled = card.closest('[data-activity]')?.dataset.scheduled === '0';
         });
+
+        card.classList.toggle('bg-slate-100', isLeave);
     };
 
     const isScheduled = (schedules, activityId, dateValue) => {

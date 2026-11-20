@@ -46,7 +46,7 @@ class LoginSecurityTest extends TestCase
             ->assertOk()
             ->assertHeader(
                 'Content-Security-Policy',
-                "frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"
+                "frame-ancestors 'self'; object-src 'none'; base-uri 'self'; font-src 'self'; form-action 'self'"
             )
             ->assertSee('<meta name="robots" content="noindex, nofollow">', false);
     }

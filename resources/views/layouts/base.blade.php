@@ -15,8 +15,7 @@
     @endif
 
     <link rel="shortcut icon" href="{{ url(asset('favicon.ico')) }}">
-    <link rel="preconnect" href="https://rsms.me">
-    <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+    {{-- Font Inter di-self-host (public/fonts/inter) — tanpa CDN pihak ketiga. --}}
 
     @vite(['resources/sass/app.scss', 'resources/js/app.js'])
     @livewireStyles

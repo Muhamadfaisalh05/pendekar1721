@@ -15,9 +15,9 @@ class AbsensiPagesTest extends AbsensiTestCase
         $pages = [
             'absensi.dashboard' => 'Pantau perkembangan anak',
             'absensi.input' => 'Input Evaluasi Karakter',
-            'absensi.anak' => 'Daftar Anak Binaan',
+            'absensi.anak' => 'Daftar Anak',
             'absensi.summary' => 'Summary &amp; Analisis Individu',
-            'absensi.rapor' => 'Cetak Dokumen Rapor',
+            'absensi.rapor' => 'Cetak Dokumen Raport',
             'absensi.pengaturan' => 'Pengaturan Jadwal Kegiatan',
         ];
 

@@ -18,6 +18,7 @@
                     <a href="{{ route('home') }}" class="nav-link active">Beranda</a>
                     <a href="#about" class="nav-link">Profil</a>
                     <a href="#program" class="nav-link">Program</a>
+                    <a href="#keterampilan" class="nav-link">Keterampilan</a>
                     <a href="#data" class="nav-link">Data</a>
                     <a href="#statistik" class="nav-link">Statistik</a>
                     <a href="#informasi" class="nav-link">Informasi</a>
@@ -43,6 +44,7 @@
                         <a href="{{ route('home') }}" class="mobile-link">Beranda</a>
                         <a href="#about" class="mobile-link">Profil</a>
                         <a href="#program" class="mobile-link">Program</a>
+                        <a href="#keterampilan" class="mobile-link">Keterampilan</a>
                         <a href="#data" class="mobile-link">Data</a>
                         <a href="#statistik" class="mobile-link">Statistik</a>
                         <a href="#informasi" class="mobile-link">Informasi</a>
@@ -82,6 +84,7 @@
                         <li><a href="{{ route('home') }}" class="footer-link">Beranda</a></li>
                         <li><a href="#about" class="footer-link">Profil</a></li>
                         <li><a href="#program" class="footer-link">Program</a></li>
+                        <li><a href="#keterampilan" class="footer-link">Keterampilan</a></li>
                         <li><a href="#data" class="footer-link">Data</a></li>
                     </ul>
                 </div>

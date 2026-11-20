@@ -3,6 +3,16 @@
 @section('title', 'Program ' . $program['title'])
 
 @section('content')
+    @php
+        $programImage = $training?->imageUrl()
+            ?: (isset($program['image']) ? asset($program['image']) : null);
+        $programImageAlt = $training?->image_path
+            ? 'Foto program ' . $training->title
+            : ($program['image_alt'] ?? 'Ilustrasi program ' . $program['title']);
+        $programParagraphs = $training && ($training->description_1 || $training->description_2)
+            ? array_values(array_filter([$training->description_1, $training->description_2]))
+            : $program['about'];
+    @endphp
     <section class="program-detail-section">
         <div class="container mx-auto px-4 sm:px-6 lg:px-8">
             <nav class="profile-breadcrumb" aria-label="Breadcrumb">
@@ -23,13 +33,13 @@
                 <article class="program-detail-card">
                     <span class="section-kicker">Tentang Program</span>
                     <h2>{{ $program['about_heading'] }}</h2>
-                    @if(isset($program['image']))
+                    @if($programImage)
                         <figure class="program-detail-figure">
-                            <img src="{{ asset($program['image']) }}" alt="{{ $program['image_alt'] }}" loading="lazy" />
-                            <figcaption>{{ $program['image_alt'] }}</figcaption>
+                            <img src="{{ $programImage }}" alt="{{ $programImageAlt }}" loading="lazy" />
+                            <figcaption>{{ $programImageAlt }}</figcaption>
                         </figure>
                     @endif
-                    @foreach($program['about'] as $paragraph)
+                    @foreach($programParagraphs as $paragraph)
                         <p>{{ $paragraph }}</p>
                     @endforeach
                 </article>

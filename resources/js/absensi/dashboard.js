@@ -76,10 +76,10 @@ export function initDashboard() {
                 const percent = total ? (Number(item.sesuai) / total) * 100 : 0;
 
                 return `
-                    <div class="grid grid-cols-[90px_1fr_120px] items-center gap-3 text-xs">
+                    <div class="grid grid-cols-[90px_1fr_110px] items-center gap-3 text-xs">
                         <span class="text-slate-500">${escapeHtml(item.tanggal)}</span>
                         <div class="h-5 overflow-hidden rounded bg-slate-100">
-                            <div class="h-full bg-indigo-500" style="width:${Math.max(3, (total / max) * 100)}%"
+                            <div class="h-full bg-green-500" style="width:${Math.max(3, (total / max) * 100)}%"
                                 title="${total} penilaian; ${percent.toFixed(1)}% sesuai"></div>
                         </div>
                         <span class="text-right text-slate-600">${total} nilai · ${percent.toFixed(0)}% sesuai</span>
@@ -93,10 +93,28 @@ export function initDashboard() {
 
     [angkatan, status, mulai, sampai].forEach((input) => input?.addEventListener('change', load));
 
+    const closePanel = () => {
+        panel?.classList.add('hidden');
+        toggle?.setAttribute('aria-expanded', 'false');
+    };
+
     toggle?.addEventListener('click', () => {
         const isOpen = toggle.getAttribute('aria-expanded') === 'true';
         toggle.setAttribute('aria-expanded', String(!isOpen));
         panel?.classList.toggle('hidden', isOpen);
+    });
+
+    document.addEventListener('click', (event) => {
+        if (!panel?.contains(event.target) && !toggle?.contains(event.target)) {
+            closePanel();
+        }
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            closePanel();
+            toggle?.focus();
+        }
     });
 
     reset?.addEventListener('click', () => {

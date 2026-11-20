@@ -6,7 +6,7 @@ export function initPengaturan() {
     const message = document.getElementById('pengaturanMessage');
     const rows = [...document.querySelectorAll('[data-schedule]')];
 
-    if (!message || !rows.length) {
+    if (!message) {
         return;
     }
 
@@ -18,15 +18,15 @@ export function initPengaturan() {
 
     const addRange = (list, range = { mulai: '', selesai: '' }) => {
         const wrapper = document.createElement('div');
-        wrapper.className = 'flex items-center gap-2 text-xs';
+        wrapper.className = 'schedule-range-row flex items-center gap-2 text-xs';
         wrapper.innerHTML = `
-            <input type="date" data-from value="${range.mulai ?? ''}"
+            <input type="date" data-from aria-label="Tanggal mulai rentang aktif" value="${range.mulai ?? ''}"
                 class="w-full rounded border border-slate-300 px-2 py-1.5 text-slate-600">
             <span class="text-slate-400">s.d.</span>
-            <input type="date" data-to value="${range.selesai ?? ''}"
+            <input type="date" data-to aria-label="Tanggal selesai rentang aktif" value="${range.selesai ?? ''}"
                 class="w-full rounded border border-slate-300 px-2 py-1.5 text-slate-600">
             <button type="button" data-remove-range
-                class="px-1 text-base text-rose-500 hover:text-rose-700" title="Hapus rentang">&times;</button>
+                class="px-2 text-xs text-red-600 hover:text-red-800" title="Hapus rentang">Hapus</button>
         `;
         wrapper.querySelector('[data-remove-range]').addEventListener('click', () => wrapper.remove());
         list.appendChild(wrapper);

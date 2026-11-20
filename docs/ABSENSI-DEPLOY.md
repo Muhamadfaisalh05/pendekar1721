@@ -81,6 +81,19 @@ php artisan filament:optimize  # opsional, komponen Filament
 > karena `CACHE_STORE=database` dipakai untuk rate limit login. Jika belum, jalankan
 > `php artisan migrate --force` sebelum mengaktifkan `CACHE_STORE=database`.
 
+> **Aset tanpa CDN.** Font Inter sudah ikut di repositori di `public/fonts/inter/`
+> (`InterVariable.woff2`, `InterVariable-Italic.woff2`, `LICENSE.txt`) dan dideklarasikan
+> lewat `resources/sass/_fonts.scss`. Tidak ada request ke `rsms.me`/Google Fonts saat
+> runtime, jadi halaman tetap tampil benar di jaringan tertutup. Pastikan web server
+> menyajikan `*.woff2` dengan `Content-Type: font/woff2` dan cache `immutable`:
+
+```nginx
+location ~* \\.woff2$ {
+    add_header Cache-Control "public, max-age=31536000, immutable";
+    types { font/woff2 woff2; }
+}
+```
+
 ## 5. Web server
 
 Document root **wajib** ke folder `public/` pendekar1721 (bukan ke root proyek,

@@ -6,7 +6,8 @@ export default {
     theme: {
         extend: {
             fontFamily: {
-                sans: ['Inter var', ...defaultTheme.fontFamily.sans],
+                // "Inter" didefinisikan via @font-face lokal di resources/sass/_fonts.scss
+                sans: ['Inter', ...defaultTheme.fontFamily.sans],
             },
             colors: {
                 primary: {
